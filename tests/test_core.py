@@ -103,14 +103,13 @@ def test_health_endpoints(client):
 
 
 @pytest.mark.django_db
-def test_openapi_schema_generates_for_signed_in_users_only(client, owner_a):
-    assert client.get("/api/v1/schema/").status_code in (401, 403)  # not anonymous (audit decision)
-    assert client.get("/api/v1/docs/").status_code in (401, 403)
-    client.force_login(owner_a)
-    r = client.get("/api/v1/schema/")
+def test_openapi_docs_are_public_but_data_endpoints_are_not(client, api):
+    r = client.get("/api/v1/schema/")  # anonymous: endpoint names only
     assert r.status_code == 200 and b"/api/v1/members/" in r.content
     docs = client.get("/api/v1/docs/")
     assert docs.status_code == 200 and "cdn.jsdelivr.net" in docs["Content-Security-Policy"]  # docs page only
+    for url in ("/api/v1/members/", "/api/v1/sites/", "/api/v1/roles/", "/api/v1/audit-logs/"):
+        assert api.get(url).status_code in (401, 403), url  # data stays behind the token
 
 
 @pytest.mark.django_db
