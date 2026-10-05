@@ -1,0 +1,22 @@
+{% extends "shell.html" %}
+{% block title %}{% if role %}{{ role.name }}{% else %}New role{% endif %} · FieldOps Nexus{% endblock %}
+{% block content %}
+{% with editable=role|yesno:"x," %}{% endwith %}
+<div class="fx-page-header"><div><nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'rbac:roles' %}">Roles</a></li><li class="breadcrumb-item active">{% if role %}{{ role.name }}{% else %}New{% endif %}</li></ol></nav>
+  <h1>{% if role %}{{ role.name }}{% else %}New role{% endif %}</h1>
+  {% if role.is_owner %}<div class="text-body-secondary">The Owner role holds every permission and is locked.</div>{% endif %}</div>
+  {% if role and can_manage and not role.is_system %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="delete">
+    <button class="btn btn-outline-danger" data-confirm="Delete role {{ role.name }}? This cannot be undone.">Delete role</button></form>{% endif %}</div>
+<form method="post" novalidate id="role-form">{% csrf_token %}
+<div class="fx-card mb-3" style="max-width:720px"><div class="fx-card-body">
+  {% if form.non_field_errors %}<div class="alert alert-danger py-2">{{ form.non_field_errors.0 }}</div>{% endif %}
+  {% for field in form %}{% include "components/_form_field.html" %}{% endfor %}</div></div>
+<div class="fx-card mb-3"><div class="fx-card-header">Permissions</div><div class="fx-card-body fx-perm-grid">
+  {% for g in matrix %}<div class="fx-perm-group"><div class="text-uppercase small fw-bold text-body-secondary mb-1">{{ g.module }}</div>
+    {% for p in g.perms %}<div class="form-check"><input class="form-check-input" type="checkbox" name="permissions" value="{{ p.code }}" id="p-{{ p.code }}" {% if p.checked or role.is_owner %}checked{% endif %}>
+      <label class="form-check-label" for="p-{{ p.code }}"><code>{{ p.code }}</code> <span class="text-body-secondary">{{ p.description }}</span></label></div>{% endfor %}</div>{% endfor %}
+</div></div>
+{% if not role or can_manage and not role.is_owner %}<button class="btn btn-primary">Save role</button>{% endif %}
+</form>
+{% endblock %}
+{% block scripts %}{% if role and not can_manage or role.is_owner %}<script nonce="{{ csp_nonce }}">document.querySelectorAll("#role-form :is(input,textarea)").forEach(e=>{if(e.type!=="hidden")e.disabled=true})</script>{% endif %}{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "public.html" %}
+{% block title %}Activate account · FieldOps Nexus{% endblock %}
+{% block content %}
+{% if validlink %}
+<h1 class="h4 mb-1">Activate your account</h1>
+<p class="text-body-secondary">Choose a password (at least 12 characters) to finish setting up your account.</p>
+<form method="post" novalidate>{% csrf_token %}
+  {% for field in form %}{% include "components/_form_field.html" %}{% endfor %}
+  <button class="btn btn-primary w-100">Set password and activate</button>
+</form>
+{% else %}
+<h1 class="h4">Link expired or invalid</h1>
+<p>This activation link can no longer be used. Ask your organization administrator to re-send your invitation.</p>
+<a href="{% url 'accounts:login' %}">Back to sign in</a>
+{% endif %}
+{% endblock %}

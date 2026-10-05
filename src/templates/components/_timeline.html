@@ -1,0 +1,5 @@
+{# Expects `entries`: iterable of AuditLog-like objects (occurred_at, action, actor_email, target_repr) #}
+<ul class="fx-timeline">{% for e in entries %}
+  <li><div class="fw-semibold">{{ e.action }}</div>
+  <div class="small text-body-secondary">{{ e.occurred_at|date:"d M Y H:i" }} · {{ e.actor_email|default:"system" }}{% if e.target_repr %} · {{ e.target_repr }}{% endif %}</div></li>
+{% empty %}<li class="text-body-secondary">No activity yet.</li>{% endfor %}</ul>

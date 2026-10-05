@@ -1,0 +1,2 @@
+{% if q %}{% for r in results %}<a href="{{ r.url }}"><span class="badge text-bg-light me-1">{{ r.kind }}</span>{{ r.label }}<div class="small text-body-secondary">{{ r.sub }}</div></a>
+{% empty %}<div class="p-3 small text-body-secondary">No results for “{{ q }}”.</div>{% endfor %}{% endif %}

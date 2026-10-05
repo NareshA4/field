@@ -1,0 +1,31 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}{{ member.user.display_name }} · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'tenancy:members' %}">Users</a></li><li class="breadcrumb-item active">{{ member.user.display_name }}</li></ol></nav>
+  <h1>{{ member.user.display_name }} {% status_badge member.status %}</h1><div class="text-body-secondary">{{ member.user.email }}</div></div>
+  <div class="d-flex gap-2">
+    {% if member.status == 'INVITED' and can_invite %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="resend"><button class="btn btn-outline-primary">Re-send invitation</button></form>{% endif %}
+    {% if can_deactivate and member.status == 'ACTIVE' %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="deactivate"><button class="btn btn-outline-danger" data-confirm="{{ member.user.display_name }} will immediately lose access to this organization.">Deactivate</button></form>{% endif %}
+    {% if can_deactivate and member.status == 'SUSPENDED' %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="reactivate"><button class="btn btn-outline-success">Reactivate</button></form>{% endif %}
+  </div></div>
+<div class="fx-card" style="max-width:720px"><div class="fx-card-header">Details &amp; roles</div><div class="fx-card-body">
+<form method="post" novalidate>{% csrf_token %}<input type="hidden" name="action" value="update">
+  {% for field in form %}{% include "components/_form_field.html" %}{% endfor %}
+  {% if can_update %}<button class="btn btn-primary">Save</button>{% else %}<div class="small text-body-secondary">Read-only.</div>{% endif %}
+</form></div></div>
+<div class="fx-card mt-3" style="max-width:720px"><div class="fx-card-header">Role assignments</div><div class="fx-card-body">
+  <p class="small text-body-secondary">A role applies organization-wide, or only to the site it is assigned for (site-scoped permissions only).</p>
+  <table class="table fx-table" id="role-assignments"><thead><tr><th>Role</th><th>Scope</th><th></th></tr></thead><tbody>
+  {% for a in assignments %}<tr><td>{{ a.role.name }}</td>
+    <td>{% if a.site %}<span class="badge text-bg-info">Site {{ a.site.code }}</span>{% else %}Organization-wide{% endif %}</td>
+    <td class="text-end">{% if can_update %}<form method="post" class="m-0">{% csrf_token %}<input type="hidden" name="action" value="remove_role"><input type="hidden" name="assignment_id" value="{{ a.pk }}"><button class="btn btn-sm btn-outline-danger" data-confirm="Remove this role assignment?">Remove</button></form>{% endif %}</td></tr>
+  {% endfor %}</tbody></table>
+  {% if can_update %}<form method="post" class="row g-2 align-items-end" novalidate>{% csrf_token %}<input type="hidden" name="action" value="assign_role">
+    <div class="col-sm-5"><label class="form-label small" for="id_role">Role</label>{{ assign_form.role }}{% for e in assign_form.role.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+    <div class="col-sm-5"><label class="form-label small" for="id_site">Scope</label>{{ assign_form.site }}{% for e in assign_form.site.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+    <div class="col-sm-2"><button class="btn btn-primary w-100">Assign</button></div>
+  </form>{% endif %}
+</div></div>
+{% endblock %}
+{% block scripts %}{% if not can_update %}<script nonce="{{ csp_nonce }}">document.querySelectorAll("main form[method=post] :is(input,textarea,select)").forEach(e=>{if(e.type!=="hidden")e.disabled=true})</script>{% endif %}{% endblock %}

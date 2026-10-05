@@ -1,0 +1,13 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Notifications · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><h1>Notifications</h1>
+  <form method="post" action="{% url 'notifications:read_all' %}">{% csrf_token %}<button class="btn btn-outline-secondary">Mark all read</button></form></div>
+<div class="fx-card"><div class="list-group list-group-flush">
+  {% for n in page %}<form method="post" action="{% url 'notifications:read' n.pk %}" class="m-0">{% csrf_token %}
+    <button class="list-group-item list-group-item-action text-start {% if not n.read_at %}fw-semibold{% endif %}">
+      {% status_badge n.level %} {{ n.title }}<div class="small text-body-secondary fw-normal">{{ n.body }} · {{ n.created_at|date:"d M Y H:i" }}</div></button></form>
+  {% empty %}{% include "components/_empty_state.html" with title="No notifications" text="You're all caught up." %}{% endfor %}
+</div>{% include "components/_pagination.html" %}</div>
+{% endblock %}

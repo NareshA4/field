@@ -1,0 +1,8 @@
+{% extends "public.html" %}
+{% block title %}Too many attempts · FieldOps Nexus{% endblock %}
+{% block content %}
+<h1 class="h4">Too many sign-in attempts</h1>
+<p>For security, sign-in for this account from this device is paused after {{ failure_limit }} failed attempts.
+Please try again after the cool-off period ({{ cooloff_timedelta }} h:m:s), or ask your administrator to reset your password.</p>
+<a href="{% url 'accounts:login' %}">Back to sign in</a>
+{% endblock %}

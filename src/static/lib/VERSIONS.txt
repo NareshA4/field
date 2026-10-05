@@ -1,0 +1,1 @@
+bootstrap 5.3.3 (MIT), htmx 2.0.4 (BSD-2), @zxing/library 0.21.3 (Apache-2.0). Re-create with scripts/fetch_static_libs.py

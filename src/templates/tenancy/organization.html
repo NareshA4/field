@@ -1,0 +1,12 @@
+{% extends "shell.html" %}
+{% block title %}Organization · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>Organization profile</h1><div class="text-body-secondary">Identifier: <code>{{ shell_org.slug }}</code> · {% load ui_tags %}{% status_badge shell_org.status %}</div></div></div>
+<div class="fx-card" style="max-width:720px"><div class="fx-card-body">
+<form method="post" novalidate>{% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for field in form %}{% if not can_edit %}{% endif %}{% include "components/_form_field.html" %}{% endfor %}
+  {% if can_edit %}<button class="btn btn-primary">Save changes</button>{% else %}<div class="text-body-secondary small">You have read-only access.</div>{% endif %}
+</form></div></div>
+{% endblock %}
+{% block scripts %}{% if not can_edit %}<script nonce="{{ csp_nonce }}">document.querySelectorAll("main form :is(input,textarea,select)").forEach(e=>{if(e.name!=="csrfmiddlewaretoken")e.disabled=true})</script>{% endif %}{% endblock %}

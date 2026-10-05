@@ -1,0 +1,17 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Audit entry · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'audit:list' %}">Audit trail</a></li><li class="breadcrumb-item active">Entry</li></ol></nav><h1><code>{{ entry.action }}</code></h1></div></div>
+<div class="fx-card"><div class="fx-card-body">
+  <dl class="row mb-0">
+    <dt class="col-sm-3">When</dt><dd class="col-sm-9">{{ entry.occurred_at|date:"c" }}</dd>
+    <dt class="col-sm-3">Actor</dt><dd class="col-sm-9">{{ entry.actor_email|default:"system" }}</dd>
+    <dt class="col-sm-3">Target</dt><dd class="col-sm-9">{{ entry.target_repr }} <span class="text-body-secondary small">{{ entry.target_type }} {{ entry.target_id }}</span></dd>
+    <dt class="col-sm-3">Site</dt><dd class="col-sm-9">{% if site %}{{ site.code }} · {{ site.name }}{% else %}—{% endif %}</dd>
+    <dt class="col-sm-3">IP / Request</dt><dd class="col-sm-9">{{ entry.ip_address|default:"-" }} · {{ entry.request_id|default:"-" }}</dd>
+    <dt class="col-sm-3">Before</dt><dd class="col-sm-9"><pre class="mb-0">{{ entry.before|pretty_json }}</pre></dd>
+    <dt class="col-sm-3">After</dt><dd class="col-sm-9"><pre class="mb-0">{{ entry.after|pretty_json }}</pre></dd>
+    <dt class="col-sm-3">Metadata</dt><dd class="col-sm-9"><pre class="mb-0">{{ entry.metadata|pretty_json }}</pre></dd>
+  </dl></div></div>
+{% endblock %}

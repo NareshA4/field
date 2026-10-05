@@ -1,0 +1,23 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Sites · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>Sites &amp; locations</h1><div class="text-body-secondary">Physical sites, their buildings, zones and service areas.</div></div>
+  {% if can_create %}<a class="btn btn-primary" href="{% url 'sites:create' %}">{% icon 'plus' 16 %} New site</a>{% endif %}</div>
+<div class="fx-card">
+  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
+    <input class="form-control form-control-sm" style="max-width:280px" type="search" name="q" value="{{ q }}" placeholder="Code, name or city" aria-label="Search sites">
+    <select class="form-select form-select-sm" style="max-width:160px" name="status" aria-label="Status"><option value="">All statuses</option>
+      <option value="ACTIVE" {% if status == "ACTIVE" %}selected{% endif %}>Active</option><option value="INACTIVE" {% if status == "INACTIVE" %}selected{% endif %}>Inactive</option></select>
+    <button class="btn btn-sm btn-outline-secondary">Filter</button>
+  </form>
+  <div class="table-responsive"><table class="table fx-table">
+    <thead><tr><th>Code</th><th>Name</th><th>City</th><th>Locations</th><th>Active assets</th><th>Status</th></tr></thead>
+    <tbody>{% for s in page %}
+      <tr><td><a href="{% url 'sites:detail' s.pk %}">{{ s.code }}</a></td><td>{{ s.name }}</td><td>{{ s.city|default:"—" }}</td>
+        <td>{{ s.zone_count }}</td><td>{{ s.asset_count }}</td><td>{% status_badge s.status %}</td></tr>
+    {% empty %}<tr><td colspan="6">{% include "components/_empty_state.html" with title="No sites match" text="Adjust the filters or create a site." %}</td></tr>{% endfor %}
+    </tbody></table></div>
+  {% include "components/_pagination.html" %}
+</div>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}{{ site.code }} · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div>
+  <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'sites:list' %}">Sites</a></li><li class="breadcrumb-item active">{{ site.code }}</li></ol></nav>
+  <h1>{{ site.name }} {% status_badge site.status %}</h1><div class="text-body-secondary">{{ site.code }}{% if site.city %} · {{ site.city }}{% endif %} · {{ site.timezone }}</div></div>
+  <div class="d-flex gap-2 flex-wrap">
+    {% if perms.site_update %}<a class="btn btn-outline-primary" href="{% url 'sites:edit' site.pk %}">Edit</a>{% endif %}
+    {% if perms.site_deactivate and site.status == 'ACTIVE' %}
+      <form method="post" class="d-flex gap-1 m-0">{% csrf_token %}<input type="hidden" name="action" value="deactivate">
+        <input class="form-control form-control-sm" style="width:11rem" name="reason" required maxlength="300" placeholder="Reason (required)" aria-label="Deactivation reason">
+        <button class="btn btn-outline-danger" data-confirm="{{ site.code }} will stop accepting new locations, calendars and assets. History is kept.">Deactivate</button></form>
+    {% elif perms.site_deactivate %}
+      <form method="post" class="m-0">{% csrf_token %}<input type="hidden" name="action" value="reactivate"><button class="btn btn-outline-success">Reactivate</button></form>
+    {% endif %}
+  </div></div>
+{% if site.status == 'INACTIVE' %}<div class="alert alert-secondary">This site is inactive{% if site.status_reason %}: {{ site.status_reason }}{% endif %}.</div>{% endif %}
+<div class="fx-tabs" role="tablist">{% for key, label in tabs %}<a role="tab" class="{% if tab == key %}active{% endif %}" href="?tab={{ key }}">{{ label }}</a>{% endfor %}</div>
+
+{% if tab == "overview" %}
+<div class="row g-3"><div class="col-lg-7"><div class="fx-card"><div class="fx-card-header">Site details</div><div class="fx-card-body"><dl class="fx-kv">
+  <dt>Code</dt><dd>{{ site.code }}</dd><dt>Name</dt><dd>{{ site.name }}</dd>
+  <dt>Description</dt><dd>{{ site.description|default:"—" }}</dd>
+  <dt>Address</dt><dd>{{ site.address|default:"—" }}{% if site.city or site.state_region or site.postal_code %}<br>{{ site.city }} {{ site.state_region }} {{ site.postal_code }}{% endif %}{% if site.country %} ({{ site.country }}){% endif %}</dd>
+  <dt>Time zone</dt><dd>{{ site.timezone }}</dd></dl></div></div></div>
+<div class="col-lg-5"><div class="fx-card"><div class="fx-card-header">Primary contact</div><div class="fx-card-body"><dl class="fx-kv">
+  <dt>Name</dt><dd>{{ site.contact_name|default:"—" }}</dd><dt>Email</dt><dd>{{ site.contact_email|default:"—" }}</dd><dt>Phone</dt><dd>{{ site.contact_phone|default:"—" }}</dd></dl></div></div></div></div>
+
+{% elif tab == "locations" %}
+<div class="fx-card"><div class="fx-card-header">Buildings, zones &amp; service areas
+  {% if perms.zone_create and site.status == 'ACTIVE' %}<a class="btn btn-sm btn-primary" href="{% url 'sites:zone_create' site.pk %}">{% icon 'plus' 14 %} Add location</a>{% endif %}</div>
+  {% if not perms.zone_view %}<div class="fx-card-body text-body-secondary">You do not have access to locations of this site.</div>{% else %}
+  <div class="table-responsive"><table class="table fx-table" id="zone-tree"><thead><tr><th>Location</th><th>Type</th><th>Code</th><th>Active assets</th><th>Status</th><th></th></tr></thead><tbody>
+  {% for n in tree %}<tr><td style="padding-left:{{ n.depth|add:1 }}rem">{% if n.depth %}<span class="text-body-secondary">└</span> {% endif %}{{ n.zone.name }}</td>
+    <td>{{ n.zone.get_zone_type_display }}</td><td>{{ n.zone.code|default:"—" }}</td><td>{{ n.asset_count }}</td><td>{% status_badge n.zone.status %}</td>
+    <td class="text-end text-nowrap">
+      {% if perms.zone_create and n.zone.status == 'ACTIVE' and site.status == 'ACTIVE' %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'sites:zone_create' site.pk %}?parent={{ n.zone.pk }}">Add child</a>{% endif %}
+      {% if perms.zone_update %}<a class="btn btn-sm btn-outline-primary" href="{% url 'sites:zone_edit' n.zone.pk %}">Edit</a>{% endif %}
+      {% if perms.zone_deactivate %}{% if n.zone.status == 'ACTIVE' %}<form method="post" action="{% url 'sites:zone_status' n.zone.pk %}" class="d-inline-flex gap-1">{% csrf_token %}<input type="hidden" name="action" value="deactivate"><input class="form-control form-control-sm" style="width:9rem" name="reason" required placeholder="Reason" aria-label="Reason"><button class="btn btn-sm btn-outline-danger" data-confirm="Deactivate {{ n.zone.name }}?">Deactivate</button></form>
+      {% else %}<form method="post" action="{% url 'sites:zone_status' n.zone.pk %}" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="reactivate"><button class="btn btn-sm btn-outline-success">Reactivate</button></form>{% endif %}{% endif %}
+    </td></tr>
+  {% empty %}<tr><td colspan="6">{% include "components/_empty_state.html" with title="No locations yet" text="Add buildings, zones or service areas to this site." %}</td></tr>{% endfor %}
+  </tbody></table></div>{% endif %}</div>
+
+{% elif tab == "calendars" %}
+{% if not perms.calendar_view %}<div class="fx-card fx-card-body text-body-secondary">You do not have access to calendars of this site.</div>{% else %}
+<div class="d-flex justify-content-end mb-2">{% if perms.calendar_create and site.status == 'ACTIVE' %}<a class="btn btn-sm btn-primary" href="{% url 'sites:calendar_create' site.pk %}">{% icon 'plus' 14 %} New calendar</a>{% endif %}</div>
+{% for c in calendars %}<div class="fx-card mb-3"><div class="fx-card-header"><span>{{ c.name }} {% if c.is_default %}<span class="badge fx-badge fx-badge-info">Default</span>{% endif %}</span>
+  <span>{% if perms.calendar_update %}<a class="btn btn-sm btn-outline-primary" href="{% url 'sites:calendar_edit' c.pk %}">Edit</a>{% endif %}
+  {% if perms.calendar_delete %}<form method="post" action="{% url 'sites:calendar_delete' c.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" data-confirm="Delete calendar {{ c.name }} and its holidays?">Delete</button></form>{% endif %}</span></div>
+  <div class="fx-card-body"><dl class="fx-kv"><dt>Working days</dt><dd>{% for d in c.working_days %}{{ d }}{% if not forloop.last %}, {% endif %}{% endfor %} <span class="text-body-secondary small">(1 = Mon … 7 = Sun)</span></dd>
+    <dt>Hours</dt><dd>{% if c.is_24x7 %}24x7{% else %}{{ c.start_time|time:"H:i" }} – {{ c.end_time|time:"H:i" }} (site time){% endif %}</dd>
+    <dt>Holidays</dt><dd>{% for h in c.holidays.all %}<span class="badge text-bg-light">{{ h.date|date:"d M Y" }} · {{ h.name }}
+      {% if perms.calendar_update %}<form method="post" action="{% url 'sites:holiday' c.pk %}" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="remove"><input type="hidden" name="holiday" value="{{ h.pk }}"><button class="btn btn-link btn-sm p-0 text-danger" aria-label="Remove holiday {{ h.name }}">×</button></form>{% endif %}</span> {% empty %}None{% endfor %}</dd></dl>
+  {% if perms.calendar_update %}<form method="post" action="{% url 'sites:holiday' c.pk %}" class="d-flex flex-wrap gap-2 mt-2">{% csrf_token %}<input type="hidden" name="action" value="add">
+    <input class="form-control form-control-sm" style="width:10rem" type="date" name="date" required aria-label="Holiday date"><input class="form-control form-control-sm" style="width:14rem" name="name" required maxlength="120" placeholder="Holiday name" aria-label="Holiday name"><button class="btn btn-sm btn-outline-primary">Add holiday</button></form>{% endif %}
+  </div></div>
+{% empty %}<div class="fx-card">{% include "components/_empty_state.html" with title="No operating calendars" text="Define working days and hours for this site." %}</div>{% endfor %}{% endif %}
+
+{% elif tab == "contacts" %}
+<div class="fx-card"><div class="fx-card-header">Contact hierarchy (escalation order)
+  {% if perms.site_contact_manage %}<a class="btn btn-sm btn-primary" href="{% url 'sites:contact_create' site.pk %}">{% icon 'plus' 14 %} Add contact</a>{% endif %}</div>
+  <div class="table-responsive"><table class="table fx-table"><thead><tr><th>Level</th><th>Name</th><th>Role</th><th>Phone</th><th>Email</th><th></th></tr></thead><tbody>
+  {% for c in contacts %}<tr><td>{{ c.escalation_order }}</td><td>{{ c.name }}</td><td>{{ c.role_title|default:"—" }}</td><td>{{ c.phone|default:"—" }}</td><td>{{ c.email|default:"—" }}</td>
+    <td class="text-end text-nowrap">{% if perms.site_contact_manage %}<a class="btn btn-sm btn-outline-primary" href="{% url 'sites:contact_edit' c.pk %}">Edit</a>
+    <form method="post" action="{% url 'sites:contact_edit' c.pk %}" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger" data-confirm="Remove {{ c.name }} from the contact hierarchy?">Remove</button></form>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="6">{% include "components/_empty_state.html" with title="No contacts" text="Add the people to contact, in escalation order." %}</td></tr>{% endfor %}
+  </tbody></table></div></div>
+
+{% elif tab == "assets" %}
+<div class="fx-card"><div class="fx-card-header">Assets at this site ({{ asset_total }})
+  {% if perms.asset_create and site.status == 'ACTIVE' %}<a class="btn btn-sm btn-primary" href="{% url 'assets:create' %}?site={{ site.pk }}">{% icon 'plus' 14 %} Register asset</a>{% endif %}</div>
+  {% if not perms.asset_view %}<div class="fx-card-body text-body-secondary">You do not have access to assets of this site.</div>{% else %}
+  <div class="table-responsive"><table class="table fx-table"><thead><tr><th>Tag</th><th>Name</th><th>Category</th><th>Location</th><th>Status</th></tr></thead><tbody>
+  {% for a in assets %}<tr><td><a href="{% url 'assets:detail' a.pk %}">{{ a.asset_tag }}</a></td><td>{{ a.name }}</td><td>{{ a.category.name }}</td><td>{{ a.zone.name|default:"—" }}</td><td>{% status_badge a.status %}</td></tr>
+  {% empty %}<tr><td colspan="5">{% include "components/_empty_state.html" with title="No assets" text="No assets are registered at this site." %}</td></tr>{% endfor %}
+  </tbody></table></div>{% if asset_total > 25 %}<div class="p-3 border-top"><a href="{% url 'assets:list' %}?site={{ site.pk }}">View all {{ asset_total }} assets</a></div>{% endif %}{% endif %}</div>
+{% endif %}
+{% endblock %}

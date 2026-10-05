@@ -1,0 +1,28 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}FieldOps Nexus{% endblock %}</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="{% static 'lib/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="{% block body_class %}{% endblock %}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  {% block body %}{% endblock %}
+  <dialog id="fx-confirm" class="fx-dialog">
+    <form method="dialog">
+      <h2 class="h5" id="fx-confirm-title">Please confirm</h2>
+      <p id="fx-confirm-text" class="text-body-secondary"></p>
+      <div class="d-flex justify-content-end gap-2">
+        <button value="cancel" class="btn btn-outline-secondary">Cancel</button>
+        <button value="ok" class="btn btn-danger" id="fx-confirm-ok">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+  <script src="{% static 'lib/bootstrap.bundle.min.js' %}"></script>
+  <script src="{% static 'lib/htmx.min.js' %}"></script>
+  <script src="{% static 'js/app.js' %}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

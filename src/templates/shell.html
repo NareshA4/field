@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+{% block body_class %}fx-app{% endblock %}
+{% block body %}
+{% with is_platform=request.path|slice:":10" %}
+<div class="fx-layout" id="fx-layout">
+  <aside class="fx-sidebar" id="fx-sidebar" aria-label="Primary navigation">
+    <div class="fx-brand px-3 py-3"><span class="fx-brand-mark">FX</span> FieldOps Nexus</div>
+    {% if shell_org %}<div class="fx-org-chip" title="{{ shell_org.name }}">{{ shell_org.name }}</div>{% endif %}
+    <nav class="fx-nav">
+      {% if request.user.is_platform_admin and is_platform == "/platform/" %}
+        <div class="fx-nav-section">Platform</div>
+        <a class="fx-nav-link {% if '/platform/organizations' in request.path %}active{% endif %}" href="{% url 'platform_admin:organizations' %}">{% icon 'globe' %} Organizations</a>
+        <a class="fx-nav-link {% if request.path == '/platform/audit/' %}active{% endif %}" href="{% url 'platform_admin:audit' %}">{% icon 'clock' %} Platform Audit</a>
+      {% else %}
+        {% for section, items in shell_nav_sections.items %}
+          <div class="fx-nav-section">{{ section }}</div>
+          {% for item in items %}
+            <a class="fx-nav-link {% if item.active %}active{% endif %}" href="{{ item.url }}">{% icon item.icon %} {{ item.label }}</a>
+          {% endfor %}
+        {% endfor %}
+        {% if request.user.is_platform_admin %}
+          <div class="fx-nav-section">Platform</div>
+          <a class="fx-nav-link" href="{% url 'platform_admin:organizations' %}">{% icon 'globe' %} Platform console</a>
+        {% endif %}
+      {% endif %}
+    </nav>
+  </aside>
+  <div class="fx-main">
+    <header class="fx-topbar">
+      <button class="btn btn-sm btn-outline-secondary d-lg-none" type="button" aria-label="Toggle navigation"
+              data-fx-toggle-nav>{% icon 'menu' %}</button>
+      {% if shell_org %}
+      <form class="fx-search" role="search" autocomplete="off">
+        {% icon 'search' 16 %}
+        <input type="search" name="q" placeholder="Search users, roles…" aria-label="Search"
+               hx-get="{% url 'ui:search' %}" hx-trigger="input changed delay:300ms, search"
+               hx-target="#fx-search-results" hx-indicator=".fx-search">
+        <div id="fx-search-results" class="fx-search-results"></div>
+      </form>
+      {% endif %}
+      <div class="ms-auto d-flex align-items-center gap-3">
+        {% if shell_org %}
+        <div hx-get="{% url 'notifications:bell' %}" hx-trigger="load, every 60s" hx-swap="innerHTML" class="fx-bell-slot"></div>
+        {% endif %}
+        {% if shell_memberships|length > 1 %}
+        <form method="post" action="{% url 'ui:switch_org' %}" class="m-0">{% csrf_token %}
+          <select name="organization" class="form-select form-select-sm" aria-label="Switch organization" onchange="this.form.submit()">
+            {% for m in shell_memberships %}<option value="{{ m.organization_id }}" {% if m.organization_id == shell_org.pk %}selected{% endif %}>{{ m.organization.name }}</option>{% endfor %}
+          </select>
+        </form>
+        {% endif %}
+        <div class="dropdown">
+          <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">{{ request.user.display_name }}</button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><span class="dropdown-item-text small text-body-secondary">{{ request.user.email }}</span></li>
+            <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">My profile</a></li>
+            <li><a class="dropdown-item" href="{% url 'accounts:password_change' %}">Change password</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="dropdown-item">Sign out</button></form></li>
+          </ul>
+        </div>
+      </div>
+    </header>
+    <main class="fx-content" id="main">
+      {% block breadcrumbs %}{% endblock %}
+      {% include "components/_messages.html" %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% endwith %}
+{% endblock %}

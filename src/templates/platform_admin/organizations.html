@@ -1,0 +1,16 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Organizations · Platform{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>Organizations</h1><div class="text-body-secondary">Platform console. Onboard customers; each organization manages its own users and data.</div></div>
+  <a class="btn btn-primary" href="{% url 'platform_admin:organization_create' %}">{% icon 'plus' 16 %} New organization</a></div>
+<div class="fx-card">
+  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
+    <input class="form-control form-control-sm" style="max-width:260px" type="search" name="q" value="{{ q }}" placeholder="Organization name">
+    <select class="form-select form-select-sm" style="max-width:160px" name="status"><option value="">All</option>{% for v, l in statuses %}<option value="{{ v }}" {% if v == status %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+    <button class="btn btn-sm btn-outline-secondary">Filter</button></form>
+  <div class="table-responsive"><table class="table fx-table"><thead><tr><th>Name</th><th>Identifier</th><th>Status</th><th>Created</th></tr></thead>
+    <tbody>{% for o in page %}<tr><td><a href="{% url 'platform_admin:organization_detail' o.pk %}">{{ o.name }}</a></td><td><code>{{ o.slug }}</code></td><td>{% status_badge o.status %}</td><td>{{ o.created_at|date:"d M Y" }}</td></tr>
+    {% empty %}<tr><td colspan="4">{% include "components/_empty_state.html" with title="No organizations" text="Create the first organization to onboard a customer." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "components/_pagination.html" %}</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "shell.html" %}
+{% block title %}Dashboard · {{ shell_org.name }}{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>{{ shell_org.name }}</h1>
+  <div class="text-body-secondary">Welcome, {{ request.user.display_name }}. Live operational KPIs (MTTR, PM compliance, SLA breaches and more) are under Insights, within the sites you may see.</div></div></div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3"><div class="fx-card fx-card-body"><div class="fx-stat">{{ stats.active_members }}</div><div class="fx-stat-label">Active users</div></div></div>
+  <div class="col-6 col-lg-3"><div class="fx-card fx-card-body"><div class="fx-stat">{{ stats.pending_invites }}</div><div class="fx-stat-label">Pending invitations</div></div></div>
+  <div class="col-6 col-lg-3"><div class="fx-card fx-card-body"><div class="fx-stat">{{ stats.roles }}</div><div class="fx-stat-label">Roles</div></div></div>
+</div>
+{% if recent %}
+<div class="fx-card"><div class="fx-card-header">Recent activity <a class="small" href="{% url 'audit:list' %}">View audit trail</a></div>
+<div class="fx-card-body">{% include "components/_timeline.html" with entries=recent %}</div></div>
+{% endif %}
+{% endblock %}

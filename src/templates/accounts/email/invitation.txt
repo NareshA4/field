@@ -1,0 +1,9 @@
+Hello {{ user.full_name }},
+
+You have been added to {{ organization.name }} on FieldOps Nexus.
+
+{% if new_account %}Activate your account and choose a password (link valid for 3 days):
+{{ action_url }}{% else %}Sign in to get started:
+{{ action_url }}{% endif %}
+
+If you were not expecting this invitation you can ignore this email.

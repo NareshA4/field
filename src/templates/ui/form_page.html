@@ -1,0 +1,12 @@
+{% extends "shell.html" %}
+{% block title %}{{ title }} · FieldOps Nexus{% endblock %}
+{% block content %}
+{% include "components/_page_header.html" %}
+<div class="fx-card" style="max-width:820px"><div class="fx-card-body">
+<form method="post" novalidate{% if multipart %} enctype="multipart/form-data"{% endif %}>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert alert-danger py-2" role="alert">{{ form.non_field_errors.0 }}</div>{% endif %}
+  <div class="fx-form-grid">{% for field in form %}<div>{% include "components/_form_field.html" %}</div>{% endfor %}</div>
+  <button class="btn btn-primary">{{ submit|default:"Save" }}</button> <a class="btn btn-link" href="{{ cancel_url }}">Cancel</a>
+</form></div></div>
+{% endblock %}
+{% block scripts %}{% block form_scripts %}{% endblock %}{% endblock %}

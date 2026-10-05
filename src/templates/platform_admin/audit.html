@@ -1,0 +1,14 @@
+{% extends "shell.html" %}
+{% block title %}Platform audit{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>Platform audit</h1><div class="text-body-secondary">Cross-organization audit of platform and security events.</div></div></div>
+<div class="fx-card">
+  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
+    <input class="form-control form-control-sm" style="max-width:200px" name="action" value="{{ filters.action }}" placeholder="Action prefix">
+    <input class="form-control form-control-sm" style="max-width:220px" name="q" value="{{ filters.q }}" placeholder="Actor or target">
+    <button class="btn btn-sm btn-outline-secondary">Filter</button></form>
+  <div class="table-responsive"><table class="table fx-table"><thead><tr><th>When</th><th>Organization</th><th>Action</th><th>Actor</th><th>Target</th></tr></thead>
+    <tbody>{% for e in page %}<tr><td class="text-nowrap">{{ e.occurred_at|date:"d M Y H:i:s" }}</td><td>{{ e.organization.name|default:"—" }}</td><td><code>{{ e.action }}</code></td><td>{{ e.actor_email|default:"system" }}</td><td>{{ e.target_repr }}</td></tr>
+    {% empty %}<tr><td colspan="5">{% include "components/_empty_state.html" with title="No entries" %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "components/_pagination.html" %}</div>
+{% endblock %}

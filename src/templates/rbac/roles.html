@@ -1,0 +1,13 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Roles · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>Roles &amp; permissions</h1><div class="text-body-secondary">Seeded roles are defaults; you can customise them or create your own.</div></div>
+  {% if can_manage %}<a class="btn btn-primary" href="{% url 'rbac:role_create' %}">{% icon 'plus' 16 %} New role</a>{% endif %}</div>
+<div class="fx-card"><div class="table-responsive"><table class="table fx-table">
+  <thead><tr><th>Role</th><th>Description</th><th>Permissions</th><th>Type</th></tr></thead>
+  <tbody>{% for r in roles %}<tr><td><a href="{% url 'rbac:role_detail' r.pk %}">{{ r.name }}</a></td><td>{{ r.description }}</td>
+    <td>{% if r.is_owner %}All{% else %}{{ r.role_permissions.all|length }}{% endif %}</td>
+    <td>{% if r.is_owner %}<span class="badge text-bg-dark">Owner</span>{% elif r.is_system %}<span class="badge text-bg-secondary">System default</span>{% else %}<span class="badge text-bg-light">Custom</span>{% endif %}</td></tr>{% endfor %}
+  </tbody></table></div></div>
+{% endblock %}

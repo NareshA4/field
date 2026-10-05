@@ -1,0 +1,28 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}{{ org.name }} · Platform{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'platform_admin:organizations' %}">Organizations</a></li><li class="breadcrumb-item active">{{ org.name }}</li></ol></nav>
+  <h1>{{ org.name }} {% status_badge org.status %}</h1><div class="text-body-secondary"><code>{{ org.slug }}</code> · {{ org.timezone }}</div>
+  {% if org.suspended_reason %}<div class="text-danger small mt-1">Suspended: {{ org.suspended_reason }}</div>{% endif %}</div>
+  <div>{% if org.status == 'ACTIVE' %}<button class="btn btn-outline-danger" data-drawer-open="suspend-drawer">Suspend…</button>
+  {% else %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="activate"><button class="btn btn-outline-success" data-confirm="Re-activate {{ org.name }}?">Re-activate</button></form>{% endif %}</div></div>
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="fx-card fx-card-body"><div class="fx-stat">{{ counts.members }}</div><div class="fx-stat-label">Members</div></div></div>
+  <div class="col-6 col-lg-3"><div class="fx-card fx-card-body"><div class="fx-stat">{{ counts.active }}</div><div class="fx-stat-label">Active</div></div></div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-6"><div class="fx-card"><div class="fx-card-header">Owners</div><div class="list-group list-group-flush">
+    {% for m in owners %}<div class="list-group-item d-flex justify-content-between align-items-center"><div>{{ m.user.display_name }}<div class="small text-body-secondary">{{ m.user.email }}</div></div>
+      <div>{% status_badge m.status %}{% if m.status == 'INVITED' %}
+        <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="resend_owner_invite"><input type="hidden" name="membership" value="{{ m.pk }}"><button class="btn btn-sm btn-link">Re-send</button></form>{% endif %}</div></div>
+    {% empty %}<div class="list-group-item text-body-secondary">No owners.</div>{% endfor %}</div></div></div>
+  <div class="col-lg-6"><div class="fx-card"><div class="fx-card-header">Recent activity</div><div class="fx-card-body">{% include "components/_timeline.html" with entries=recent %}</div></div></div>
+</div>
+<div class="fx-drawer" id="suspend-drawer" hidden>
+  <h2 class="h5">Suspend {{ org.name }}</h2><p class="text-body-secondary">All members lose access to this organization immediately. Data is retained.</p>
+  <form method="post">{% csrf_token %}<input type="hidden" name="action" value="suspend">
+    <label class="form-label fw-semibold" for="reason">Reason (required)</label><input class="form-control mb-3" id="reason" name="reason" maxlength="300" required>
+    <button class="btn btn-danger">Suspend organization</button> <button type="button" class="btn btn-link" data-drawer-close>Cancel</button></form>
+</div>
+{% endblock %}

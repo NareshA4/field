@@ -1,0 +1,2 @@
+{% if messages %}<div class="mb-3" role="status">{% for m in messages %}
+  <div class="alert alert-{% if m.level_tag == 'error' %}danger{% else %}{{ m.level_tag }}{% endif %} py-2 mb-2">{{ m }}</div>{% endfor %}</div>{% endif %}

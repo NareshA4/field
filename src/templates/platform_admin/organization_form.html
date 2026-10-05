@@ -1,0 +1,12 @@
+{% extends "shell.html" %}
+{% block title %}New organization · Platform{% endblock %}
+{% block content %}
+<div class="fx-page-header"><h1>New organization</h1></div>
+<div class="fx-card" style="max-width:640px"><div class="fx-card-body">
+<p class="text-body-secondary">The initial Owner receives an activation email and sets their own password. No password is ever shown or emailed in clear text.</p>
+<form method="post" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert alert-danger py-2">{{ form.non_field_errors.0 }}</div>{% endif %}
+  {% for field in form %}{% include "components/_form_field.html" %}{% endfor %}
+  <button class="btn btn-primary">Create organization</button> <a class="btn btn-link" href="{% url 'platform_admin:organizations' %}">Cancel</a>
+</form></div></div>
+{% endblock %}

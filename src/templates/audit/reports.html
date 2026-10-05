@@ -1,0 +1,12 @@
+{% extends "shell.html" %}
+{% block title %}Compliance reports · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>Compliance reports</h1><div class="text-body-secondary">Each report is a view of the audit trail itself, restricted to your sites. Open one to filter further or export it.</div></div></div>
+<div class="row g-3 mb-4" id="report-cards">
+{% for key, label, text in categories %}<div class="col-md-6 col-xl-4"><div class="fx-card h-100"><div class="fx-card-body"><h2 class="h6">{{ label }}</h2><p class="small text-body-secondary">{{ text }}</p><a class="btn btn-sm btn-outline-primary" href="{% url 'audit:list' %}?category={{ key }}">Open report</a></div></div></div>{% endfor %}
+</div>
+<div class="row g-3">
+  <div class="col-md-6"><div class="fx-card"><div class="fx-card-header">Asset history</div><div class="fx-card-body"><form method="get" action="{% url 'audit:list' %}" class="d-flex gap-2"><input class="form-control" name="asset" placeholder="Asset tag or id" required aria-label="Asset tag or id"><button class="btn btn-primary">Show</button></form><div class="small text-body-secondary mt-2">Everything recorded about an asset, its work orders and its requests. Enter the asset tag (for example PUMP-01).</div></div></div></div>
+  <div class="col-md-6"><div class="fx-card"><div class="fx-card-header">Work order lifecycle</div><div class="fx-card-body"><form method="get" action="{% url 'audit:list' %}" class="d-flex gap-2"><input class="form-control" name="work_order" placeholder="Work order number or id" required aria-label="Work order number or id"><button class="btn btn-primary">Show</button></form><div class="small text-body-secondary mt-2">Creation, assignment, execution, parts, closure and the source request.</div></div></div></div>
+</div>
+{% endblock %}

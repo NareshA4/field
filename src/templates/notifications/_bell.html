@@ -1,0 +1,13 @@
+{% load ui_tags %}
+<div class="dropdown fx-bell">
+  <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown" aria-label="Notifications ({{ unread }} unread)">{% icon 'bell' 16 %}</button>
+  {% if unread %}<span class="fx-bell-count">{{ unread }}</span>{% endif %}
+  <div class="dropdown-menu dropdown-menu-end fx-bell-menu p-0">
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom"><strong>Notifications</strong>
+      <form method="post" action="{% url 'notifications:read_all' %}" class="m-0">{% csrf_token %}<button class="btn btn-link btn-sm p-0">Mark all read</button></form></div>
+    {% for n in items %}<form method="post" action="{% url 'notifications:read' n.pk %}" class="m-0">{% csrf_token %}
+      <button class="dropdown-item py-2 {% if not n.read_at %}fw-semibold{% endif %}"><div class="text-truncate">{{ n.title }}</div><div class="small text-body-secondary">{{ n.created_at|timesince }} ago</div></button></form>
+    {% empty %}<div class="p-3 small text-body-secondary">You're all caught up.</div>{% endfor %}
+    <a class="dropdown-item text-center small py-2 border-top" href="{% url 'notifications:list' %}">View all</a>
+  </div>
+</div>

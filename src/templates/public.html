@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block body_class %}fx-public{% endblock %}
+{% block body %}
+<main class="fx-auth-wrap">
+  <div class="fx-auth-card">
+    <div class="fx-brand mb-4"><span class="fx-brand-mark">FX</span> FieldOps Nexus</div>
+    {% include "components/_messages.html" %}
+    {% block content %}{% endblock %}
+  </div>
+</main>
+{% endblock %}

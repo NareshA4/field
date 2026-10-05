@@ -1,0 +1,12 @@
+{% extends "shell.html" %}
+{% block title %}Invite user · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><h1>Invite user</h1></div>
+<div class="fx-card" style="max-width:620px"><div class="fx-card-body">
+<p class="text-body-secondary">The user receives an email to activate their account and choose their own password. Permissions come from the roles you assign.</p>
+<form method="post" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert alert-danger py-2">{{ form.non_field_errors.0 }}</div>{% endif %}
+  {% for field in form %}{% include "components/_form_field.html" %}{% endfor %}
+  <button class="btn btn-primary">Send invitation</button> <a class="btn btn-link" href="{% url 'tenancy:members' %}">Cancel</a>
+</form></div></div>
+{% endblock %}

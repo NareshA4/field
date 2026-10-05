@@ -1,0 +1,72 @@
+# Local / staging stack. Secrets come from .env (never committed): run `python scripts/bootstrap_env.py` first.
+x-app: &app
+  build: .
+  env_file: .env
+  environment:
+    DJANGO_SETTINGS_MODULE: config.settings.prod
+    DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    REDIS_URL: redis://redis:6379/0
+    CELERY_BROKER_URL: redis://redis:6379/1
+    # The local stack is plain HTTP behind Nginx on :8080. Production keeps these secure defaults (see prod.py).
+    DJANGO_SECURE_SSL_REDIRECT: "false"
+    DJANGO_SECURE_COOKIES: "false"
+    TRUSTED_PROXY_COUNT: "1"             # Nginx is the only proxy in front of Gunicorn
+    SITE_BASE_URL: http://localhost:${NGINX_PORT:-8080}
+    DJANGO_CSRF_TRUSTED_ORIGINS: http://localhost:${NGINX_PORT:-8080},http://127.0.0.1:${NGINX_PORT:-8080}
+    DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,web
+  depends_on:
+    db: {condition: service_healthy}
+    redis: {condition: service_healthy}
+  volumes:
+    - media:/app/media
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    healthcheck: {test: ["CMD", "redis-cli", "ping"], interval: 5s, retries: 10}
+  migrate:
+    <<: *app
+    command: python manage.py migrate --noinput
+    restart: "no"
+  web:
+    <<: *app
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+  worker:
+    <<: *app
+    command: celery -A config worker -l info
+    # the image HEALTHCHECK probes gunicorn's HTTP port, which does not exist here: ping the worker instead
+    healthcheck: {test: ["CMD-SHELL", "celery -A config inspect ping -t 5 >/dev/null 2>&1 || exit 1"], interval: 60s, timeout: 15s, retries: 3, start_period: 20s}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+      db: {condition: service_healthy}
+  beat:
+    <<: *app
+    command: celery -A config beat -l info --schedule /tmp/celerybeat-schedule
+    healthcheck: {disable: true}  # beat has no HTTP port; inherits nothing from the web image check
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+      db: {condition: service_healthy}
+  nginx:
+    build: ./deploy/nginx
+    ports: ["${NGINX_PORT:-8080}:80"]
+    depends_on: [web]
+
+volumes:
+  pgdata:
+  media:

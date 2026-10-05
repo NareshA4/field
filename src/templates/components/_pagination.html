@@ -1,0 +1,8 @@
+{% load ui_tags %}{% if page.paginator.num_pages > 1 %}
+<nav aria-label="Pagination" class="d-flex justify-content-between align-items-center p-3 border-top">
+  <div class="small text-body-secondary">Page {{ page.number }} of {{ page.paginator.num_pages }} · {{ page.paginator.count }} total</div>
+  <ul class="pagination pagination-sm mb-0">
+    {% if page.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page.previous_page_number }}{% qs_without_page %}">Previous</a></li>{% endif %}
+    {% if page.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page.next_page_number }}{% qs_without_page %}">Next</a></li>{% endif %}
+  </ul>
+</nav>{% endif %}

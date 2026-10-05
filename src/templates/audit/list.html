@@ -1,0 +1,36 @@
+{% extends "shell.html" %}
+{% block title %}Audit trail · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>Audit trail</h1><div class="text-body-secondary">Append-only record of who did what, when, to which record. Nothing here can be edited or deleted.</div></div>
+  <div class="d-flex gap-2 flex-wrap"><a class="btn btn-outline-secondary" href="{% url 'audit:reports' %}">Compliance reports</a>
+  {% if can_export %}<div class="btn-group"><button class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Export results</button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      <li><a class="dropdown-item" href="{% url 'audit:export' %}?{{ query }}&amp;format=csv">CSV</a></li>
+      <li><a class="dropdown-item" href="{% url 'audit:export' %}?{{ query }}&amp;format=xlsx">Excel (XLSX)</a></li>
+      <li><a class="dropdown-item" href="{% url 'audit:export' %}?{{ query }}&amp;format=pdf">PDF</a></li>
+      <li><span class="dropdown-item-text small text-body-secondary">Newest {{ total_hint }} rows of the current filter</span></li></ul></div>{% endif %}</div></div>
+<div class="fx-tabs" role="tablist"><a role="tab" class="{% if not filters.category %}active{% endif %}" href="?">All</a>
+  {% for key, label in categories %}<a role="tab" class="{% if filters.category == key %}active{% endif %}" href="?category={{ key }}">{{ label }}</a>{% endfor %}</div>
+<div class="fx-card mt-3">
+  <form method="get" class="row g-2 p-3 border-bottom" id="audit-filters">
+    <div class="col-6 col-md-2"><input class="form-control form-control-sm" name="action" value="{{ filters.action }}" placeholder="Action prefix" aria-label="Action prefix"></div>
+    <div class="col-6 col-md-2"><input class="form-control form-control-sm" name="actor" value="{{ filters.actor }}" placeholder="Actor e-mail" aria-label="Actor"></div>
+    <div class="col-6 col-md-2"><input class="form-control form-control-sm" name="q" value="{{ filters.q }}" placeholder="Search text" aria-label="Search"></div>
+    <div class="col-6 col-md-2"><select class="form-select form-select-sm" name="entity_type" aria-label="Entity type"><option value="">Any record type</option>{% for t in entity_types %}<option value="{{ t }}" {% if filters.entity_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+    <div class="col-6 col-md-2"><input class="form-control form-control-sm" name="entity_id" value="{{ filters.entity_id }}" placeholder="Record id" aria-label="Record id"></div>
+    <div class="col-6 col-md-2"><select class="form-select form-select-sm" name="site" aria-label="Site"><option value="">Any site</option>{% for id, code in sites %}<option value="{{ id }}" {% if filters.site == id|stringformat:"s" %}selected{% endif %}>{{ code }}</option>{% endfor %}</select></div>
+    <div class="col-6 col-md-2"><input class="form-control form-control-sm" type="date" name="from" value="{{ filters.from }}" aria-label="From date"></div>
+    <div class="col-6 col-md-2"><input class="form-control form-control-sm" type="date" name="to" value="{{ filters.to }}" aria-label="To date"></div>
+    {% if filters.category %}<input type="hidden" name="category" value="{{ filters.category }}">{% endif %}
+    {% if filters.asset %}<input type="hidden" name="asset" value="{{ filters.asset }}">{% endif %}
+    {% if filters.work_order %}<input type="hidden" name="work_order" value="{{ filters.work_order }}">{% endif %}
+    <div class="col-12 col-md-4 d-flex gap-2"><button class="btn btn-sm btn-primary">Filter</button><a class="btn btn-sm btn-outline-secondary" href="?">Reset</a></div>
+  </form>
+  <div class="table-responsive"><table class="table fx-table" id="audit-table">
+    <thead><tr><th>When</th><th>Action</th><th>Actor</th><th>Record</th><th>Site</th><th></th></tr></thead>
+    <tbody>{% for e in page %}<tr><td class="text-nowrap">{{ e.occurred_at|date:"d M Y H:i:s" }}</td><td><code>{{ e.action }}</code></td>
+      <td>{{ e.actor_email|default:"system" }}</td><td>{{ e.target_repr }}<div class="small text-body-secondary">{{ e.target_type }}</div></td><td>{{ e.site_code|default:"—" }}</td><td><a href="{% url 'audit:detail' e.pk %}">Details</a></td></tr>
+    {% empty %}<tr><td colspan="6">{% include "components/_empty_state.html" with title="No audit entries" text="Nothing matches these filters." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "components/_pagination.html" %}
+</div>
+{% endblock %}
