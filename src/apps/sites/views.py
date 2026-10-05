@@ -122,13 +122,16 @@ class SiteDetailView(SiteBase):
         tab = request.GET.get("tab", "overview")
         if tab not in dict(TABS) or (tab == "assets" and not selectors.assets_installed()):
             tab = "overview"
-        perms = {code.replace(".", "_"): rbac.has_permission(m, code, site) for code in (
-            "site.update", "site.deactivate", "site.contact.manage", "zone.view", "zone.create", "zone.update",
-            "zone.deactivate", "calendar.view", "calendar.create", "calendar.update", "calendar.delete",
-            "asset.view", "asset.create")}
-        ctx = {"site": site, "tab": tab,
-               "tabs": TABS if selectors.assets_installed() else [t for t in TABS if t[0] != "assets"], "perms": perms, "reason_form": ReasonForm(),
-               "asset_total": 0}
+        codes = ["site.update", "site.deactivate", "site.contact.manage", "zone.view", "zone.create", "zone.update",
+                 "zone.deactivate", "calendar.view", "calendar.create", "calendar.update", "calendar.delete"]
+        has_assets = selectors.assets_installed()
+        if has_assets:  # asset.* permissions only exist once the Assets module is installed
+            codes += ["asset.view", "asset.create"]
+        perms = {code.replace(".", "_"): rbac.has_permission(m, code, site) for code in codes}
+        perms.setdefault("asset_view", False)
+        perms.setdefault("asset_create", False)
+        ctx = {"site": site, "tab": tab, "tabs": TABS if has_assets else [t for t in TABS if t[0] != "assets"],
+               "perms": perms, "reason_form": ReasonForm(), "asset_total": 0}
         if tab == "locations" and perms["zone_view"]:
             ctx["tree"] = selectors.flatten_tree(selectors.zone_tree(site))
         elif tab == "calendars" and perms["calendar_view"]:
