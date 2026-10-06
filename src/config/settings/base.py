@@ -70,6 +70,8 @@ INSTALLED_APPS = [
     "apps.files",
     "apps.platform_admin",
     "apps.sites",
+    "apps.assets",
+    "apps.incidents",
     "apps.ui",
 ]
 
