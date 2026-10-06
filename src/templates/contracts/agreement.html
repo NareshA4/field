@@ -1,0 +1,36 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}{{ ag.reference }} · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div>
+  <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'contracts:agreements' %}">Warranties &amp; contracts</a></li><li class="breadcrumb-item active">{{ ag.reference }}</li></ol></nav>
+  <h1>{{ ag.title }} {% status_badge state %}</h1>
+  <div class="text-body-secondary">{{ ag.get_kind_display }} {{ ag.reference }} · {{ ag.provider.name }} · site {{ ag.site.code }}</div></div>
+  {% if can_update %}<div class="d-flex gap-2 flex-wrap"><a class="btn btn-outline-primary" href="{% url 'contracts:agreement_edit' ag.pk %}">Edit</a>
+    {% if ag.is_active and not renewal %}<a class="btn btn-outline-success" href="{% url 'contracts:agreement_renew' ag.pk %}">Renew</a>{% endif %}
+    {% if ag.is_active %}<button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#deactivate-box">Deactivate</button>
+    {% else %}<form method="post" action="{% url 'contracts:agreement_action' ag.pk 'reactivate' %}" class="m-0">{% csrf_token %}<button class="btn btn-outline-success">Reactivate</button></form>{% endif %}</div>{% endif %}</div>
+{% if can_update and ag.is_active %}<div class="collapse mb-3" id="deactivate-box"><div class="fx-card"><div class="fx-card-body">
+  <form method="post" action="{% url 'contracts:agreement_action' ag.pk 'deactivate' %}" class="row g-2 align-items-end">{% csrf_token %}
+    <div class="col-md-8">{{ reason_form.reason.label_tag }}{{ reason_form.reason }}</div><div class="col-md-4"><button class="btn btn-danger" data-confirm="Deactivate this agreement? It stops covering its assets immediately.">Deactivate agreement</button></div></form></div></div></div>{% endif %}
+{% if not ag.is_active %}<div class="alert alert-secondary">Inactive{% if ag.deactivation_reason %}: {{ ag.deactivation_reason }}{% endif %}. It covers nothing until reactivated.</div>
+{% elif state == "EXPIRED" %}<div class="alert alert-danger">This agreement expired on {{ ag.end_date|date:"d M Y" }}; it no longer makes any work eligible.</div>
+{% elif state == "UPCOMING" %}<div class="alert alert-info">Coverage starts on {{ ag.start_date|date:"d M Y" }}.</div>
+{% elif days_left <= ag.renewal_alert_days and not renewal %}<div class="alert alert-warning">Expires in {{ days_left }} day{{ days_left|pluralize }} ({{ ag.end_date|date:"d M Y" }}). It has not been renewed.</div>{% endif %}
+{% if renewal %}<div class="alert alert-success">Renewed as <a href="{% url 'contracts:agreement' renewal.pk %}">{{ renewal.reference }}</a> ({{ renewal.start_date|date:"d M Y" }} → {{ renewal.end_date|date:"d M Y" }}).</div>{% endif %}
+{% if ag.renewed_from %}<div class="alert alert-light border">Renewal of <a href="{% url 'contracts:agreement' ag.renewed_from_id %}">{{ ag.renewed_from.reference }}</a>.</div>{% endif %}
+<div class="row g-3 mb-3"><div class="col-lg-6"><div class="fx-card"><div class="fx-card-header">Terms</div><div class="fx-card-body"><dl class="fx-kv">
+  <dt>Valid</dt><dd>{{ ag.start_date|date:"d M Y" }} → {{ ag.end_date|date:"d M Y" }}</dd>
+  <dt>Provider</dt><dd>{{ ag.provider.name }}{% if ag.provider.email %} · {{ ag.provider.email }}{% endif %}{% if ag.provider.phone %} · {{ ag.provider.phone }}{% endif %}</dd>
+  <dt>Coverage terms</dt><dd>{{ ag.terms|default:"—"|linebreaksbr }}</dd>
+  <dt>Not covered (work types)</dt><dd id="exclusions">{% for e in exclusions %}<span class="badge text-bg-light border">{{ e }}</span> {% empty %}None{% endfor %}</dd>
+  <dt>Other exclusions</dt><dd>{{ ag.exclusion_notes|default:"—"|linebreaksbr }}</dd>
+  <dt>Provider response terms</dt><dd>{{ ag.sla_terms|default:"—" }}</dd><dt>Internal SLA profile</dt><dd id="coverage-sla">{% if ag.sla_profile %}<a href="{% url 'sla:profile' ag.sla_profile_id %}">{{ ag.sla_profile.name }}</a>{% else %}— (site / organization SLA applies){% endif %}</dd><dt>Renewal alert</dt><dd>{{ ag.renewal_alert_days }} days before the end</dd></dl></div></div></div>
+  <div class="col-lg-6"><div class="fx-card"><div class="fx-card-header">Covered assets ({{ links|length }})</div>
+  <div class="table-responsive"><table class="table fx-table" id="covered-assets"><tbody>
+  {% for l in links %}<tr><td><a href="{% url 'assets:detail' l.asset_id %}">{{ l.asset.asset_tag }}</a> · {{ l.asset.name }}</td>
+    <td class="text-end">{% if can_update %}<form method="post" action="{% url 'contracts:agreement_action' ag.pk 'remove-asset' %}" class="m-0">{% csrf_token %}<input type="hidden" name="asset" value="{{ l.asset_id }}"><button class="btn btn-sm btn-outline-danger" data-confirm="Remove {{ l.asset.asset_tag }} from this agreement?">Remove</button></form>{% endif %}</td></tr>
+  {% empty %}<tr><td>No assets.</td></tr>{% endfor %}</tbody></table></div>
+  {% if add_form %}<div class="fx-card-body border-top"><form method="post" action="{% url 'contracts:agreement_action' ag.pk 'add-asset' %}" class="d-flex gap-2">{% csrf_token %}<div class="flex-grow-1">{{ add_form.asset }}</div><button class="btn btn-primary">Add asset</button></form></div>{% endif %}
+  </div></div></div>
+{% endblock %}
