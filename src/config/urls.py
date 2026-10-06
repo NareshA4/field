@@ -3,8 +3,15 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import SimpleRouter
 
+from apps.assets.api_views import (
+    AssetCategoryViewSet,
+    AssetViewSet,
+    ComponentViewSet,
+    MeterViewSet,
+)
 from apps.audit.api_views import AuditLogViewSet
 from apps.core import health
+from apps.incidents.api_views import ServiceRequestViewSet
 from apps.notifications.api_views import NotificationViewSet
 from apps.platform_admin.api_views import PlatformOrganizationViewSet
 from apps.rbac.api_views import PermissionViewSet, RoleViewSet
@@ -29,6 +36,11 @@ router.register("zones", ZoneViewSet, basename="zone")
 router.register("calendars", CalendarViewSet, basename="calendar")
 router.register("calendar-holidays", HolidayViewSet, basename="calendar-holiday")
 router.register("site-contacts", ContactViewSet, basename="site-contact")
+router.register("assets", AssetViewSet, basename="asset")
+router.register("asset-categories", AssetCategoryViewSet, basename="asset-category")
+router.register("asset-components", ComponentViewSet, basename="asset-component")
+router.register("meters", MeterViewSet, basename="meter")
+router.register("service-requests", ServiceRequestViewSet, basename="service-request")
 router.register("platform/organizations", PlatformOrganizationViewSet, basename="platform-organization")
 
 api_v1 = [
@@ -53,7 +65,9 @@ urlpatterns = [
     path("app/", include("apps.notifications.urls")),
     path("app/", include("apps.files.urls")),
     path("app/", include("apps.sites.urls")),
-    path("app/", include("apps.workorders.urls_ui")),
+    path("app/", include("apps.assets.urls")),
+    path("app/", include("apps.incidents.urls")),
+    # Module teams: add path("app/", include("apps.<module>.urls")) for your module here.
     path("", include("apps.ui.urls")),
 ]
 
