@@ -1,0 +1,142 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Asset Hierarchy Hub · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item"><a href="{% url 'assets:list' %}">Assets</a></li>
+        <li class="breadcrumb-item active">Hierarchy Hub</li>
+      </ol>
+    </nav>
+    <h1>Asset Hierarchy Hub</h1>
+    <div class="text-body-secondary">
+      Equipment assembly breakdown, sub-component trees, and replaceable spare parts planning.
+    </div>
+  </div>
+
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-outline-secondary" href="{% url 'assets:component_list' %}">
+      {% icon 'package' 14 %} Component Catalog
+    </a>
+    <a class="btn btn-outline-secondary" href="{% url 'assets:list' %}">
+      {% icon 'list' 14 %} Asset Registry
+    </a>
+    {% if can_create %}
+      <a class="btn btn-primary" href="{% url 'assets:create' %}">
+        {% icon 'plus' 14 %} Register Root Asset
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Hierarchy KPI Summary Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="fx-card p-3 d-flex align-items-center gap-3">
+      <div class="p-3 rounded-3 bg-primary-subtle text-primary">
+        {% icon 'hard-drive' 24 %}
+      </div>
+      <div>
+        <div class="fx-stat text-dark">{{ total_assemblies }}</div>
+        <div class="fx-stat-label">Root Assemblies</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="fx-card p-3 d-flex align-items-center gap-3">
+      <div class="p-3 rounded-3 bg-info-subtle text-info">
+        {% icon 'package' 24 %}
+      </div>
+      <div>
+        <div class="fx-stat text-dark">{{ total_components }}</div>
+        <div class="fx-stat-label">Total Sub-Items</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="fx-card p-3 d-flex align-items-center gap-3">
+      <div class="p-3 rounded-3 bg-success-subtle text-success">
+        {% icon 'refresh-cw' 24 %}
+      </div>
+      <div>
+        <div class="fx-stat text-dark">{{ replaceable_parts }}</div>
+        <div class="fx-stat-label">Replaceable Parts</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="fx-card p-3 d-flex align-items-center gap-3">
+      <div class="p-3 rounded-3 bg-warning-subtle text-warning">
+        {% icon 'alert-circle' 24 %}
+      </div>
+      <div>
+        <div class="fx-stat text-dark">{{ parts_without_num }}</div>
+        <div class="fx-stat-label">Parts Missing #</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Left Side: Root Assembly Selector List -->
+  <div class="col-lg-4">
+    <div class="fx-card mb-3">
+      <div class="fx-card-header d-flex justify-content-between align-items-center">
+        <span>Root Assemblies ({{ roots.count }})</span>
+      </div>
+      <div class="list-group list-group-flush">
+        {% for r in roots %}
+          <a href="?root={{ r.pk }}" class="list-group-item list-group-item-action p-3 {% if selected_root and selected_root.pk == r.pk %}active{% endif %}">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+              <span class="fw-bold">{{ r.asset_tag }}</span>
+              <span class="badge text-bg-light border small">{{ r.site.code }}</span>
+            </div>
+            <div class="small fw-medium mb-1">{{ r.name }}</div>
+            <div class="d-flex justify-content-between align-items-center small text-body-secondary">
+              <span>{{ r.category.name }}</span>
+              <span>{% icon 'layers' 12 %} {{ r.child_links.count }} direct item{{ r.child_links.count|pluralize }}</span>
+            </div>
+          </a>
+        {% empty %}
+          <div class="p-4 text-center text-body-secondary small">
+            No root assemblies registered yet. Register an asset and attach child components to begin.
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Side: Live Interactive Hierarchy Tree Viewer -->
+  <div class="col-lg-8">
+    {% if selected_root and tree %}
+      <div class="fx-card">
+        <div class="fx-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <span class="fw-bold">{{ selected_root.asset_tag }}</span>
+            <span class="text-body-secondary">· {{ selected_root.name }}</span>
+            {% status_badge selected_root.status %}
+          </div>
+          <div class="d-flex gap-2">
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'assets:detail' selected_root.pk %}?tab=hierarchy">
+              {% icon 'external-link' 13 %} Full Asset View
+            </a>
+          </div>
+        </div>
+
+        <div class="p-0">
+          {% include "assets/_tree.html" with node=tree current=selected_root can_manage=can_manage %}
+        </div>
+      </div>
+    {% else %}
+      <div class="fx-card p-5 text-center">
+        {% include "components/_empty_state.html" with title="No Assembly Selected" text="Select a root assembly from the left panel to inspect its multi-level component tree." %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

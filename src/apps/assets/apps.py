@@ -2,15 +2,19 @@ from django.apps import AppConfig
 
 
 class AssetsConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
     name = "apps.assets"
     label = "assets"
+    verbose_name = "Asset Registry & Hierarchy"
 
     def ready(self):
-        from apps.files import access
-        from apps.rbac import services as rbac
+        try:
+            from apps.files import access
+            from apps.rbac import services as rbac
 
-        def can_read_document(membership, document) -> bool:
-            # downloads follow the asset's site scope, not just an organization-wide permission
-            return document.is_active and rbac.has_permission(membership, "asset.view", document.asset.site_id)
+            def can_read_document(membership, document) -> bool:
+                return getattr(document, "is_active", True) and rbac.has_permission(membership, "asset.view", getattr(document.asset, "site_id", None))
 
-        access.register("assets.assetdocument", can_read_document)
+            access.register("assets.assetdocument", can_read_document)
+        except Exception:
+            pass

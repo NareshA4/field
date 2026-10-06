@@ -104,8 +104,58 @@ def readings_for(org, meter: AssetMeter):
 def components_for(membership, org, code: str = "asset.view"):
     scope = rbac.site_scope(membership, code)
     qs = AssetComponent.objects.for_organization(org).select_related(
-        "parent", "child", "parent__site", "child__category")
+        "parent", "child", "parent__site", "child__site", "child__zone", "child__category"
+    )
     return scope.filter(qs, "parent__site_id")
+
+
+def filter_components(qs, params):
+    site = (params.get("site") or "").strip()
+    if site:
+        parsed = _uuid_or_none(site)
+        qs = qs.filter(parent__site_id=parsed) if parsed else qs.none()
+
+    rel_type = (params.get("relationship_type") or "").strip()
+    if rel_type and rel_type in AssetComponent.Relationship.values:
+        qs = qs.filter(relationship_type=rel_type)
+
+    has_part = (params.get("has_part") or "").strip().lower()
+    if has_part == "yes":
+        qs = qs.filter(Q(part_number__isnull=False) & ~Q(part_number=""))
+    elif has_part == "no":
+        qs = qs.filter(Q(part_number__isnull=True) | Q(part_number=""))
+
+    status = (params.get("status") or "").strip()
+    if status and status in Asset.Status.values:
+        qs = qs.filter(child__status=status)
+
+    q = (params.get("q") or "").strip()
+    if q:
+        qs = qs.filter(
+            Q(child__asset_tag__icontains=q)
+            | Q(child__name__icontains=q)
+            | Q(child__manufacturer__icontains=q)
+            | Q(child__model__icontains=q)
+            | Q(child__serial_number__icontains=q)
+            | Q(parent__asset_tag__icontains=q)
+            | Q(parent__name__icontains=q)
+            | Q(part_number__icontains=q)
+            | Q(notes__icontains=q)
+        )
+
+    ordering = (params.get("ordering") or "-created_at").strip()
+    order_map = {
+        "-created_at": "-created_at",
+        "created_at": "created_at",
+        "child": "child__asset_tag",
+        "-child": "-child__asset_tag",
+        "parent": "parent__asset_tag",
+        "-parent": "-parent__asset_tag",
+        "part_number": "part_number",
+        "-part_number": "-part_number",
+        "relationship_type": "relationship_type",
+    }
+    return qs.order_by(order_map.get(ordering, "-created_at"))
 
 
 def get_component(membership, org, pk, code: str = "asset.view") -> AssetComponent:
