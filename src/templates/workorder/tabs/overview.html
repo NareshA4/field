@@ -1,0 +1,15 @@
+<section class="wo-detail-card" aria-labelledby="wo-overview-title">
+  <h2 id="wo-overview-title">Overview</h2>
+  <dl class="wo-summary-grid">
+    <dt>Work order</dt><dd>{{ wo.order_number }}</dd><dt>Title</dt><dd>{{ wo.title }}</dd>
+    <dt>Description</dt><dd>{{ wo.description|default:"No description provided."|linebreaksbr }}</dd>
+    <dt>Source</dt><dd>{{ wo.get_source_type_display }}{% if wo.source_reference %} · {{ wo.source_reference }}{% endif %}</dd>
+    <dt>Site</dt><dd>{{ wo.site.code }} · {{ wo.site.name }}</dd><dt>Asset</dt><dd>{{ wo.asset_reference|default:"Not linked" }}</dd>
+    <dt>Zone / component</dt><dd>Not linked in the current work-order schema</dd>
+    <dt>Work type</dt><dd>{{ wo.get_work_type_display }}</dd><dt>Priority</dt><dd><span class="wo-priority priority-{{ wo.priority|lower }}">{{ wo.get_priority_display }}</span></dd>
+    <dt>Status</dt><dd><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span></dd>
+    <dt>Planned dates</dt><dd>{{ wo.planned_start|date:"M j, Y · H:i"|default:"Not planned" }}{% if wo.planned_end %} – {{ wo.planned_end|date:"M j, Y · H:i" }}{% endif %}</dd>
+    <dt>Due</dt><dd>{% if wo.due_at %}{{ wo.due_at|date:"M j, Y · H:i" }}{% else %}No due date{% endif %}</dd>
+    <dt>SLA</dt><dd>Not configured for this module environment</dd>
+  </dl>
+</section>

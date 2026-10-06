@@ -1,0 +1,5 @@
+<section class="wo-detail-card"><h2>Closure and supervisor decision</h2>
+  <dl class="wo-summary-grid"><dt>Resolution</dt><dd>{{ wo.resolution_notes|default:"Not completed yet."|linebreaksbr }}</dd><dt>Supervisor notes</dt><dd>{{ wo.supervisor_notes|default:"No supervisor decision recorded."|linebreaksbr }}</dd><dt>Closed at</dt><dd>{{ wo.closed_at|date:"M j, Y · H:i"|default:"Not closed" }}</dd></dl>
+  <h3 class="h6 mt-4">Approval history</h3><ol class="wo-event-list">{% for approval in approvals %}<li><strong>{{ approval.get_decision_display }}</strong> · {{ approval.approver.full_name|default:approval.approver.email }} · {{ approval.created_at|date:"M j, Y · H:i" }}<p>{{ approval.comment }}</p></li>{% empty %}<li>No review or closure decision has been recorded.</li>{% endfor %}</ol>
+  {% if wo.status == 'CLOSED' %}<p class="wo-success-banner">Closed work orders are read-only.</p>{% endif %}
+</section>

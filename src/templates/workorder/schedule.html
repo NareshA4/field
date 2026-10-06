@@ -1,0 +1,15 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block title %}Schedule Board · Work Orders{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/workorder.css' %}">{% endblock %}
+{% block content %}
+<div class="wo-page"><nav class="mb-3"><a href="{% url 'workorders:list' %}">Work Orders</a> <span class="text-secondary">/ Schedule board</span></nav>
+  <header class="wo-detail-header"><div><p class="wo-eyebrow">PLANNING · DAILY SCHEDULE</p><h1>Schedule board</h1><p>Planned work grouped by day and technician.</p></div><a class="wo-view-button" href="{% url 'workorders:mine' %}">My jobs</a></header>
+  <form method="get" class="wo-filter-form wo-schedule-filters"><label><span class="visually-hidden">Day</span><input type="date" name="day" value="{{ selected_day }}" aria-label="Day"></label>
+    <label><span class="visually-hidden">Technician</span><select name="technician"><option value="">All technicians</option>{% for member in technicians %}<option value="{{ member.pk }}" {% if selected_technician == member.pk|stringformat:'s' %}selected{% endif %}>{{ member.user.full_name|default:member.user.email }}</option>{% endfor %}</select></label>
+    <label><span class="visually-hidden">Site</span><select name="site"><option value="">All sites</option>{% for site in sites %}<option value="{{ site.pk }}" {% if selected_site == site.pk|stringformat:'s' %}selected{% endif %}>{{ site.code }} · {{ site.name }}</option>{% endfor %}</select></label>
+    <label class="wo-overdue"><input type="checkbox" name="overdue" value="1" {% if overdue == '1' %}checked{% endif %}> Overdue only</label><button class="wo-filter-button" type="submit">Apply filters</button><a class="wo-reset" href="{% url 'workorders:schedule' %}">Reset</a>
+  </form>
+  <div id="schedule-results">{% include "workorder/schedule_table.html" %}</div>
+</div>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% if schedule_error %}<div class="wo-error-banner" role="alert">{{ schedule_error }}</div>{% endif %}
+{% if schedule_success %}<div class="wo-success-banner" role="status">Technician assigned. The assignment was recorded in the work-order timeline.</div>{% endif %}
+<section class="wo-panel wo-schedule-board" aria-label="Scheduled work orders">
+{% for group in schedule_days %}
+  <div class="wo-schedule-group"><header><h2>{{ group.day|date:"l, F j, Y"|default:"Date not set" }}</h2><span>{% if group.technician %}{{ group.technician.user.full_name|default:group.technician.user.email }}{% else %}Unassigned work{% endif %}</span></header>
+    {% if group.technician and not group.technician.is_active %}<p class="wo-warning-banner">This technician membership is inactive. Reassignment is needed.</p>{% endif %}
+    <div class="table-responsive"><table class="wo-table"><thead><tr><th>Work order</th><th>Scheduled window</th><th>Priority</th><th>Site</th><th>Asset</th><th>Status</th><th>Due</th><th>Warnings / actions</th></tr></thead><tbody>
+      {% for wo in group.orders %}<tr class="{% if wo.overdue %}is-overdue{% endif %}">
+        <td><a class="wo-number" href="{% url 'workorders:detail' wo.pk %}">{{ wo.order_number }}</a><span class="wo-row-title">{{ wo.title }}</span></td>
+        <td>{{ wo.planned_start|date:"H:i"|default:"—" }} – {{ wo.planned_end|date:"H:i"|default:"—" }}</td>
+        <td><span class="wo-priority priority-{{ wo.priority|lower }}">{{ wo.get_priority_display }}</span></td><td>{{ wo.site.code }} · {{ wo.site.name }}</td><td>{{ wo.asset_reference|default:"—" }}</td>
+        <td><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span></td><td>{% if wo.due_at %}{{ wo.due_at|date:"M j, H:i" }}{% else %}—{% endif %}{% if wo.overdue %}<span class="wo-overdue-badge">Overdue</span>{% endif %}</td>
+        <td>{% if wo.has_conflict %}<span class="wo-warning">Overlapping assignment</span>{% endif %}{% if wo.inactive_technician %}<span class="wo-warning">Inactive technician</span>{% endif %}
+          {% if wo.can_assign %}<form class="wo-inline-assign" method="post" action="{% url 'workorders:schedule_assign' wo.pk %}?day={{ selected_day }}&amp;technician={{ selected_technician }}&amp;site={{ selected_site }}{% if overdue %}&amp;overdue={{ overdue }}{% endif %}" hx-post="{% url 'workorders:schedule_assign' wo.pk %}?day={{ selected_day }}&amp;technician={{ selected_technician }}&amp;site={{ selected_site }}{% if overdue %}&amp;overdue={{ overdue }}{% endif %}" hx-target="#schedule-results" hx-swap="innerHTML" hx-indicator="#schedule-loading">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ wo.version }}"><label class="visually-hidden" for="assign-{{ wo.pk }}">Assign {{ wo.order_number }}</label><select id="assign-{{ wo.pk }}" name="assigned_to" required><option value="">Select technician</option>{% for member in wo.assignable_technicians %}<option value="{{ member.pk }}">{{ member.user.full_name|default:member.user.email }}</option>{% endfor %}</select><button class="wo-edit-button" type="submit" {% if not wo.assignable_technicians %}disabled{% endif %}>Assign</button></form>{% else %}<a class="wo-view-button" href="{% url 'workorders:detail' wo.pk %}">View</a>{% endif %}
+        </td>
+      </tr>{% endfor %}</tbody></table></div>
+  </div>
+{% empty %}<div class="wo-empty wo-schedule-empty">No scheduled or unassigned planned work orders match these filters.</div>{% endfor %}
+</section><div id="schedule-loading" class="htmx-indicator wo-loading" role="status">Updating schedule…</div>

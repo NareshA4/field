@@ -33,6 +33,7 @@ router.register("platform/organizations", PlatformOrganizationViewSet, basename=
 
 api_v1 = [
     path("auth/", include("apps.accounts.api_urls")),
+    path("", include("apps.workorders.urls")),
     path("organization/", OrganizationViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
          name="organization"),
     path("", include(router.urls)),
@@ -52,7 +53,7 @@ urlpatterns = [
     path("app/", include("apps.notifications.urls")),
     path("app/", include("apps.files.urls")),
     path("app/", include("apps.sites.urls")),
-    # Module teams: add path("app/", include("apps.<module>.urls")) for your module here.
+    path("app/", include("apps.workorders.urls_ui")),
     path("", include("apps.ui.urls")),
 ]
 

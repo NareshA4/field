@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     "apps.files",
     "apps.platform_admin",
     "apps.sites",
+    "apps.workorders",
     "apps.ui",
 ]
 

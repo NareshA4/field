@@ -1,0 +1,4 @@
+<section class="wo-detail-card"><div class="d-flex justify-content-between align-items-center"><h2>Checklist</h2>{% if permissions.update and wo.status == 'DRAFT' or permissions.update and wo.status == 'PLANNED' or permissions.update and wo.status == 'ASSIGNED' %}<a class="wo-view-button" href="{% url 'workorders:action' wo.pk 'checklist' %}">Edit checklist</a>{% endif %}</div>
+  <ul class="list-group list-group-flush">{% for item in wo.checklist_items %}<li class="list-group-item px-0">{% if item.completed %}✓{% else %}○{% endif %} {{ item.label }}{% if item.required %}<span class="badge text-bg-light ms-1">Required</span>{% endif %}</li>{% empty %}<li class="list-group-item px-0 text-secondary">No checklist items recorded.</li>{% endfor %}</ul>
+  <p class="small text-secondary mt-3">Completion is blocked until all required checklist items are marked complete.</p>
+</section>
