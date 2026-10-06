@@ -37,6 +37,15 @@ class RequestForm(BootstrapFormMixin, forms.Form):
             self.fields["asset"].queryset = assets.exclude(status__in=["RETIRED", "DISPOSED"]).order_by("asset_tag")
 
 
+<<<<<<< HEAD
+=======
+class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
+    title = forms.CharField(max_length=200, required=False, label="Work order title (blank = from request)")
+    priority = forms.ChoiceField(choices=[("", "(from severity)"), ("LOW", "Low"), ("MEDIUM", "Medium"),
+                                          ("HIGH", "High"), ("URGENT", "Urgent")], required=False)
+
+
+>>>>>>> ba3f639 (feat(m08): implement Inspection & Checklist Engine with Work Order integration)
 class DowntimeForm(BootstrapFormMixin, forms.Form):
     started_at = dt_field("Downtime started", required=True)
     ended_at = dt_field("Downtime ended (blank = still down)")

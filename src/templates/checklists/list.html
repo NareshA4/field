@@ -1,0 +1,121 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Checklists & Inspections · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header">
+  <div>
+    <h1>Checklists & Inspections</h1>
+    <div class="text-body-secondary">Standardized quality control checklists, field verification protocols, and exception findings.</div>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'checklists:inspections' %}">{% icon 'clipboard' 14 %} Executed Inspections</a>
+    {% if can_manage %}
+    <a class="btn btn-sm btn-primary d-flex align-items-center gap-1" href="{% url 'checklists:create' %}">
+      {% icon 'plus' 14 %} New Checklist
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- KPI Metric Cards (Figma Spec) -->
+<div class="fx-kpi-grid">
+  <div class="fx-kpi-card">
+    <div>
+      <div class="fx-kpi-label">Total Templates</div>
+      <div class="fx-kpi-val">{{ kpis.total|default:"0" }}</div>
+      <div class="fx-kpi-sub">Registered protocols</div>
+    </div>
+    <div class="fx-kpi-icon navy">{% icon 'file-text' 20 %}</div>
+  </div>
+  <div class="fx-kpi-card">
+    <div>
+      <div class="fx-kpi-label">Active Protocols</div>
+      <div class="fx-kpi-val">{{ kpis.active|default:"0" }}</div>
+      <div class="fx-kpi-sub">Ready for technicians</div>
+    </div>
+    <div class="fx-kpi-icon green">{% icon 'check-circle' 20 %}</div>
+  </div>
+  <div class="fx-kpi-card">
+    <div>
+      <div class="fx-kpi-label">Field Inspections</div>
+      <div class="fx-kpi-val">{{ kpis.inspections|default:"0" }}</div>
+      <div class="fx-kpi-sub">Executed instances</div>
+    </div>
+    <div class="fx-kpi-icon amber">{% icon 'clipboard' 20 %}</div>
+  </div>
+  <div class="fx-kpi-card">
+    <div>
+      <div class="fx-kpi-label">Open Findings</div>
+      <div class="fx-kpi-val">{{ kpis.open_findings|default:"0" }}</div>
+      <div class="fx-kpi-sub">Pending supervisor review</div>
+    </div>
+    <div class="fx-kpi-icon red">{% icon 'alert-triangle' 20 %}</div>
+  </div>
+</div>
+
+<div class="fx-card">
+  <div class="fx-card-header bg-white">
+    <div class="fw-semibold text-dark">Template Registry</div>
+    <div class="small text-muted">{{ page.paginator.count|default:"0" }} template{{ page.paginator.count|pluralize }}</div>
+  </div>
+  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom align-items-center bg-light">
+    <input class="form-control form-control-sm" style="max-width:240px" type="search" name="q" value="{{ filters.q }}" placeholder="Search templates..." aria-label="Search checklists">
+    <select class="form-select form-select-sm" style="max-width:160px" name="status" aria-label="Status">
+      <option value="">All statuses</option>
+      <option value="DRAFT" {% if filters.status == "DRAFT" %}selected{% endif %}>Draft</option>
+      <option value="ACTIVE" {% if filters.status == "ACTIVE" %}selected{% endif %}>Active</option>
+      <option value="INACTIVE" {% if filters.status == "INACTIVE" %}selected{% endif %}>Inactive</option>
+    </select>
+    <button class="btn btn-sm btn-outline-secondary">Filter</button>
+    {% if filters.q or filters.status %}
+    <a href="{% url 'checklists:list' %}" class="btn btn-sm btn-link text-decoration-none text-muted">Clear</a>
+    {% endif %}
+  </form>
+  <div class="table-responsive">
+    <table class="table fx-table" id="checklist-table">
+      <thead>
+        <tr>
+          <th>Checklist Template</th>
+          <th>Version</th>
+          <th>Status</th>
+          <th>Work Type</th>
+          <th>Mandatory Gate</th>
+          <th>Questions</th>
+          <th class="text-end">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in page %}
+        <tr>
+          <td>
+            <a class="fw-semibold text-decoration-none text-dark d-block" href="{% url 'checklists:detail' t.pk %}">{{ t.name }}</a>
+            {% if t.description %}<div class="small text-muted text-truncate" style="max-width: 320px;">{{ t.description }}</div>{% endif %}
+          </td>
+          <td><span class="badge fx-badge fx-badge-secondary">v{{ t.version }}</span></td>
+          <td>{% status_badge t.status %}</td>
+          <td>
+            <span class="badge bg-light text-dark border">{{ t.work_type|default:"Any Work"|title }}</span>
+          </td>
+          <td>
+            {% if t.is_required %}
+              <span class="badge fx-badge fx-badge-warning" title="Must pass before work order can close">Mandatory</span>
+            {% else %}
+              <span class="badge fx-badge fx-badge-secondary">Optional</span>
+            {% endif %}
+          </td>
+          <td><span class="fw-semibold">{{ t.items.count }}</span> item{{ t.items.count|pluralize }}</td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'checklists:detail' t.pk %}">Configure</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7">{% include "components/_empty_state.html" with title="No checklists yet" text="Create a checklist template to establish standardized field inspection steps." %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/_pagination.html" %}
+</div>
+{% endblock %}

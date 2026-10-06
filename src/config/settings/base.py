@@ -73,6 +73,13 @@ INSTALLED_APPS = [
     "apps.assets",
     "apps.incidents",
     "apps.workorders",
+<<<<<<< HEAD
+=======
+    "apps.inventory",
+    "apps.sla",
+    "apps.contracts",
+    "apps.checklists",
+>>>>>>> ba3f639 (feat(m08): implement Inspection & Checklist Engine with Work Order integration)
     "apps.ui",
 ]
 
