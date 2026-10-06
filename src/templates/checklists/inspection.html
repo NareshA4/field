@@ -1,0 +1,206 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Inspection · {{ insp.template.name }} · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item"><a href="{% url 'checklists:inspections' %}" class="text-decoration-none">Inspections</a></li>
+        <li class="breadcrumb-item active">{{ insp.template.name }}</li>
+      </ol>
+    </nav>
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <h1 class="mb-0">{{ insp.template.name }}</h1>
+      <span class="badge fx-badge fx-badge-secondary">v{{ insp.template.version }}</span>
+      {% status_badge insp.status %}
+    </div>
+    <div class="text-body-secondary small">
+      Asset: <span class="badge bg-light text-dark border font-monospace">{{ insp.asset.asset_tag }}</span> ·
+      Site: <span class="fw-semibold text-dark">{{ insp.site.code }}</span>
+      {% if wo %}
+        · Work Order: <a href="{% url 'workorders:detail' wo.pk %}" class="badge fx-badge fx-badge-info text-decoration-none">{{ wo.number }}</a>
+      {% endif %}
+      · Started: {{ insp.started_at|date:"d M Y H:i" }} by {{ insp.started_by.user.display_name }}
+      {% if insp.completed_at %}
+        · Completed: {{ insp.completed_at|date:"d M Y H:i" }} by {{ insp.completed_by.user.display_name }}
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if insp.summary %}
+<div class="alert alert-light border d-flex align-items-start gap-2 py-2 px-3 mb-3">
+  {% icon 'info' 18 %}
+  <div><strong>Technician Summary:</strong> {{ insp.summary }}</div>
+</div>
+{% endif %}
+
+<!-- Inspection Execution Overview Grid -->
+<div class="row g-3 mb-3">
+  <div class="col-sm-6 col-lg-3">
+    <div class="fx-card p-3 h-100">
+      <div class="text-muted small text-uppercase fw-semibold mb-1">Total Items</div>
+      <div class="fs-4 fw-bold text-dark">{{ rows|length }}</div>
+      <div class="small text-muted">Checked criteria</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="fx-card p-3 h-100">
+      <div class="text-muted small text-uppercase fw-semibold mb-1">Status</div>
+      <div class="fs-5 fw-bold text-dark">
+        {% status_badge insp.status %}
+      </div>
+      <div class="small text-muted">{% if insp.completed_at %}Finished{% else %}In progress{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="fx-card p-3 h-100">
+      <div class="text-muted small text-uppercase fw-semibold mb-1">Exceptions Found</div>
+      <div class="fs-4 fw-bold {% if findings %}text-danger{% else %}text-success{% endif %}">
+        {{ findings|length }}
+      </div>
+      <div class="small text-muted">{% if findings %}Requires review{% else %}All criteria passed{% endif %}</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="fx-card p-3 h-100">
+      <div class="text-muted small text-uppercase fw-semibold mb-1">Work Order Link</div>
+      <div class="fs-5 fw-bold text-dark">
+        {% if wo %}{{ wo.number }}{% else %}Standalone{% endif %}
+      </div>
+      <div class="small text-muted">{% if wo %}Gate to closure{% else %}Ad-hoc inspection{% endif %}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Answers & Verification Table -->
+<div class="fx-card mb-4">
+  <div class="fx-card-header bg-white">
+    <div class="fw-semibold text-dark">Inspection Answers & Verification Results</div>
+    <div class="small text-muted">{{ rows|length }} recorded step{{ rows|length|pluralize }}</div>
+  </div>
+  <div class="table-responsive">
+    <table class="table fx-table" id="answer-table">
+      <thead>
+        <tr>
+          <th style="width: 50px;">#</th>
+          <th>Inspection Question & Criteria</th>
+          <th>Technician Answer</th>
+          <th>Attached Evidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td><span class="fx-num-circle">{{ r.item.position }}</span></td>
+          <td>
+            <div class="fw-semibold text-dark">
+              {{ r.item.prompt }}
+              {% if r.item.required %}<span class="text-danger" title="Required">*</span>{% endif %}
+            </div>
+            {% if r.item.guidance %}
+              <div class="small text-muted mt-0.5">{{ r.item.guidance }}</div>
+            {% endif %}
+          </td>
+          <td>
+            {% if r.response %}
+              {% if r.response.value_bool is not None %}
+                {% if r.response.value_bool %}
+                  <span class="fx-answer-pill fx-answer-pass">{% icon 'check' 12 %} Pass</span>
+                {% else %}
+                  <span class="fx-answer-pill fx-answer-fail">{% icon 'x' 12 %} Fail</span>
+                {% endif %}
+              {% elif r.response.value_number is not None %}
+                <span class="fx-answer-pill fx-answer-val font-monospace">
+                  {{ r.response.value_number|floatformat:"-4" }} {{ r.item.unit }}
+                </span>
+              {% else %}
+                <span class="text-dark">{{ r.response.value_text }}</span>
+              {% endif %}
+
+              {% if r.response.is_exception %}
+                <span class="badge fx-badge fx-badge-danger ms-1">{% icon 'alert-triangle' 11 %} Exception</span>
+              {% endif %}
+            {% else %}
+              <span class="text-body-secondary small">Not answered</span>
+            {% endif %}
+          </td>
+          <td>
+            {% for a in r.evidence %}
+              <a href="{% url 'files:download' a.pk %}" class="btn btn-sm btn-outline-secondary py-0 px-2 d-inline-flex align-items-center gap-1 my-1">
+                {% icon 'file' 12 %} {{ a.original_name }}
+              </a>
+            {% empty %}
+              <span class="text-muted small">—</span>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Findings & Exceptions Table -->
+<div class="fx-card">
+  <div class="fx-card-header bg-white">
+    <div class="fw-semibold text-dark">Exceptions & Non-Conformance Findings ({{ findings|length }})</div>
+    <div class="small text-muted">Supervisor action items generated by checklist failures</div>
+  </div>
+  <div class="table-responsive">
+    <table class="table fx-table" id="finding-table">
+      <thead>
+        <tr>
+          <th>Finding Detail & Source</th>
+          <th>Severity</th>
+          <th>Status</th>
+          <th class="text-end">Supervisor Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in findings %}
+        <tr>
+          <td>
+            <div class="fw-semibold text-dark">{{ f.description|linebreaksbr }}</div>
+            <div class="small text-body-secondary mt-1">
+              {% if f.item %}Origin: <strong>Question #{{ f.item.position }}</strong> · {% endif %}
+              Recorded: {{ f.created_at|date:"d M Y H:i" }}
+              {% if f.created_by.email %}· by {{ f.created_by.email }}{% endif %}
+            </div>
+            {% if f.resolution_notes %}
+              <div class="small bg-light p-2 rounded border mt-2">
+                <span class="text-success fw-semibold">Resolved Notes:</span> {{ f.resolution_notes }}
+              </div>
+            {% endif %}
+          </td>
+          <td>{% status_badge f.severity %}</td>
+          <td>{% status_badge f.status %}</td>
+          <td class="text-end">
+            {% if can_review and f.status == "OPEN" %}
+              <form method="post" action="{% url 'checklists:finding_resolve' f.pk %}" class="d-inline-flex gap-1 align-items-center justify-content-end">
+                {% csrf_token %}
+                <input class="form-control form-control-sm" style="max-width: 220px;" name="reason" required minlength="3" maxlength="300" placeholder="Resolution notes..." aria-label="Resolution notes">
+                <button class="btn btn-sm btn-success text-nowrap d-flex align-items-center gap-1">
+                  {% icon 'check' 12 %} Resolve
+                </button>
+              </form>
+            {% elif f.status == "RESOLVED" %}
+              <span class="badge fx-badge fx-badge-success">Resolved</span>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4">
+            {% include "components/_empty_state.html" with title="No findings or exceptions" text="All checklist questions passed verification standards with zero non-conformances." %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

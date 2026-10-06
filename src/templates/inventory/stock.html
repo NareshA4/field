@@ -1,0 +1,22 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Stock · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>Stock</h1><div class="text-body-secondary">On hand, reserved and available per warehouse. Every change is a movement.</div></div>
+  <div class="d-flex gap-2">{% if can_receive %}<a class="btn btn-primary" href="{% url 'inventory:receive' %}">Receive stock</a>{% endif %}{% if can_transfer %}<a class="btn btn-outline-primary" href="{% url 'inventory:transfer' %}">Transfer</a>{% endif %}</div></div>
+{% include "components/_section_tabs.html" with section="Inventory" %}
+<div class="fx-card">
+  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom align-items-center">
+    <input class="form-control form-control-sm" style="max-width:240px" type="search" name="q" value="{{ filters.q }}" placeholder="Part number or name" aria-label="Search stock">
+    <select class="form-select form-select-sm" style="max-width:200px" name="warehouse" aria-label="Warehouse"><option value="">All warehouses</option>
+      {% for w in warehouses %}<option value="{{ w.pk }}" {% if filters.warehouse == w.pk|stringformat:"s" %}selected{% endif %}>{{ w.code }}</option>{% endfor %}</select>
+    <div class="form-check"><input class="form-check-input" type="checkbox" name="low" value="1" id="low" {% if filters.low %}checked{% endif %}><label class="form-check-label small" for="low">Low stock only</label></div>
+    <button class="btn btn-sm btn-outline-secondary">Filter</button></form>
+  <div class="table-responsive"><table class="table fx-table" id="stock-table"><thead><tr><th>Warehouse</th><th>Part</th><th>On hand</th><th>Reserved</th><th>Available</th><th>Min / Max</th><th>Reorder</th></tr></thead><tbody>
+  {% for b in page %}<tr><td><div class="fw-medium">{{ b.warehouse.code }}</div><div class="fx-sub">{{ b.warehouse.site.code }}</div></td><td><a href="{% url 'inventory:stock_detail' b.pk %}">{{ b.part.part_number }}</a> · {{ b.part.name }}</td>
+    <td>{{ b.on_hand|floatformat:"-3" }} {{ b.part.unit }}</td><td>{{ b.reserved|floatformat:"-3" }}</td><td>{{ b.available|floatformat:"-3" }}{% if b.is_low %} <span class="badge fx-badge fx-badge-warning">Low</span>{% endif %}</td>
+    <td>{{ b.effective_min|floatformat:"-3"|default:"—" }} / {{ b.effective_max|floatformat:"-3"|default:"—" }}</td><td>{{ b.effective_reorder_quantity|floatformat:"-3"|default:"—" }}</td></tr>
+  {% empty %}<tr><td colspan="7">{% include "components/_empty_state.html" with title="No stock" text="Receive stock into a warehouse." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "components/_pagination.html" %}
+</div>
+{% endblock %}

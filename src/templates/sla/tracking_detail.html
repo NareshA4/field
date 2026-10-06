@@ -1,0 +1,163 @@
+{% extends "shell.html" %} {% load ui_tags %} {% block title %}SLA · {% if
+t.request %}{{ t.request.number }}{% else %}{{ t.work_order.number }}{% endif %}
+· FieldOps Nexus{% endblock %} {% block content %}
+<div class="fx-page-header">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item">
+          <a href="{% url 'sla:trackings' %}">SLA tracking</a>
+        </li>
+        <li class="breadcrumb-item active">
+          {% if t.request %}{{ t.request.number }}{% else %}{{
+          t.work_order.number }}{% endif %}
+        </li>
+      </ol>
+    </nav>
+    <h1>
+      SLA · {% if t.request %}{{ t.request.number }}{% else %}{{
+      t.work_order.number }}{% endif %} {% status_badge t.status %}
+    </h1>
+    <div class="text-body-secondary">
+      {{ t.profile.name }} · priority {{ t.priority|title }} · site {{
+      t.site.code }}
+    </div>
+  </div>
+  <div>
+    {% if t.request %}<a
+      class="btn btn-outline-primary"
+      href="{% url 'incidents:detail' t.request_id %}"
+      >Open request</a
+    >{% else %}<a
+      class="btn btn-outline-primary"
+      href="{% url 'workorders:detail' t.work_order_id %}"
+      >Open work order</a
+    >{% endif %}
+  </div>
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-lg-6">
+    <div class="fx-card">
+      <div class="fx-card-header">
+        Response {% status_badge t.response_state %}
+      </div>
+      <div class="fx-card-body">
+        <dl class="fx-kv">
+          <dt>Target</dt>
+          <dd>
+            {{ t.response_minutes }} min (warn at {{ t.warning_percent }}%)
+          </dd>
+          <dt>Started</dt>
+          <dd>{{ t.started_at|date:"d M Y H:i:s" }}</dd>
+          <dt>Due</dt>
+          <dd>{{ t.response_due_at|date:"d M Y H:i:s" }}</dd>
+          <dt>Met at</dt>
+          <dd>{{ t.response_met_at|date:"d M Y H:i:s"|default:"—" }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="fx-card">
+      <div class="fx-card-header">
+        Resolution {% status_badge t.resolution_state %}
+      </div>
+      <div class="fx-card-body">
+        <dl class="fx-kv">
+          <dt>Target</dt>
+          <dd>{{ t.resolution_minutes }} min</dd>
+          <dt>Paused time</dt>
+          <dd>
+            {{ t.paused_seconds }} s{% if t.paused_at %} (paused since {{
+            t.paused_at|date:"d M H:i" }}){% endif %}
+          </dd>
+          <dt>Due</dt>
+          <dd>{{ t.resolution_due_at|date:"d M Y H:i:s" }}</dd>
+          <dt>Met at</dt>
+          <dd>{{ t.resolution_met_at|date:"d M Y H:i:s"|default:"—" }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="fx-card mb-3">
+  <div class="fx-card-header">Breaches</div>
+  <div class="table-responsive">
+    <table class="table fx-table">
+      <thead>
+        <tr>
+          <th>Target</th>
+          <th>Missed at</th>
+          <th>Detected</th>
+          <th>Level</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in breaches %}
+        <tr>
+          <td>{{ b.get_target_kind_display }}</td>
+          <td>{{ b.breached_at|date:"d M Y H:i:s" }}</td>
+          <td>{{ b.detected_at|date:"d M Y H:i:s" }}</td>
+          <td>{{ b.escalation_level }}</td>
+          <td>{% status_badge b.status %}</td>
+          <td>
+            {% if can_ack and b.status == "OPEN" %}
+            <form
+              method="post"
+              action="{% url 'sla:breach_ack' b.pk %}"
+              class="m-0"
+            >
+              {% csrf_token %}<input
+                type="hidden"
+                name="next"
+                value="{{ request.path }}"
+              /><button class="btn btn-sm btn-outline-primary">
+                Acknowledge
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-body-secondary">No breaches.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="fx-card">
+  <div class="fx-card-header">Timeline</div>
+  <div class="table-responsive">
+    <table class="table fx-table" id="sla-events">
+      <thead>
+        <tr>
+          <th>When</th>
+          <th>Event</th>
+          <th>Target</th>
+          <th>Detail</th>
+          <th>Notified</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in events %}
+        <tr>
+          <td class="small">{{ e.at|date:"d M Y H:i:s" }}</td>
+          <td>{{ e.event_type|title }}</td>
+          <td>{{ e.target_kind|title }}</td>
+          <td class="small">{{ e.detail }}</td>
+          <td>{{ e.notified }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-body-secondary">No events yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

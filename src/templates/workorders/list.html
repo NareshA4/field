@@ -1,0 +1,31 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Work Orders · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>Work Orders</h1><div class="text-body-secondary">Plan, assign, dispatch and execute maintenance work.</div></div>
+  <div class="d-flex gap-2">{% if can_create %}<a class="btn btn-primary" href="{% url 'workorders:create' %}">{% icon 'plus' 16 %} New work order</a>{% endif %}</div></div>
+<div class="fx-card">
+  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom align-items-center">
+    <input class="form-control form-control-sm" style="max-width:240px" type="search" name="q" value="{{ filters.q }}" placeholder="Number, title, asset" aria-label="Search work orders">
+    <select class="form-select form-select-sm" style="max-width:150px" name="site" aria-label="Site"><option value="">All sites</option>
+      {% for s in sites %}<option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>{% endfor %}</select>
+    <select class="form-select form-select-sm" style="max-width:200px" name="status" aria-label="Status"><option value="">All statuses</option>
+      {% for v, l in statuses %}<option value="{{ v }}" {% if filters.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+    <select class="form-select form-select-sm" style="max-width:140px" name="priority" aria-label="Priority"><option value="">All priorities</option>
+      {% for v, l in priorities %}<option value="{{ v }}" {% if filters.priority == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+    <select class="form-select form-select-sm" style="max-width:200px" name="work_type" aria-label="Type"><option value="">All types</option>
+      {% for v, l in types %}<option value="{{ v }}" {% if filters.work_type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+    <div class="form-check ms-1"><input class="form-check-input" type="checkbox" name="mine" value="1" id="mine" {% if filters.mine %}checked{% endif %}><label class="form-check-label small" for="mine">Mine</label></div>
+    <button class="btn btn-sm btn-outline-secondary">Filter</button>
+  </form>
+  <div class="table-responsive"><table class="table fx-table">
+    <thead><tr><th>Number</th><th>Title</th><th>Type</th><th>Asset</th><th>Priority</th><th>Status</th><th>Technician</th><th>Planned</th></tr></thead>
+    <tbody>{% for w in page %}
+      <tr><td><a class="fx-id" href="{% url 'workorders:detail' w.pk %}">{{ w.number }}</a></td><td><div class="fw-medium">{{ w.title }}</div>{% if w.source_request %}<div class="fx-sub">from {{ w.source_request.number }}</div>{% endif %}</td>
+        <td><span class="fx-chip" data-t="{{ w.work_type }}">{{ w.get_work_type_display }}</span></td><td><div class="fw-medium">{{ w.asset.asset_tag }}</div><div class="fx-sub">{{ w.site.code }}</div></td><td>{% status_badge w.priority %}</td><td>{% status_badge w.status %}</td>
+        <td>{{ w.assigned_to.user.display_name|default:"—" }}</td><td class="small">{{ w.planned_start|date:"d M H:i"|default:"—" }}</td></tr>
+    {% empty %}<tr><td colspan="8">{% include "components/_empty_state.html" with title="No work orders match" text="Adjust the filters or create a work order." %}</td></tr>{% endfor %}
+    </tbody></table></div>
+  {% include "components/_pagination.html" %}
+</div>
+{% endblock %}

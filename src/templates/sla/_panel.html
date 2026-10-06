@@ -1,0 +1,29 @@
+{% load ui_tags %}{% if sla %}
+<div class="fx-card mb-3" id="sla-panel">
+  <div class="fx-card-header d-flex justify-content-between">
+    SLA {% status_badge sla.status %}<a
+      class="small"
+      href="{% url 'sla:tracking' sla.pk %}"
+      >Details</a
+    >
+  </div>
+  <div class="fx-card-body">
+    <dl class="fx-kv mb-0">
+      <dt>Response</dt>
+      <dd>
+        {% status_badge sla.response_state %}
+        <span class="small text-body-secondary"
+          >due {{ sla.response_due_at|date:"d M H:i" }}</span
+        >
+      </dd>
+      <dt>Resolution</dt>
+      <dd>
+        {% status_badge sla.resolution_state %}
+        <span class="small text-body-secondary"
+          >due {{ sla.resolution_due_at|date:"d M H:i" }}</span
+        >
+      </dd>
+    </dl>
+  </div>
+</div>
+{% endif %}

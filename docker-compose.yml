@@ -4,7 +4,7 @@ x-app: &app
   env_file: .env
   environment:
     DJANGO_SETTINGS_MODULE: config.settings.prod
-    DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    DATABASE_URL: postgres://${POSTGRES_USER:-fieldops}:${POSTGRES_PASSWORD:-fieldops}@db:5432/${POSTGRES_DB:-fieldops}
     REDIS_URL: redis://redis:6379/0
     CELERY_BROKER_URL: redis://redis:6379/1
     # The local stack is plain HTTP behind Nginx on :8080. Production keeps these secure defaults (see prod.py).
@@ -24,12 +24,12 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-fieldops}
+      POSTGRES_USER: ${POSTGRES_USER:-fieldops}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fieldops}
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fieldops} -d ${POSTGRES_DB:-fieldops}"]
       interval: 5s
       retries: 10
   redis:
