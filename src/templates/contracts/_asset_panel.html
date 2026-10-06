@@ -1,0 +1,16 @@
+{% load ui_tags %}
+<div class="fx-card" id="coverage-panel">
+  <div class="fx-card-header"><span>Coverage on {{ on|date:"d M Y" }}{% if work_type %} · {{ work_type|title }} work{% endif %}</span>
+    {% if res.eligible %}{% status_badge "COVERING" %}{% elif res.covered %}{% status_badge "EXCLUDED" %}{% else %}<span class="badge fx-badge fx-badge-secondary">Not covered</span>{% endif %}</div>
+  <div class="fx-card-body border-bottom">
+    <form class="row g-2 align-items-end" hx-get="{% url 'contracts:asset_panel' asset.pk %}" hx-target="#coverage-host" hx-swap="innerHTML">
+      <div class="col-sm-4"><label class="form-label small mb-0" for="cov-wt">Work type</label><select class="form-select form-select-sm" id="cov-wt" name="work_type"><option value="">Any</option>{% for w in work_types %}<option value="{{ w }}" {% if w == work_type %}selected{% endif %}>{{ w|title }}</option>{% endfor %}</select></div>
+      <div class="col-sm-4"><label class="form-label small mb-0" for="cov-date">On date</label><input class="form-control form-control-sm" id="cov-date" type="date" name="date" value="{{ on|date:'Y-m-d' }}"></div>
+      <div class="col-sm-4"><button class="btn btn-sm btn-outline-secondary">Check</button></div></form></div>
+  <div class="fx-card-body"><p class="mb-2" id="coverage-reason"><strong>{% if res.eligible %}Eligible.{% else %}Not eligible.{% endif %}</strong> {{ res.reason }}</p>
+  <div class="table-responsive"><table class="table fx-table mb-2" id="coverage-entries"><thead><tr><th>Agreement</th><th>Provider</th><th>Valid</th><th>Result</th></tr></thead><tbody>
+  {% for e in res.entries %}<tr><td><a href="{% url 'contracts:agreement' e.agreement.pk %}">{{ e.agreement.reference }}</a><div class="small text-body-secondary">{{ e.agreement.get_kind_display }}</div></td><td>{{ e.agreement.provider.name }}</td>
+    <td class="small">{{ e.agreement.start_date|date:"d M Y" }} → {{ e.agreement.end_date|date:"d M Y" }}</td><td>{% status_badge e.status %}<div class="small text-body-secondary">{{ e.reason }}</div></td></tr>
+  {% empty %}<tr><td colspan="4" class="text-body-secondary">No warranty, AMC or contract is linked to this asset.</td></tr>{% endfor %}</tbody></table></div>
+  {% if can_create %}<a class="btn btn-sm btn-primary" href="{% url 'contracts:agreement_new' %}?assets={{ asset.pk }}">{% icon 'plus' 14 %} Add warranty / contract</a>{% endif %}</div>
+</div>

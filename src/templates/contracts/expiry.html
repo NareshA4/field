@@ -1,0 +1,14 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Expiring coverage · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>Expiring coverage</h1><div class="text-body-secondary">Active agreements ending within {{ days }} days, and active agreements that have already lapsed.</div></div>
+  <form method="get" class="d-flex gap-2"><select class="form-select form-select-sm" name="days" aria-label="Window">{% for d in windows %}<option value="{{ d }}" {% if d == days %}selected{% endif %}>{{ d }} days</option>{% endfor %}</select><button class="btn btn-sm btn-outline-secondary">Apply</button></form></div>
+<div class="fx-card mb-3"><div class="fx-card-header">Expiring soon</div><div class="table-responsive"><table class="table fx-table" id="expiring-table"><thead><tr><th>Reference</th><th>Type</th><th>Provider</th><th>Site</th><th>Ends</th><th>Days left</th><th>Renewal</th></tr></thead><tbody>
+{% for a in rows %}<tr><td><a href="{% url 'contracts:agreement' a.pk %}">{{ a.reference }}</a></td><td>{{ a.get_kind_display }}</td><td>{{ a.provider.name }}</td><td>{{ a.site.code }}</td><td>{{ a.end_date|date:"d M Y" }}</td><td>{{ a.days_left }}</td>
+  <td>{% if a.renewed %}{% status_badge "RENEWED" %}{% elif can_update %}<a class="btn btn-sm btn-outline-success" href="{% url 'contracts:agreement_renew' a.pk %}">Renew</a>{% else %}Pending{% endif %}</td></tr>
+{% empty %}<tr><td colspan="7">{% include "components/_empty_state.html" with title="Nothing expires in this window" text="Widen the window to look further ahead." %}</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="fx-card"><div class="fx-card-header">Lapsed (still marked active)</div><div class="table-responsive"><table class="table fx-table" id="lapsed-table"><thead><tr><th>Reference</th><th>Type</th><th>Ended</th></tr></thead><tbody>
+{% for a in lapsed %}<tr><td><a href="{% url 'contracts:agreement' a.pk %}">{{ a.reference }}</a></td><td>{{ a.get_kind_display }}</td><td>{{ a.end_date|date:"d M Y" }}</td></tr>
+{% empty %}<tr><td colspan="3">No lapsed agreements.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}
