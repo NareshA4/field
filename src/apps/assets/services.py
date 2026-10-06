@@ -7,9 +7,12 @@ transaction. Other modules change asset status ONLY through ``change_status`` (n
 from __future__ import annotations
 
 import re
+import uuid
+from typing import Dict, Any, List
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -26,6 +29,7 @@ from .models import (
     AssetMeter,
     AssetMeterReading,
     AssetStatusHistory,
+    AssetComponent,
 )
 from .workflow import ACTIVE, ASSET_STATUS, TERMINAL_STATES, UNDER_MAINTENANCE
 
@@ -139,8 +143,6 @@ def create_asset(org, *, site, category, zone=None, owner=None, actor, request=N
 @transaction.atomic
 def update_asset(asset: Asset, *, actor, request=None, category=UNSET, owner=UNSET, site=UNSET, zone=UNSET,
                  attributes=UNSET, reason: str = "", **changes) -> Asset:
-    """Edits descriptive fields. ``site``/``zone`` (when given and different) perform a tracked move; ``status``
-    can never be edited here (use ``change_status``)."""
     org = asset.organization
     asset = Asset.objects.select_for_update().get(pk=asset.pk)
     assert_editable(asset)
@@ -160,7 +162,7 @@ def update_asset(asset: Asset, *, actor, request=None, category=UNSET, owner=UNS
         if category.pk != asset.category_id:
             asset.category = category
             if attributes is UNSET:
-                attributes = {}  # values of the old category's attributes do not carry over
+                attributes = {}
     if attributes is not UNSET:
         asset.attributes = attrs.clean_values(asset.category.attribute_definitions, attributes)
     if owner is not UNSET:
@@ -173,7 +175,7 @@ def update_asset(asset: Asset, *, actor, request=None, category=UNSET, owner=UNS
     new_site = asset.site if site is UNSET else site
     new_zone = asset.zone if zone is UNSET else zone
     if site is not UNSET and zone is UNSET and new_site.pk != asset.site_id:
-        new_zone = None  # the old location does not exist at the new site
+        new_zone = None
     moved = (new_site.pk, getattr(new_zone, "pk", None)) != (asset.site_id, asset.zone_id)
     if moved:
         _move(asset, new_site, new_zone, actor=actor, reason=reason)
@@ -205,7 +207,6 @@ def _move(asset: Asset, site, zone, *, actor, reason=""):
 
 @transaction.atomic
 def change_status(asset: Asset, *, action: str, reason: str, actor, request=None, source: str = "manual") -> Asset:
-    """The ONLY path that changes ``Asset.status``: validated transition + history row + audit, atomically."""
     reason = (reason or "").strip()
     if len(reason) < 3:
         raise ValidationFailed("A reason is required for a status change.", code="reason_required")
@@ -220,23 +221,17 @@ def change_status(asset: Asset, *, action: str, reason: str, actor, request=None
     return asset
 
 
-# --- work-order driven status (M06 -> M02, D-058) ---------------------------------------------------------------------
-
-# Work types that take the asset out of normal service while they run. An INSPECTION does not.
+# Work types that take the asset out of normal service while they run
 MAINTENANCE_WORK_TYPES = ("CORRECTIVE", "PREVENTIVE", "INSTALLATION", "OTHER")
 
 
 def _set_by_work_order(asset: Asset) -> bool:
-    """True when the asset's current UNDER_MAINTENANCE was set by a work order (never undo a manual decision)."""
     last = asset.status_history.order_by("-created_at", "-id").first()
     return bool(last and last.to_status == UNDER_MAINTENANCE and last.source == "work_order")
 
 
 @transaction.atomic
 def on_work_order_started(wo, *, actor, request=None):
-    """HPE 8.4 controlled transition: work starts -> ACTIVE asset becomes UNDER_MAINTENANCE through the asset state
-    machine (history + audit). Idempotent; any other asset state (already under maintenance, out of service,
-    retired, disposed) is left alone."""
     if wo.work_type not in MAINTENANCE_WORK_TYPES:
         return None
     asset = Asset.objects.select_for_update().get(pk=wo.asset_id)
@@ -248,9 +243,6 @@ def on_work_order_started(wo, *, actor, request=None):
 
 @transaction.atomic
 def on_work_order_closed(wo, *, actor, request=None):
-    """Closure -> UNDER_MAINTENANCE asset returns to ACTIVE, but only when this work order's lifecycle put it there
-    and no other work order on the asset is still being executed. OUT_OF_SERVICE (a real fault state) and terminal
-    states are never touched."""
     from apps.workorders.models import WorkOrder
     from apps.workorders.workflow import EXECUTION_STATES
 
@@ -267,7 +259,6 @@ def on_work_order_closed(wo, *, actor, request=None):
 
 @transaction.atomic
 def remove_document(document: AssetDocument, *, reason: str, actor, request=None) -> AssetDocument:
-    """Soft-removes a document (hidden, download blocked; file and audit trail kept). Needs a reason."""
     reason = (reason or "").strip()
     if len(reason) < 3:
         raise ValidationFailed("A reason is required to remove a document.", code="reason_required")
@@ -334,8 +325,6 @@ def update_category(cat: AssetCategory, *, actor, request=None, name=None, descr
 
 @transaction.atomic
 def add_document(asset: Asset, uploaded, *, title: str = "", doc_type: str = "OTHER", actor, request=None):
-    """Stores the file through the Phase 0 secure path (validation, tenant folder, hash, audit). Download is
-    authorised by ``asset.view`` for the asset's site (see ``assets.access``)."""
     if doc_type not in AssetDocument.DocType.values:
         raise ValidationFailed("Unknown document type.", code="invalid_doc_type")
     title = (title or "").strip() or getattr(uploaded, "name", "Document")
@@ -356,7 +345,7 @@ def add_document(asset: Asset, uploaded, *, title: str = "", doc_type: str = "OT
 
 @transaction.atomic
 def create_meter(asset: Asset, *, name: str, unit: str, actor, request=None) -> AssetMeter:
-    asset = Asset.objects.select_for_update().get(pk=asset.pk)  # never trust a stale status
+    asset = Asset.objects.select_for_update().get(pk=asset.pk)
     assert_editable(asset)
     name, unit = (name or "").strip(), (unit or "").strip()
     if not name or not unit:
@@ -384,7 +373,6 @@ def set_meter_active(meter: AssetMeter, *, active: bool, actor, request=None):
 @transaction.atomic
 def record_reading(meter: AssetMeter, *, value, read_at=None, notes: str = "", actor, request=None,
                    source: str = "manual") -> AssetMeterReading:
-    """Readings are monotonic: value and time may not go backwards (M04 consumes this for meter-based PM)."""
     meter = AssetMeter.objects.select_for_update().select_related("asset").get(pk=meter.pk)
     assert_editable(meter.asset)
     if not meter.is_active:
@@ -417,3 +405,46 @@ def record_reading(meter: AssetMeter, *, value, read_at=None, notes: str = "", a
                  after={"meter": meter.name, "value": value, "unit": meter.unit, "read_at": read_at},
                  request=request)
     return reading
+
+
+# --- Helper Service classes for multi-module compatibility --------------------------------------------
+
+
+class AssetHierarchyService:
+    @staticmethod
+    def get_root_assets(organization_id=None, site_id=None):
+        qs = Asset.objects.filter(parent_link__isnull=True)
+        if organization_id:
+            qs = qs.filter(organization_id=organization_id)
+        if site_id:
+            qs = qs.filter(site_id=site_id)
+        return qs.select_related("category", "site", "zone")
+
+    @staticmethod
+    def get_full_hierarchy_tree(asset: Asset) -> Dict[str, Any]:
+        from . import hierarchy
+        return hierarchy.build_tree(asset)
+
+    @staticmethod
+    def validate_no_cycles(asset: Asset, new_parent: Asset = None):
+        if not new_parent:
+            return
+        if new_parent.id == asset.id:
+            raise ValidationError("An asset cannot be set as its own parent assembly.")
+
+
+class AssetStatusTransitionService:
+    @staticmethod
+    @transaction.atomic
+    def transition_status(asset: Asset, new_status: str, reason: str = "", changed_by: str = "System") -> Asset:
+        from apps.accounts.models import User
+        actor = User.objects.filter(is_superuser=True).first()
+        action_map = {
+            "UNDER_MAINTENANCE": "start_maintenance",
+            "ACTIVE": "complete_maintenance",
+            "OUT_OF_SERVICE": "mark_out_of_service",
+            "RETIRED": "retire",
+            "DISPOSED": "dispose",
+        }
+        action = action_map.get(new_status, "start_maintenance")
+        return change_status(asset, action=action, reason=reason or f"Transitioned to {new_status}", actor=actor)
