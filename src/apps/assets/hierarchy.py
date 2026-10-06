@@ -164,6 +164,27 @@ def remove_component(link: AssetComponent, *, actor, request=None):
                  metadata={"child": child.asset_tag}, request=request)
 
 
+@transaction.atomic
+def replace_component(old_link: AssetComponent, new_child: Asset, *, reason: str = "", actor, request=None) -> AssetComponent:
+    """Replaces old_link.child with new_child under the same parent. Records replacement in audit."""
+    parent = old_link.parent
+    org = old_link.organization
+    rel_type = old_link.relationship_type
+    qty = old_link.quantity
+    old_child = old_link.child
+
+    remove_component(old_link, actor=actor, request=request)
+    new_link = add_component(
+        parent, new_child, relationship_type=rel_type, quantity=qty,
+        notes=f"Replaced {old_child.asset_tag}. {reason}".strip(),
+        actor=actor, request=request
+    )
+    audit.record("asset.component_replaced", actor=actor, organization=org, target=parent,
+                 metadata={"old_child": old_child.asset_tag, "new_child": new_child.asset_tag, "reason": reason},
+                 request=request)
+    return new_link
+
+
 # --- read side ---------------------------------------------------------------------------------------
 
 

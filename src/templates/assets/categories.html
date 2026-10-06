@@ -1,0 +1,117 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Asset Categories · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item"><a href="{% url 'assets:list' %}">Assets</a></li>
+        <li class="breadcrumb-item active">Categories</li>
+      </ol>
+    </nav>
+    <h1>Asset Categories</h1>
+    <div class="text-body-secondary">Equipment classifications and category-specific custom attribute definitions.</div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="fx-card">
+      <div class="fx-card-header">Existing Categories ({{ categories.count }})</div>
+      <div class="table-responsive">
+        <table class="table fx-table mb-0">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Custom Attributes</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cat in categories %}
+              <tr>
+                <td class="fw-semibold">{{ cat.name }}</td>
+                <td>{{ cat.description|default:"—" }}</td>
+                <td>
+                  {% if cat.attribute_definitions %}
+                    <span class="badge text-bg-light border">{{ cat.attribute_definitions|length }} attribute{{ cat.attribute_definitions|length|pluralize }}</span>
+                  {% else %}
+                    <span class="text-body-secondary small">None</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if cat.is_active %}
+                    <span class="badge text-bg-success">Active</span>
+                  {% else %}
+                    <span class="badge text-bg-secondary">Inactive</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  {% if can_manage %}
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#edit-cat-{{ cat.pk }}">Edit</button>
+                  {% endif %}
+                </td>
+              </tr>
+              {% if can_manage %}
+                <tr class="collapse" id="edit-cat-{{ cat.pk }}">
+                  <td colspan="5" class="bg-light p-3">
+                    <form method="post" action="{% url 'assets:categories' %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="category" value="{{ cat.pk }}">
+                      <div class="row g-2">
+                        <div class="col-md-6">
+                          <label class="form-label small">Name</label>
+                          <input type="text" name="name" value="{{ cat.name }}" required class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label small">Description</label>
+                          <input type="text" name="description" value="{{ cat.description }}" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-12">
+                          <label class="form-label small">Custom Attributes (Label | type | required | choices)</label>
+                          <textarea name="attribute_text" rows="2" class="form-control form-control-sm font-monospace">{{ cat.attribute_text }}</textarea>
+                        </div>
+                        <div class="col-12 d-flex justify-content-between align-items-center mt-2">
+                          <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="active-{{ cat.pk }}" {% if cat.is_active %}checked{% endif %}>
+                            <label class="form-check-label small" for="active-{{ cat.pk }}">Active</label>
+                          </div>
+                          <button type="submit" class="btn btn-sm btn-primary">Save Changes</button>
+                        </div>
+                      </div>
+                    </form>
+                  </td>
+                </tr>
+              {% endif %}
+            {% empty %}
+              <tr>
+                <td colspan="5">
+                  {% include "components/_empty_state.html" with title="No categories defined" text="Add asset classifications such as HVAC, Pumps, Electrical, Vehicles." %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    {% if can_manage %}
+      <div class="fx-card">
+        <div class="fx-card-header">{% icon 'plus' 14 %} Create Asset Category</div>
+        <div class="fx-card-body">
+          <form method="post" action="{% url 'assets:categories' %}">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-primary btn-sm w-100 mt-3">Create Category</button>
+          </form>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
