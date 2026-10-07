@@ -323,7 +323,7 @@ class AssetViewSet(TenantAPIMixin, viewsets.ViewSet):
         "location_history": "asset.history.view", "changes": "asset.history.view", "documents:get": "asset.view",
         "documents:post": "asset.document.manage", "remove_document": "asset.document.manage", "tree": "asset.view", "validate": "asset.view",
         "components:get": "asset.view", "components:post": "asset.hierarchy.manage",
-        "validate_link": "asset.hierarchy.manage",
+        "validate_link": "asset.hierarchy.manage", "qr": "asset.view",
     }
 
     def _qs(self, request):
@@ -472,6 +472,35 @@ class AssetViewSet(TenantAPIMixin, viewsets.ViewSet):
         require_permission(request.membership, "asset.hierarchy.manage", child.site_id)
         link = hierarchy.add_component(asset, child, actor=request.user, request=request, **d)
         return Response(ComponentSerializer(link).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    @action(detail=True, methods=["get"])
+    def qr(self, request, pk=None):
+        """Returns active QR and barcode identifiers and image URLs for this asset."""
+        asset = self._asset(request, pk)
+        from apps.identification import selectors as id_selectors
+        active = id_selectors.active_for_asset(request.organization, asset)
+        qr_ident = active.get("QR")
+        bc_ident = active.get("BARCODE")
+        return Response({
+            "asset_id": str(asset.pk),
+            "asset_tag": asset.asset_tag,
+            "qr": {
+                "id": str(qr_ident.pk),
+                "token": qr_ident.token,
+                "svg_url": reverse("identification:image", args=[asset.pk, "qr", "svg"]),
+                "png_url": reverse("identification:image", args=[asset.pk, "qr", "png"]),
+                "is_active": qr_ident.is_active,
+                "created_at": qr_ident.created_at,
+            } if qr_ident else None,
+            "barcode": {
+                "id": str(bc_ident.pk),
+                "token": bc_ident.token,
+                "svg_url": reverse("identification:image", args=[asset.pk, "barcode", "svg"]),
+                "is_active": bc_ident.is_active,
+                "created_at": bc_ident.created_at,
+            } if bc_ident else None,
+        })
 
 
 @extend_schema(parameters=[ID_PARAM])

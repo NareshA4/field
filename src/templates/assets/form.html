@@ -99,3 +99,22 @@
   </div>
 </div>
 {% endblock %}
+{% block scripts %}<script nonce="{{ csp_nonce }}">
+/* Convenience only: narrow the location list to the chosen site (the server validates the pairing). */
+(function () {
+  var site = document.querySelector("[data-site-select]"), zone = document.querySelector("[data-site-filter]");
+  if (!site || !zone) return;
+  var siteCodes = {};
+  Array.prototype.forEach.call(site.options, function (o) { siteCodes[o.value] = o.text.split(" ·")[0].trim(); });
+  function apply() {
+    var code = siteCodes[site.value];
+    Array.prototype.forEach.call(zone.options, function (o) {
+      if (!o.value) return;
+      var show = !code || o.text.indexOf(code + " ·") === 0;
+      o.hidden = !show; o.disabled = !show;
+    });
+    if (zone.selectedOptions[0] && zone.selectedOptions[0].disabled) zone.value = "";
+  }
+  site.addEventListener("change", apply); apply();
+})();
+</script>{% endblock %}
