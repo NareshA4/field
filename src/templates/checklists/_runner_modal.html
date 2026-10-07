@@ -1,0 +1,57 @@
+{% load ui_tags %}
+<div class="modal fade" id="checklistRunnerModal" tabindex="-1" aria-labelledby="checklistRunnerModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-light">
+        <div>
+          <h5 class="modal-title h6 mb-0" id="checklistRunnerModalLabel">
+            Execute Checklist: {{ insp.template.name }}
+          </h5>
+          <div class="small text-muted">
+            Asset: <span class="font-monospace fw-semibold">{{ insp.asset.asset_tag }}</span> · 
+            Site: {{ insp.site.code }}
+            {% if insp.work_order %} · WO: {{ insp.work_order.number }}{% endif %}
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-3">
+        <!-- Runner Overview Status -->
+        <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded border">
+          <div class="small">
+            <span class="fw-bold">{{ answered_count }} of {{ rows|length }}</span> items recorded
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="fw-bold text-primary">{{ progress_pct }}%</span>
+            <div class="progress" style="width: 100px; height: 6px;">
+              <div class="progress-bar {% if progress_pct == 100 %}bg-success{% else %}bg-primary{% endif %}" style="width: {{ progress_pct }}%;"></div>
+            </div>
+          </div>
+        </div>
+
+        {% if issues %}
+        <div class="alert alert-warning py-1.5 px-2.5 small mb-3">
+          <strong>Pending Requirements:</strong>
+          <ul class="mb-0 ps-3">
+            {% for issue in issues %}
+              <li>{{ issue }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        <div class="text-center py-3">
+          <p class="text-muted mb-3">
+            This checklist has {{ rows|length }} verification points{% if has_photo_required %}, including mandatory photo checks{% endif %}.
+          </p>
+          <a href="{% url 'checklists:inspection_run' insp.pk %}" class="btn btn-primary px-4">
+            {% icon 'play' 14 %} Launch Fullscreen Checklist Runner
+          </a>
+        </div>
+      </div>
+      <div class="modal-footer bg-light py-2">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>

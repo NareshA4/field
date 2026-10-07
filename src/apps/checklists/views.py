@@ -265,10 +265,173 @@ class InspectionDetailView(_View):
         rows = [{"item": it, "response": responses.get(it.pk),
                  "evidence": evidence.get(str(responses[it.pk].pk), []) if it.pk in responses else []}
                 for it in items]
+        can_execute = (insp.status == "IN_PROGRESS" and
+                       rbac.has_permission(request.membership, "inspection.execute", insp.site_id))
         return render(request, "checklists/inspection.html", {
             "insp": insp, "rows": rows, "findings": findings, "finding_evidence": evidence,
             "can_review": rbac.has_permission(request.membership, "inspection.review", insp.site_id),
+            "can_execute": can_execute,
             "wo": insp.work_order})
+
+
+class InspectionRunView(_View):
+    """Interactive checklist execution runner with mandatory photo checks and inline finding submission."""
+
+    required_permission = "inspection.execute"
+
+    def get(self, request, pk):
+        insp: Inspection = or404(selectors.get_inspection, request.membership, request.organization, pk)
+        need(request, "inspection.execute", insp.site_id)
+        if insp.status != "IN_PROGRESS":
+            messages.info(request, "This inspection is already completed.")
+            return redirect("checklists:inspection", pk=insp.pk)
+
+        org = request.organization
+        items = list(selectors.items_for(org, insp.template))
+        responses = selectors.responses_for(org, insp)
+        findings_by_item = {f.item_id: f for f in insp.findings.select_related("created_by")}
+
+        evidence = {}
+        for att in services.evidence_for_inspection(insp):
+            evidence.setdefault(att.object_id, []).append(att)
+
+        rows = [{
+            "item": it,
+            "response": responses.get(it.pk),
+            "finding": findings_by_item.get(it.pk),
+            "evidence": evidence.get(str(responses[it.pk].pk), []) if it.pk in responses else []
+        } for it in items]
+
+        answered_count = len([r for r in rows if r["response"] is not None])
+        progress_pct = int((answered_count / len(rows) * 100)) if rows else 100
+        exception_count = sum(1 for r in rows if r["response"] and r["response"].is_exception)
+        issues = services.completion_issues(insp)
+
+        return render(request, "checklists/runner.html", {
+            "insp": insp,
+            "rows": rows,
+            "answered_count": answered_count,
+            "progress_pct": progress_pct,
+            "exception_count": exception_count,
+            "issues": issues,
+            "wo": insp.work_order,
+        })
+
+
+class InspectionSaveAnswerView(_View):
+    required_permission = "inspection.execute"
+    http_method_names = ["post"]
+
+    def post(self, request, pk, item_id):
+        insp: Inspection = or404(selectors.get_inspection, request.membership, request.organization, pk)
+        need(request, "inspection.execute", insp.site_id)
+        raw_val = request.POST.get("value", "").strip()
+
+        # Parse boolean or text
+        if raw_val in ("PASS", "FAIL"):
+            ans_val = True if raw_val == "PASS" else False
+        else:
+            ans_val = raw_val
+
+        try:
+            services.save_responses(insp, {str(item_id): ans_val}, membership=request.membership,
+                                    actor=request.user, request=request)
+            messages.success(request, "Answer saved.")
+        except DomainError as exc:
+            messages.error(request, exc.message)
+
+        return redirect("checklists:inspection_run", pk=insp.pk)
+
+
+class InspectionUploadEvidenceView(_View):
+    required_permission = "inspection.execute"
+    http_method_names = ["post"]
+
+    def post(self, request, pk, item_id):
+        insp: Inspection = or404(selectors.get_inspection, request.membership, request.organization, pk)
+        need(request, "inspection.execute", insp.site_id)
+        item = or404(scoped_get, selectors.items_for(request.organization, insp.template), item_id, "Item")
+
+        uploaded = request.FILES.get("file")
+        if not uploaded:
+            messages.error(request, "Please select a photo or file to upload.")
+            return redirect("checklists:inspection_run", pk=insp.pk)
+
+        desc = request.POST.get("description", "").strip()
+        try:
+            services.add_response_evidence(insp, item, uploaded, description=desc,
+                                           membership=request.membership, actor=request.user, request=request)
+            messages.success(request, "Photo evidence attached.")
+        except DomainError as exc:
+            messages.error(request, exc.message)
+
+        return redirect("checklists:inspection_run", pk=insp.pk)
+
+
+class InspectionAddFindingView(_View):
+    required_permission = "inspection.execute"
+    http_method_names = ["post"]
+
+    def post(self, request, pk, item_id):
+        insp: Inspection = or404(selectors.get_inspection, request.membership, request.organization, pk)
+        need(request, "inspection.execute", insp.site_id)
+        item = or404(scoped_get, selectors.items_for(request.organization, insp.template), item_id, "Item")
+
+        desc = request.POST.get("description", "").strip()
+        sev = request.POST.get("severity", "MEDIUM")
+        try:
+            services.add_finding(insp, description=desc, severity=sev, item=item,
+                                 membership=request.membership, actor=request.user, request=request)
+            messages.success(request, "Exception finding recorded.")
+        except DomainError as exc:
+            messages.error(request, exc.message)
+
+        return redirect("checklists:inspection_run", pk=insp.pk)
+
+
+class InspectionCompleteView(_View):
+    required_permission = "inspection.execute"
+    http_method_names = ["post"]
+
+    def post(self, request, pk):
+        insp: Inspection = or404(selectors.get_inspection, request.membership, request.organization, pk)
+        need(request, "inspection.execute", insp.site_id)
+        summary = request.POST.get("summary", "")
+
+        try:
+            services.complete_inspection(insp, membership=request.membership, actor=request.user,
+                                         summary=summary, request=request)
+            messages.success(request, "Checklist inspection completed successfully.")
+            return redirect("checklists:inspection", pk=insp.pk)
+        except DomainError as exc:
+            messages.error(request, exc.message)
+            return redirect("checklists:inspection_run", pk=insp.pk)
+
+
+class InspectionModalView(_View):
+    """Returns modal dialog partial for launching runner from work order or list views."""
+
+    required_permission = "inspection.execute"
+
+    def get(self, request, pk):
+        insp: Inspection = or404(selectors.get_inspection, request.membership, request.organization, pk)
+        need(request, "inspection.execute", insp.site_id)
+        items = list(selectors.items_for(request.organization, insp.template))
+
+        responses = selectors.responses_for(request.organization, insp)
+        answered_count = len([it for it in items if it.pk in responses])
+        progress_pct = int((answered_count / len(items) * 100)) if items else 100
+        issues = services.completion_issues(insp) if insp.status == "IN_PROGRESS" else []
+        has_photo_required = any(it.evidence_required for it in items)
+
+        return render(request, "checklists/_runner_modal.html", {
+            "insp": insp,
+            "rows": items,
+            "answered_count": answered_count,
+            "progress_pct": progress_pct,
+            "issues": issues,
+            "has_photo_required": has_photo_required,
+        })
 
 
 class FindingResolveView(_View):
@@ -288,3 +451,4 @@ class FindingResolveView(_View):
             except DomainError as exc:
                 messages.error(request, exc.message)
         return redirect("checklists:inspection", pk=f.inspection_id)
+

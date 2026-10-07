@@ -109,3 +109,60 @@ def test_finding_resolve_ui_flow(p3, client):
     finding.refresh_from_db()
     assert finding.status == Finding.Status.RESOLVED
     assert finding.resolution_notes == "Realigned motor coupling"
+
+
+def test_inspection_runner_ui_and_mandatory_photo_flow(p3, client):
+    """Verifies runner UI loads, records responses, blocks completion without mandatory photo, and modal renders."""
+    tech = p3["tech"]
+    client.force_login(tech.user)
+    session = client.session
+    session["organization_id"] = str(p3["org"].pk)
+    session.save()
+
+    # Template with one photo-mandatory question
+    t = make_template(p3, name="HVAC Air Handler Maintenance", items=[], activate=False)
+    q_photo = cl.add_item(t, prompt="Clean filter and attach photo", item_type="BOOLEAN",
+                          evidence_required=True, actor=p3["sup"].user)
+    t = cl.activate_template(t, actor=p3["sup"].user)
+    wo = wo_in_progress(p3)
+
+
+    insp = cl.start_inspection(p3["org"], template=t, membership=tech, actor=tech.user, work_order=wo)
+
+    # 1. Runner page loads HTTP 200
+    r = client.get(f"/app/inspections/{insp.pk}/run/")
+    assert r.status_code == 200
+    content = r.content.decode()
+    assert "Execution Runner" in content
+    assert "Photo Required" in content
+
+    # 2. Reusable modal partial loads HTTP 200
+    r_modal = client.get(f"/app/inspections/{insp.pk}/modal/")
+    assert r_modal.status_code == 200
+    assert "checklistRunnerModal" in r_modal.content.decode()
+
+    # 3. Answer regular and photo questions
+    client.post(f"/app/inspections/{insp.pk}/items/{q_photo.pk}/answer/", {"value": "PASS"})
+
+    # 4. Attempt to complete inspection without photo: must fail and redirect back to runner with warning
+    r_comp = client.post(f"/app/inspections/{insp.pk}/complete/", {"summary": "Done"})
+    assert r_comp.status_code == 302
+    assert f"/app/inspections/{insp.pk}/run/" in r_comp.url
+    insp.refresh_from_db()
+    assert insp.status == "IN_PROGRESS"
+
+    # 5. Attach photo evidence to question
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    photo_file = SimpleUploadedFile("filter_clean.jpg", b"\xff\xd8\xff\xe0mock_jpeg_content", content_type="image/jpeg")
+    r_up = client.post(f"/app/inspections/{insp.pk}/items/{q_photo.pk}/evidence/",
+                       {"file": photo_file, "description": "Cleaned air filter"}, format="multipart")
+    assert r_up.status_code == 302
+
+    # 6. Now completion succeeds
+    r_comp2 = client.post(f"/app/inspections/{insp.pk}/complete/", {"summary": "All filters inspected and clean"})
+    assert r_comp2.status_code == 302
+    assert f"/app/inspections/{insp.pk}/" in r_comp2.url
+    insp.refresh_from_db()
+    assert insp.status == "COMPLETED"
+    assert insp.summary == "All filters inspected and clean"
+
