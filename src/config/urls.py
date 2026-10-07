@@ -22,9 +22,8 @@ from apps.contracts.api_views import (
     ProviderViewSet,
 )
 from apps.core import health
+from apps.identification.api_views import IdentifierViewSet
 from apps.incidents.api_views import ServiceRequestViewSet
-<<<<<<< HEAD
-=======
 from apps.inventory.api_views import (
     PartReservationViewSet,
     PartViewSet,
@@ -33,9 +32,7 @@ from apps.inventory.api_views import (
     WarehouseViewSet,
     WorkOrderPartViewSet,
 )
->>>>>>> ba3f639 (feat(m08): implement Inspection & Checklist Engine with Work Order integration)
 from apps.notifications.api_views import NotificationViewSet
-from apps.platform_admin.api_views import PlatformOrganizationViewSet
 from apps.rbac.api_views import PermissionViewSet, RoleViewSet
 from apps.sites.api_views import (
     CalendarViewSet,
@@ -68,13 +65,8 @@ router.register("site-contacts", ContactViewSet, basename="site-contact")
 router.register("assets", AssetViewSet, basename="asset")
 router.register("asset-categories", AssetCategoryViewSet, basename="asset-category")
 router.register("asset-components", ComponentViewSet, basename="asset-component")
-router.register("meters", MeterViewSet, basename="meter")
-router.register("service-requests", ServiceRequestViewSet, basename="service-request")
-router.register("platform/organizations", PlatformOrganizationViewSet, basename="platform-organization")
-router.register("assets", AssetViewSet, basename="asset")
-router.register("asset-categories", AssetCategoryViewSet, basename="asset-category")
-router.register("asset-components", ComponentViewSet, basename="asset-component")
-router.register("meters", MeterViewSet, basename="meter")
+router.register("asset-meters", MeterViewSet, basename="asset-meter")
+router.register("asset-identifiers", IdentifierViewSet, basename="asset-identifier")
 router.register("service-requests", ServiceRequestViewSet, basename="service-request")
 router.register("work-orders", WorkOrderViewSet, basename="work-order")
 router.register("checklist-templates", ChecklistTemplateViewSet, basename="checklist-template")
@@ -96,7 +88,6 @@ router.register("sla-breaches", SLABreachViewSet, basename="sla-breach")
 
 api_v1 = [
     path("auth/", include("apps.accounts.api_urls")),
-    path("", include("apps.workorders.urls")),
     path("organization/", OrganizationViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
          name="organization"),
     path("", include(router.urls)),
@@ -110,7 +101,6 @@ urlpatterns = [
     path("health/ready/", health.ready, name="health_ready"),
     path("api/v1/", include(api_v1)),
     path("accounts/", include("apps.accounts.urls")),
-    path("platform/", include("apps.platform_admin.urls")),
     path("app/", include("apps.tenancy.urls")),
     path("app/", include("apps.rbac.urls")),
     path("app/", include("apps.audit.urls")),
@@ -118,17 +108,13 @@ urlpatterns = [
     path("app/", include("apps.files.urls")),
     path("app/", include("apps.sites.urls")),
     path("app/", include("apps.assets.urls")),
+    path("app/", include("apps.identification.urls")),
     path("app/", include("apps.incidents.urls")),
-<<<<<<< HEAD
     path("app/", include("apps.workorders.urls_ui")),
-    # Module teams: add path("app/", include("apps.<module>.urls")) for your module here.
-=======
-    path("app/", include("apps.workorders.urls")),
     path("app/", include("apps.inventory.urls")),
     path("app/", include("apps.sla.urls")),
     path("app/", include("apps.contracts.urls")),
     path("app/", include("apps.checklists.urls")),
->>>>>>> ba3f639 (feat(m08): implement Inspection & Checklist Engine with Work Order integration)
     path("", include("apps.ui.urls")),
 ]
 

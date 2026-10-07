@@ -1,0 +1,8 @@
+{% load ui_tags %}<span class="fx-tree-node">
+  <a href="{% url 'assets:detail' node.asset.pk %}" {% if node.asset.pk == current.pk %}class="fw-bold" aria-current="true"{% endif %}>{{ node.asset.asset_tag }}</a>
+  <span>{{ node.asset.name }}</span>
+  {% if node.link %}<span class="badge fx-badge fx-badge-info">{{ node.link.get_relationship_type_display }}{% if node.link.quantity > 1 %} ×{{ node.link.quantity }}{% endif %}</span>{% endif %}
+  {% status_badge node.asset.status %}
+  {% if node.asset.pk == current.pk %}<span class="badge text-bg-dark">this asset</span>{% endif %}
+  {% if node.link and can_manage %}<form method="post" action="{% url 'assets:component_remove' node.link.pk %}" class="d-inline">{% csrf_token %}<input type="hidden" name="next_asset" value="parent"><button class="btn btn-sm btn-link text-danger p-0" data-confirm="Detach {{ node.asset.asset_tag }} from its parent? The asset itself is kept.">Detach</button></form>{% endif %}
+</span>

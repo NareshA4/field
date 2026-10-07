@@ -1,0 +1,28 @@
+{% load ui_tags %}
+<div class="row g-3" id="labels-panel">
+{% for kind, label in kinds %}
+  <div class="col-lg-6"><div class="fx-card h-100"><div class="fx-card-header"><span>{{ label }}</span>{% with a=active|get_item:kind %}{% if a %}{% status_badge "ACTIVE" %}{% else %}<span class="badge fx-badge fx-badge-secondary">None</span>{% endif %}{% endwith %}</div>
+  <div class="fx-card-body">
+  {% with a=active|get_item:kind %}
+    {% if a %}
+      <p class="small text-body-secondary mb-2">Issued {{ a.created_at|date:"d M Y H:i" }}. The code is an opaque random identifier: scanning it only locates the asset; access is still checked.</p>
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'identification:image' asset.pk kind|lower 'svg' %}" target="_blank" rel="noopener">View</a>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'identification:image' asset.pk kind|lower 'svg' %}?download=1">Download SVG</a>
+        {% if kind == "QR" %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'identification:image' asset.pk 'qr' 'png' %}?download=1">Download PNG</a>{% endif %}</div>
+      {% if can_generate %}<form method="post" action="{% url 'identification:panel_action' asset.pk 'replace' %}" class="row g-2 align-items-end">{% csrf_token %}<input type="hidden" name="identifier" value="{{ a.pk }}">
+        <div class="col-sm-6"><label class="form-label small mb-0" for="reason-{{ kind }}">Reason</label><input class="form-control form-control-sm" id="reason-{{ kind }}" name="reason" maxlength="300" required></div>
+        <div class="col-sm-6 d-flex gap-1"><button class="btn btn-sm btn-outline-primary" data-confirm="Replace this label? The old code stops working immediately.">Replace</button>
+          <button class="btn btn-sm btn-outline-danger" formaction="{% url 'identification:panel_action' asset.pk 'revoke' %}" data-confirm="Revoke this label? It stops working immediately.">Revoke</button></div></form>{% endif %}
+    {% elif can_generate and not terminal %}
+      <p class="text-body-secondary">No active {{ label|lower }} for this asset.</p>
+      <form method="post" action="{% url 'identification:panel_action' asset.pk 'generate' %}">{% csrf_token %}<input type="hidden" name="kind" value="{{ kind }}"><button class="btn btn-primary">Generate {{ label|lower }}</button></form>
+    {% else %}<p class="text-body-secondary mb-0">No active {{ label|lower }}.{% if terminal %} Retired / disposed assets cannot receive labels.{% endif %}</p>{% endif %}
+  {% endwith %}</div></div></div>
+{% endfor %}
+  <div class="col-12 d-flex gap-2 flex-wrap"><a class="btn btn-outline-primary" href="{% url 'identification:label' asset.pk %}">Printable label</a><a class="btn btn-outline-secondary" href="{% url 'identification:scan' %}">Scan a label</a></div>
+  <div class="col-lg-6"><div class="fx-card"><div class="fx-card-header">Replaced / revoked labels</div><div class="table-responsive"><table class="table fx-table mb-0" id="label-history"><tbody>
+    {% for h in history %}<tr><td>{{ h.get_kind_display }}</td><td class="small">{{ h.revoked_at|date:"d M Y H:i" }}<div class="text-body-secondary">{{ h.revoked_reason }}</div></td></tr>{% empty %}<tr><td class="text-body-secondary">None.</td></tr>{% endfor %}</tbody></table></div></div></div>
+  <div class="col-lg-6"><div class="fx-card"><div class="fx-card-header">Recent scans</div><div class="table-responsive"><table class="table fx-table mb-0" id="scan-history"><tbody>
+    {% for s in scans %}<tr><td class="small">{{ s.created_at|date:"d M Y H:i" }}</td><td class="small">{{ s.scanned_by.email|default:"—" }}</td><td class="small">{% if s.service_request %}<a href="{% url 'incidents:detail' s.service_request_id %}">{{ s.service_request.number }}</a>{% endif %}</td></tr>{% empty %}<tr><td class="text-body-secondary">No scans yet.</td></tr>{% endfor %}</tbody></table></div></div></div>
+</div>

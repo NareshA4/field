@@ -12,10 +12,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-<<<<<<< HEAD
 from django.apps import apps
-=======
->>>>>>> ba3f639 (feat(m08): implement Inspection & Checklist Engine with Work Order integration)
 from django.db import transaction
 from django.utils import timezone
 
@@ -41,7 +38,6 @@ from .workflow import (
 
 SNAPSHOT = ["title", "description", "severity", "kind", "service_impact", "impact_notes", "occurred_at"]
 _EDITABLE = {"title", "description", "severity", "service_impact", "impact_notes", "occurred_at"}
-<<<<<<< HEAD
 _SEVERITY_TO_PRIORITY = {"LOW": "LOW", "MEDIUM": "MEDIUM", "HIGH": "HIGH", "CRITICAL": "CRITICAL"}
 _FUTURE_SLACK = timedelta(minutes=5)
 
@@ -61,14 +57,6 @@ def _sla():
     """M11 contract (lazy import: M11 depends on the M05 models). A no-op until the SLA module is installed."""
     if not apps.is_installed("apps.sla"):
         return _NoSla
-=======
-_SEVERITY_TO_PRIORITY = {"LOW": "LOW", "MEDIUM": "MEDIUM", "HIGH": "HIGH", "CRITICAL": "URGENT"}
-_FUTURE_SLACK = timedelta(minutes=5)
-
-
-def _sla():
-    """M11 contract (lazy import: M11 depends on the M05 models)."""
->>>>>>> ba3f639 (feat(m08): implement Inspection & Checklist Engine with Work Order integration)
     from apps.sla import services as sla
 
     return sla
@@ -226,31 +214,20 @@ def create_work_order_for_request(sr: ServiceRequest, *, actor, membership, requ
     """M05 -> M06: an APPROVED request creates a real work order (DRAFT) and moves to WORK ORDER CREATED. The
     caller holds ``work_order.create`` for the request's site. ``plan`` may carry title / description / priority /
     planned_start / planned_end / estimated_hours. The work-order lifecycle is M06's."""
-<<<<<<< HEAD
     if not apps.is_installed("apps.workorders"):
         raise Conflict("The Work Orders module is not enabled.", code="module_unavailable")
-=======
->>>>>>> ba3f639 (feat(m08): implement Inspection & Checklist Engine with Work Order integration)
     from apps.workorders import services as work_orders
 
     sr = ServiceRequest.objects.select_related("asset", "site").select_for_update(of=("self",)).get(pk=sr.pk)
     if sr.status != APPROVED:
         REQUEST_STATUS.get(sr.status, "link_work_order")  # raises invalid_transition with the usual envelope
     wo = work_orders.create_work_order(
-<<<<<<< HEAD
         sr.organization, asset=sr.asset, actor=actor, membership=membership, request=request, source_request=sr,
         component=plan.pop("component", None),
         work_type=plan.pop("work_type", "CORRECTIVE"), title=plan.pop("title", None) or f"{sr.number}: {sr.title}",
         description=plan.pop("description", None) or sr.description,
         priority=plan.pop("priority", None) or _SEVERITY_TO_PRIORITY[sr.severity], **plan)
     _apply(sr, "link_work_order", reason=wo.order_number, actor=actor, source="manual", request=request)
-=======
-        sr.organization, asset=sr.asset, actor=actor, request=request, source_request=sr,
-        work_type="CORRECTIVE", title=plan.pop("title", None) or f"{sr.number}: {sr.title}",
-        description=plan.pop("description", None) or sr.description,
-        priority=plan.pop("priority", None) or _SEVERITY_TO_PRIORITY[sr.severity], **plan)
-    _apply(sr, "link_work_order", reason=wo.number, actor=actor, source="manual", request=request)
->>>>>>> ba3f639 (feat(m08): implement Inspection & Checklist Engine with Work Order integration)
     return wo
 
 

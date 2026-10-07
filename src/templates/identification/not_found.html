@@ -1,0 +1,7 @@
+{% extends "shell.html" %}
+{% block title %}Label not found · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>Label not recognised</h1></div></div>
+{% if throttled %}<div class="alert alert-danger" role="alert">Too many failed scans. Wait a few minutes before trying again.</div>{% else %}<div class="alert alert-warning" role="alert">This code is not a valid label for any organization you can access, or you cannot view its asset. Check the code or ask an administrator.</div>{% endif %}
+<a class="btn btn-primary" href="{% url 'identification:scan' %}">Try again</a>
+{% endblock %}

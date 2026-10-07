@@ -1,14 +1,10 @@
 """M05 permissions. Every request is bound to an asset, hence to a site, so all are site-scoped."""
 from apps.rbac.catalog import register
 
-<<<<<<< HEAD
 register("incident", "incident.view", "View incidents and service requests", site_scoped=True,
          implies=("incident.view_assigned",))
 register("incident", "incident.view_assigned",
          "View only requests one reported or that are the source of work assigned to oneself", site_scoped=True)
-=======
-register("incident", "incident.view", "View incidents and service requests", site_scoped=True)
->>>>>>> ba3f639 (feat(m08): implement Inspection & Checklist Engine with Work Order integration)
 register("incident", "incident.create", "Report incidents and service requests", site_scoped=True)
 register("incident", "incident.update", "Edit incident details before approval", site_scoped=True)
 register("incident", "incident.attach", "Attach evidence (photos / files) to an incident", site_scoped=True)

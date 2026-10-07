@@ -68,19 +68,17 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.notifications",
     "apps.files",
-    "apps.platform_admin",
     "apps.sites",
     "apps.assets",
+    "apps.identification",
     "apps.incidents",
     "apps.workorders",
-<<<<<<< HEAD
-=======
     "apps.inventory",
     "apps.sla",
     "apps.contracts",
     "apps.checklists",
->>>>>>> ba3f639 (feat(m08): implement Inspection & Checklist Engine with Work Order integration)
     "apps.ui",
+
 ]
 
 MIDDLEWARE = [
@@ -217,7 +215,7 @@ MEDIA_URL = "media/"
 MEDIA_ROOT = Path(env("MEDIA_ROOT", str(BASE_DIR.parent / "media")))
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
 }
 # Uploads (asset documents, work order / incident evidence, portal attachments). Local disk by default; set
 # AWS_STORAGE_BUCKET_NAME to store them in an S3-compatible bucket (Supabase Storage in production: Render's disk is

@@ -3,10 +3,7 @@ from __future__ import annotations
 
 import uuid
 
-<<<<<<< HEAD
 from django.apps import apps
-=======
->>>>>>> ba3f639 (feat(m08): implement Inspection & Checklist Engine with Work Order integration)
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 
@@ -21,7 +18,6 @@ ORDERINGS = {"-created_at": "-created_at", "created_at": "created_at", "number":
 
 
 def requests_for(membership, org, code: str = "incident.view"):
-<<<<<<< HEAD
     qs = ServiceRequest.objects.for_organization(org).select_related("asset", "site", "reported_by__user")
     if code == "incident.view_assigned":
         cond = Q(pk__isnull=True)  # matches nothing
@@ -46,11 +42,6 @@ def requests_for(membership, org, code: str = "incident.view"):
             cond |= linked & Q(site_id__in=mine.site_ids)
         return qs.filter(cond).distinct()
     return rbac.site_scope(membership, code).filter(qs, "site_id")
-=======
-    scope = rbac.site_scope(membership, code)
-    qs = ServiceRequest.objects.for_organization(org).select_related("asset", "site", "reported_by__user")
-    return scope.filter(qs, "site_id")
->>>>>>> ba3f639 (feat(m08): implement Inspection & Checklist Engine with Work Order integration)
 
 
 def get_request(membership, org, pk, code: str = "incident.view") -> ServiceRequest:
