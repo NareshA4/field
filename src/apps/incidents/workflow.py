@@ -15,7 +15,7 @@ IN SERVICE -> RESOLVED -> CONFIRMED -> CLOSED).
 
 ``link_work_order``, ``work_order_cancelled``, ``start_service``, ``resolve`` and ``resume_service`` are SYSTEM actions: they are
 driven by the work-order lifecycle (M06) and are not offered as buttons / not accepted by the transition API.
-``reopen`` and the APPROVED return path are OUR IMPLEMENTATION DECISIONS.
+``reopen`` and the APPROVED return path are OUR IMPLEMENTATION DECISIONS (docs/DECISIONS.md D-035).
 """
 from apps.core.workflow import StateMachine, Transition
 

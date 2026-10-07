@@ -1,0 +1,102 @@
+{% extends "shell.html" %} {% load ui_tags %} {% block title %}{{ wh.code }} ·
+FieldOps Nexus{% endblock %} {% block content %}
+<div class="fx-page-header">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item">
+          <a href="{% url 'inventory:warehouses' %}">Warehouses</a>
+        </li>
+        <li class="breadcrumb-item active">{{ wh.code }}</li>
+      </ol>
+    </nav>
+    <h1>
+      {{ wh.name }} {% if wh.is_active %}{% status_badge "ACTIVE" %}{% else %}{%
+      status_badge "INACTIVE" %}{% endif %}
+    </h1>
+    <div class="text-body-secondary">
+      {{ wh.code }} · site
+      <a href="{% url 'sites:detail' wh.site_id %}">{{ wh.site.code }}</a>{% if
+      wh.description %} · {{ wh.description }}{% endif %}
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    {% if can_receive and wh.is_active %}<a
+      class="btn btn-primary"
+      href="{% url 'inventory:receive' %}?warehouse={{ wh.pk }}"
+      >Receive stock</a
+    >{% endif %} {% if can_manage %}<a
+      class="btn btn-outline-primary"
+      href="{% url 'inventory:warehouse_edit' wh.pk %}"
+      >Edit</a
+    >
+    <form
+      method="post"
+      action="{% url 'inventory:warehouse_active' wh.pk %}"
+      class="m-0"
+    >
+      {% csrf_token %}<input
+        type="hidden"
+        name="active"
+        value="{% if wh.is_active %}0{% else %}1{% endif %}"
+      />
+      <button
+        class="btn btn-outline-secondary"
+        {%
+        if
+        wh.is_active
+        %}data-confirm="Deactivate this warehouse?"
+        {%
+        endif
+        %}
+      >
+        {% if wh.is_active %}Deactivate{% else %}Activate{% endif %}
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+<div class="fx-card">
+  <div class="fx-card-header">Stock in this warehouse</div>
+  <div class="table-responsive">
+    <table class="table fx-table" id="warehouse-stock">
+      <thead>
+        <tr>
+          <th>Part</th>
+          <th>On hand</th>
+          <th>Reserved</th>
+          <th>Available</th>
+          <th>Min</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in balances %}
+        <tr>
+          <td>{{ b.part.part_number }} · {{ b.part.name }}</td>
+          <td>{{ b.on_hand|floatformat:"-3" }} {{ b.part.unit }}</td>
+          <td>{{ b.reserved|floatformat:"-3" }}</td>
+          <td>
+            {{ b.available|floatformat:"-3" }}{% if b.is_low %}
+            <span class="badge fx-badge fx-badge-warning">Low</span>{% endif %}
+          </td>
+          <td>{{ b.effective_min|floatformat:"-3"|default:"—" }}</td>
+          <td><a href="{% url 'inventory:stock_detail' b.pk %}">Open</a></td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6">
+            {% include "components/_empty_state.html" with title="Empty
+            warehouse" text="Receive stock to get started." %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="fx-card mt-3">
+  <div class="fx-card-header">Recent movements</div>
+  {% include "inventory/_movement_table.html" with rows=movements %}
+</div>
+{% endblock %}

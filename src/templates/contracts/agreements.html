@@ -4,6 +4,7 @@
 {% block content %}
 <div class="fx-page-header"><div><h1>Warranties, AMCs &amp; contracts</h1><div class="text-body-secondary">Coverage agreements linked to real assets. Eligibility is computed by the backend from these records.</div></div>
   <div class="d-flex gap-2">{% if can_create %}<a class="btn btn-primary" href="{% url 'contracts:agreement_new' %}">{% icon 'plus' 16 %} New agreement</a>{% endif %}</div></div>
+{% include "components/_section_tabs.html" with section="Coverage" %}
 <div class="fx-card">
   <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
     <input class="form-control form-control-sm" style="max-width:240px" type="search" name="q" value="{{ filters.q }}" placeholder="Reference, title, provider, asset tag" aria-label="Search agreements">
@@ -17,8 +18,8 @@
       {% for p in providers %}<option value="{{ p.pk }}" {% if filters.provider == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>
     <button class="btn btn-sm btn-outline-secondary">Filter</button></form>
   <div class="table-responsive"><table class="table fx-table" id="agreements-table"><thead><tr><th>Reference</th><th>Type</th><th>Provider</th><th>Site</th><th>Valid</th><th>State</th></tr></thead><tbody>
-  {% for a in page %}<tr><td><a href="{% url 'contracts:agreement' a.pk %}">{{ a.reference }}</a><div class="small text-body-secondary">{{ a.title }}</div></td><td>{{ a.get_kind_display }}</td><td>{{ a.provider.name }}</td><td>{{ a.site.code }}</td>
-    <td class="small">{{ a.start_date|date:"d M Y" }} → {{ a.end_date|date:"d M Y" }}</td><td>{% status_badge a.current_state %}</td></tr>
+  {% for a in page %}<tr><td><a href="{% url 'contracts:agreement' a.pk %}">{{ a.reference }}</a><div class="small text-body-secondary">{{ a.title }}</div></td><td>{{ a.get_kind_display }}</td><td>{{ a.provider.name }}</td><td class="text-nowrap">{{ a.site.code }}</td>
+    <td class="small text-nowrap">{{ a.start_date|date:"d M Y" }} → {{ a.end_date|date:"d M Y" }}</td><td>{% status_badge a.current_state %}</td></tr>
   {% empty %}<tr><td colspan="6">{% include "components/_empty_state.html" with title="No agreements match" text="Adjust the filters or create an agreement." %}</td></tr>{% endfor %}</tbody></table></div>
   {% include "components/_pagination.html" %}
 </div>

@@ -1,18 +1,18 @@
-# Local / staging stack. Secrets come from .env (never committed): copy .env.example to .env and set real values first.
+# Local / staging stack. Secrets come from .env (never committed): run `python scripts/bootstrap_env.py` first.
 x-app: &app
   build: .
   env_file: .env
   environment:
     DJANGO_SETTINGS_MODULE: config.settings.prod
-    DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    DATABASE_URL: postgres://${POSTGRES_USER:-fieldops}:${POSTGRES_PASSWORD:-fieldops}@db:5432/${POSTGRES_DB:-fieldops}
     REDIS_URL: redis://redis:6379/0
     CELERY_BROKER_URL: redis://redis:6379/1
-    # The local stack is plain HTTP on :8080. Production keeps these secure defaults (see prod.py).
+    # The local stack is plain HTTP behind Nginx on :8080. Production keeps these secure defaults (see prod.py).
     DJANGO_SECURE_SSL_REDIRECT: "false"
     DJANGO_SECURE_COOKIES: "false"
-    TRUSTED_PROXY_COUNT: "0"             # no proxy in front of Gunicorn locally
-    SITE_BASE_URL: http://localhost:${WEB_PORT:-8080}
-    DJANGO_CSRF_TRUSTED_ORIGINS: http://localhost:${WEB_PORT:-8080},http://127.0.0.1:${WEB_PORT:-8080}
+    TRUSTED_PROXY_COUNT: "1"             # Nginx is the only proxy in front of Gunicorn
+    SITE_BASE_URL: http://localhost:${NGINX_PORT:-8080}
+    DJANGO_CSRF_TRUSTED_ORIGINS: http://localhost:${NGINX_PORT:-8080},http://127.0.0.1:${NGINX_PORT:-8080}
     DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,web
   depends_on:
     db: {condition: service_healthy}
@@ -24,12 +24,12 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-fieldops}
+      POSTGRES_USER: ${POSTGRES_USER:-fieldops}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fieldops}
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fieldops} -d ${POSTGRES_DB:-fieldops}"]
       interval: 5s
       retries: 10
   redis:
@@ -41,7 +41,6 @@ services:
     restart: "no"
   web:
     <<: *app
-    ports: ["${WEB_PORT:-8080}:8000"]
     depends_on:
       migrate: {condition: service_completed_successfully}
       db: {condition: service_healthy}
@@ -63,6 +62,10 @@ services:
       migrate: {condition: service_completed_successfully}
       redis: {condition: service_healthy}
       db: {condition: service_healthy}
+  nginx:
+    build: ./deploy/nginx
+    ports: ["${NGINX_PORT:-8080}:80"]
+    depends_on: [web]
 
 volumes:
   pgdata:

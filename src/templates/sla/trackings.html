@@ -1,0 +1,35 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}SLA tracking · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>SLA tracking</h1><div class="text-body-secondary">Response and resolution timers of requests and work orders. Times are wall-clock; a timer pauses only for states the profile lists.</div></div>
+  <div class="d-flex gap-2">{% if can_process %}<form method="post" action="{% url 'sla:process' %}" class="m-0">{% csrf_token %}<button class="btn btn-outline-primary" id="run-check">Run check now</button></form>{% endif %}
+  <a class="btn btn-outline-secondary" href="{% url 'sla:breaches' %}">Breaches</a></div></div>
+{% include "components/_section_tabs.html" with section="Service levels" %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="fx-card fx-kpi-card h-100"><div class="fx-card-body"><div class="fx-kpi-label">Running</div><div class="kpi-value" id="sum-active">{{ summary.active }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="fx-card fx-kpi-card h-100"><div class="fx-card-body"><div class="fx-kpi-label">Paused</div><div class="kpi-value">{{ summary.paused }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="fx-card fx-kpi-card h-100"><div class="fx-card-body"><div class="fx-kpi-label">Open breaches</div><div class="kpi-value" id="sum-breaches">{{ summary.breaches_open }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="fx-card fx-kpi-card h-100"><div class="fx-card-body"><div class="fx-kpi-label">Resolution compliance</div><div class="kpi-value">{% if summary.resolution.compliance_percent is None %}—{% else %}{{ summary.resolution.compliance_percent }}%{% endif %}</div></div></div></div></div>
+<div class="fx-card">
+  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
+    <input class="form-control form-control-sm" style="max-width:220px" type="search" name="q" value="{{ filters.q }}" placeholder="Number or title" aria-label="Search">
+    <select class="form-select form-select-sm" style="max-width:150px" name="site" aria-label="Site"><option value="">All sites</option>
+      {% for s in sites %}<option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>{% endfor %}</select>
+    <select class="form-select form-select-sm" style="max-width:150px" name="status" aria-label="Status"><option value="">Any status</option>
+      <option value="ACTIVE" {% if filters.status == "ACTIVE" %}selected{% endif %}>Running</option><option value="PAUSED" {% if filters.status == "PAUSED" %}selected{% endif %}>Paused</option>
+      <option value="COMPLETED" {% if filters.status == "COMPLETED" %}selected{% endif %}>Completed</option><option value="CANCELLED" {% if filters.status == "CANCELLED" %}selected{% endif %}>Cancelled</option></select>
+    <select class="form-select form-select-sm" style="max-width:150px" name="subject" aria-label="Type"><option value="">Requests and work orders</option>
+      <option value="REQUEST" {% if filters.subject == "REQUEST" %}selected{% endif %}>Requests</option><option value="WORK_ORDER" {% if filters.subject == "WORK_ORDER" %}selected{% endif %}>Work orders</option></select>
+    <div class="form-check align-self-center"><input class="form-check-input" type="checkbox" name="breached" value="1" id="f-breached" {% if filters.breached == "1" %}checked{% endif %}><label class="form-check-label small" for="f-breached">Breached</label></div>
+    <button class="btn btn-sm btn-outline-secondary">Filter</button></form>
+  <div class="table-responsive"><table class="table fx-table" id="trackings-table"><thead><tr><th>Item</th><th>Site</th><th>Priority</th><th>Profile</th><th>Response</th><th>Resolution</th><th>Status</th></tr></thead><tbody>
+  {% for t in page %}<tr><td><a href="{% url 'sla:tracking' t.pk %}">{% if t.request %}{{ t.request.number }}{% else %}{{ t.work_order.number }}{% endif %}</a><div class="small text-body-secondary">{% if t.request %}{{ t.request.title|truncatechars:40 }}{% else %}{{ t.work_order.title|truncatechars:40 }}{% endif %}</div></td>
+    <td class="text-nowrap">{{ t.site.code }}</td><td>{% status_badge t.priority %}</td><td class="small">{{ t.profile.name }}</td>
+    <td>{% status_badge t.response_state %}<div class="small text-body-secondary">due {{ t.response_due_at|date:"d M H:i" }}</div></td>
+    <td>{% status_badge t.resolution_state %}<div class="small text-body-secondary">due {{ t.resolution_due_at|date:"d M H:i" }}</div></td>
+    <td>{% status_badge t.status %}</td></tr>
+  {% empty %}<tr><td colspan="7">{% include "components/_empty_state.html" with title="No SLA trackings" text="Trackings start when a request or work order matches an active SLA profile." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "components/_pagination.html" %}
+</div>
+{% endblock %}

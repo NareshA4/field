@@ -1,0 +1,44 @@
+{% load ui_tags %}
+<div class="table-responsive">
+  <table class="table fx-table movement-table">
+    <thead>
+      <tr>
+        <th>When</th>
+        <th>Type</th>
+        <th>Warehouse</th>
+        <th>Part</th>
+        <th>Qty</th>
+        <th>On hand Δ</th>
+        <th>Reserved Δ</th>
+        <th>On hand after</th>
+        <th>Work order</th>
+        <th>By</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for mv in rows %}
+      <tr>
+        <td class="small">{{ mv.created_at|date:"d M H:i:s" }}</td>
+        <td>{% status_badge mv.movement_type %}</td>
+        <td class="text-nowrap">{{ mv.warehouse.code }}</td>
+        <td class="text-nowrap">{{ mv.part.part_number }}</td>
+        <td>{{ mv.quantity|floatformat:"-3" }}</td>
+        <td>{{ mv.on_hand_delta|floatformat:"-3" }}</td>
+        <td>{{ mv.reserved_delta|floatformat:"-3" }}</td>
+        <td>{{ mv.on_hand_after|floatformat:"-3" }}</td>
+        <td>
+          {% if mv.work_order %}{{ mv.work_order.number }}{% else %}—{% endif %}
+        </td>
+        <td class="small">{{ mv.actor.email|default:"—" }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="10">
+          {% include "components/_empty_state.html" with title="No movements"
+          text="Stock changes appear here." %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

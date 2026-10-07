@@ -15,7 +15,7 @@ from apps.sites.views import form_page, need, or404
 from apps.ui.mixins import TenantPermissionMixin
 
 from . import selectors, services
-from .forms import DowntimeForm, EvidenceForm, RequestForm
+from .forms import CreateWorkOrderForm, DowntimeForm, EvidenceForm, RequestForm
 from .models import ServiceRequest
 from .workflow import ACTION_PERMISSIONS, BUTTON_STYLES, REASON_REQUIRED, REQUEST_STATUS, SYSTEM_ACTIONS
 
@@ -24,7 +24,7 @@ CONFIRMS = {"reject": "Reject this request?", "close": "Close this request?"}
 
 
 def _req(request, pk, code=None) -> ServiceRequest:
-    sr = or404(selectors.get_request, request.membership, request.organization, pk, "incident.view_assigned")
+    sr = or404(selectors.get_request, request.membership, request.organization, pk)
     if code:
         need(request, code, sr.site_id)
     return sr
@@ -52,23 +52,18 @@ class RequestCreateView(IncidentBase):
     required_permission = "incident.create"
     crumbs = [("Incidents & requests", "/app/incidents/"), ("Report", None)]
 
-    def _assets(self, request, wanted=None):
-        # The asset must lie in the caller's site scope (asset.view + incident.create), so a report can never be
-        # raised against an asset outside the reporter's sites.
-        m, org = request.membership, request.organization
-        scope = rbac.site_scope(m, "incident.create")
-        qs = asset_selectors.assets_for(m, org, "asset.view")
-        return scope.filter(qs.distinct(), "site_id")
+    def _assets(self, request):
+        scope = rbac.site_scope(request.membership, "incident.create")
+        return scope.filter(asset_selectors.assets_for(request.membership, request.organization), "site_id")
 
     def get(self, request):
-        form = RequestForm(assets=self._assets(request, request.GET.get("asset")),
-                           initial={"asset": request.GET.get("asset")})
+        form = RequestForm(assets=self._assets(request), initial={"asset": request.GET.get("asset")})
         return form_page(request, title="Report an incident / request", form=form, submit="Submit report",
                          cancel_url="/app/incidents/", crumbs=self.crumbs,
                          subtitle="Describe what failed and its impact. A supervisor will triage it.")
 
     def post(self, request):
-        form = RequestForm(request.POST, assets=self._assets(request, request.POST.get("asset")))
+        form = RequestForm(request.POST, assets=self._assets(request))
         if form.is_valid():
             d = dict(form.cleaned_data)
             asset = d.pop("asset")
@@ -114,7 +109,7 @@ class RequestEditView(IncidentBase):
 
 
 class RequestDetailView(IncidentBase):
-    required_permission = "incident.view_assigned"
+    required_permission = "incident.view"
 
     def get(self, request, pk):
         m, org = request.membership, request.organization
@@ -124,14 +119,21 @@ class RequestDetailView(IncidentBase):
             tab = "overview"
         can = {k: rbac.has_permission(m, code, sr.site_id) for k, code in (
             ("update", "incident.update"), ("attach", "incident.attach"), ("downtime", "incident.downtime.manage"),
-            ("view_site", "site.view"))}
+            ("create_wo", "work_order.create"), ("view_wo", "work_order.view_assigned"))}
         transitions = [
             {"label": t.label, "url": f"/app/incidents/{sr.pk}/transition/{t.action}/", "style": BUTTON_STYLES.get(
                 t.action, "primary"), "reason": t.action in REASON_REQUIRED, "confirm": CONFIRMS.get(t.action)}
             for t in REQUEST_STATUS.available(sr.status)
             if t.action not in SYSTEM_ACTIONS and rbac.has_permission(m, ACTION_PERMISSIONS[t.action], sr.site_id)]
         ctx = {"sr": sr, "tab": tab, "tabs": TABS, "can": can, "transitions": transitions,
+               "work_orders": sr.work_orders.select_related("assigned_to__user").order_by("created_at"),
                "downtime": selectors.downtime_for(org, sr), "editable": sr.status in ("NEW", "TRIAGED")}
+        if tab == "overview":
+            from apps.sla import selectors as sla_selectors
+
+            ctx["sla"] = sla_selectors.tracking_for_request(m, org, sr)
+        if can["create_wo"] and sr.status == "APPROVED":
+            ctx["wo_form"] = CreateWorkOrderForm()
         if tab == "evidence":
             ctx["evidence"] = selectors.evidence_for(org, sr)
             ctx["evidence_form"] = EvidenceForm()
@@ -146,7 +148,7 @@ class RequestDetailView(IncidentBase):
 
 class _Post(IncidentBase):
     http_method_names = ["post"]
-    required_permission = "incident.view_assigned"
+    required_permission = "incident.view"
     tab = "overview"
 
     def done(self, request, sr, ok: str | None = None):
@@ -166,6 +168,25 @@ class RequestTransitionView(_Post):
             services.transition(sr, action=action, reason=request.POST.get("reason", ""), actor=request.user,
                                 request=request)
             return self.done(request, sr, "Status updated.")
+        except DomainError as exc:
+            messages.error(request, exc.message)
+            return self.done(request, sr)
+
+
+class RequestCreateWorkOrderView(_Post):
+    def post(self, request, pk):
+        sr = _req(request, pk, "work_order.create")
+        form = CreateWorkOrderForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, "Check the work order details.")
+            return self.done(request, sr)
+        try:
+            wo = services.create_work_order_for_request(
+                sr, actor=request.user, membership=request.membership, request=request,
+                **{k: v for k, v in form.cleaned_data.items() if v})
+            messages.success(request, f"Work order {wo.number} created.")
+            return redirect("workorders:detail", pk=wo.pk) if rbac.has_permission(
+                request.membership, "work_order.view_assigned", wo.site_id) else self.done(request, sr)
         except DomainError as exc:
             messages.error(request, exc.message)
             return self.done(request, sr)
