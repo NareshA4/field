@@ -125,13 +125,27 @@ class RequestDetailView(IncidentBase):
         can = {k: rbac.has_permission(m, code, sr.site_id) for k, code in (
             ("update", "incident.update"), ("attach", "incident.attach"), ("downtime", "incident.downtime.manage"),
             ("view_site", "site.view"))}
+        can["create_work_order"] = (sr.status == "APPROVED" and
+                                     rbac.has_permission(m, "work_order.create", sr.site_id))
+        linked_work_order = None
+        from django.apps import apps
+        if (apps.is_installed("apps.workorders") and
+                (rbac.has_permission(m, "work_order.view", sr.site_id) or
+                 rbac.has_permission(m, "work_order.view_assigned", sr.site_id))):
+            from apps.workorders.models import WorkOrder
+
+            linked_work_order = WorkOrder.objects.for_organization(org).filter(
+                source_reference=sr.number,
+                source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
+            ).first()
         transitions = [
             {"label": t.label, "url": f"/app/incidents/{sr.pk}/transition/{t.action}/", "style": BUTTON_STYLES.get(
                 t.action, "primary"), "reason": t.action in REASON_REQUIRED, "confirm": CONFIRMS.get(t.action)}
             for t in REQUEST_STATUS.available(sr.status)
             if t.action not in SYSTEM_ACTIONS and rbac.has_permission(m, ACTION_PERMISSIONS[t.action], sr.site_id)]
         ctx = {"sr": sr, "tab": tab, "tabs": TABS, "can": can, "transitions": transitions,
-               "downtime": selectors.downtime_for(org, sr), "editable": sr.status in ("NEW", "TRIAGED")}
+               "downtime": selectors.downtime_for(org, sr), "editable": sr.status in ("NEW", "TRIAGED"),
+               "linked_work_order": linked_work_order}
         if tab == "evidence":
             ctx["evidence"] = selectors.evidence_for(org, sr)
             ctx["evidence_form"] = EvidenceForm()
@@ -169,6 +183,22 @@ class RequestTransitionView(_Post):
         except DomainError as exc:
             messages.error(request, exc.message)
             return self.done(request, sr)
+
+
+class RequestWorkOrderView(_Post):
+    """Create the M06 work order from an approved M05 request using the shared services."""
+
+    def post(self, request, pk):
+        sr = _req(request, pk)
+        need(request, "work_order.create", sr.site_id)
+        try:
+            wo = services.create_work_order_for_request(
+                sr, actor=request.user, membership=request.membership, request=request)
+        except DomainError as exc:
+            messages.error(request, exc.message)
+            return self.done(request, sr)
+        messages.success(request, f"Work order {wo.order_number} created from {sr.number}.")
+        return redirect("workorders:detail", pk=wo.pk)
 
 
 class RequestDowntimeView(_Post):

@@ -52,7 +52,14 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
     def get_work_orders(self, obj) -> list[dict]:
         if not apps.is_installed("apps.workorders"):
             return []
-        return [{"id": str(w.pk), "number": w.number, "status": w.status} for w in obj.work_orders.all()]
+        from apps.workorders.models import WorkOrder
+
+        linked = WorkOrder.objects.for_organization(obj.organization).filter(
+            source_reference=obj.number,
+            source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
+        ).order_by("created_at")
+        return [{"id": str(work_order.pk), "number": work_order.order_number,
+                 "status": work_order.status} for work_order in linked]
 
     def get_downtime(self, obj) -> dict | None:
         dt = Downtime.objects.for_organization(obj.organization).filter(request=obj).first()
@@ -150,7 +157,7 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     def _qs(self, request, scope="incident.view"):
         qs = selectors.requests_for(request.membership, request.organization, scope)
-        return qs.prefetch_related("work_orders") if apps.is_installed("apps.workorders") else qs
+        return qs
 
     def _obj(self, request, pk, code=None) -> ServiceRequest:
         sr = scoped_get(self._qs(request, "incident.view_assigned"), pk, "Request")  # 404 outside tenant / site scope

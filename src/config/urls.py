@@ -67,6 +67,7 @@ urlpatterns = [
     path("app/", include("apps.sites.urls")),
     path("app/", include("apps.assets.urls")),
     path("app/", include("apps.incidents.urls")),
+    path("app/", include("apps.workorders.urls_ui")),
     # Module teams: add path("app/", include("apps.<module>.urls")) for your module here.
     path("", include("apps.ui.urls")),
 ]

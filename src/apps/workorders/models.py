@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import Q
+from django.db.models import F, Q
 
 from apps.core.models import TenantOwnedModel
 from apps.core.tenant import TenantQuerySet
@@ -41,10 +41,19 @@ class WorkOrder(TenantOwnedModel):
 
     order_number = models.CharField(max_length=32)
     site = models.ForeignKey("sites.Site", on_delete=models.PROTECT, related_name="work_orders")
+    # Nullable for historical compatibility. All new records require an active same-site asset
+    # through the create service; older reference-only records are backfilled where possible.
+    asset = models.ForeignKey("assets.Asset", null=True, blank=True, on_delete=models.PROTECT,
+                              related_name="work_orders")
+    component = models.ForeignKey("assets.Asset", null=True, blank=True, on_delete=models.PROTECT,
+                                  related_name="component_work_orders")
+    source_request = models.OneToOneField("incidents.ServiceRequest", null=True, blank=True,
+        on_delete=models.PROTECT, related_name="work_order")
     source_type = models.CharField(max_length=12, choices=SourceType.choices, default=SourceType.MANUAL, db_index=True)
     source_reference = models.CharField(max_length=150, blank=True)
     # Optional until the upstream Asset Registry app is available in this checkout.
     asset_reference = models.CharField(max_length=100, blank=True)
+    component_reference = models.CharField(max_length=100, blank=True)
     service_request_reference = models.CharField(max_length=100, blank=True)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
@@ -86,8 +95,46 @@ class WorkOrder(TenantOwnedModel):
         super().clean()
         if self.site_id and self.site.organization_id != self.organization_id:
             raise ValidationError({"site": "Site must belong to this work order's organization."})
+        if self.asset_id:
+            if self.asset.organization_id != self.organization_id:
+                raise ValidationError({"asset": "Asset must belong to this work order's organization."})
+            if self.asset.site_id != self.site_id:
+                raise ValidationError({"asset": "Asset must belong to the selected site."})
+            if self.asset.status != "ACTIVE":
+                raise ValidationError({"asset": "Selected asset is inactive."})
+        if self.component_id:
+            if self.component.organization_id != self.organization_id or not self.asset_id:
+                raise ValidationError({"component": "Component must belong to the selected asset."})
+            from apps.assets.models import AssetComponent
+            if not AssetComponent.objects.filter(parent_id=self.asset_id, child_id=self.component_id).exists():
+                raise ValidationError({"component": "Invalid component for the selected asset."})
+        if self.source_request_id:
+            if self.source_request.organization_id != self.organization_id:
+                raise ValidationError({"source_request": "Source request must belong to this organization."})
+            if (self.source_request.site_id != self.site_id or not self.asset_id or
+                    self.source_request.asset_id != self.asset_id):
+                raise ValidationError({"source_request": "Site and asset must match the source request."})
+            expected_source = (self.SourceType.REQUEST
+                if self.source_request.kind == "SERVICE_REQUEST" else self.SourceType.INCIDENT)
+            if self.source_type != expected_source or self.source_reference != self.source_request.number:
+                raise ValidationError({"source_request": "Source type and reference must match the linked request."})
+        if self._state.adding:
+            if self.source_type in (self.SourceType.REQUEST, self.SourceType.INCIDENT) and not self.source_request_id:
+                raise ValidationError({"source_request": "A valid linked incident or request is required."})
+            if self.source_type == self.SourceType.MANUAL and self.source_request_id:
+                raise ValidationError({"source_request": "Manual work orders cannot link to an incident or request."})
         if self.assigned_to_id and self.assigned_to.organization_id != self.organization_id:
             raise ValidationError({"assigned_to": "Assignee must belong to this organization."})
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        writes_status = update_fields is None or "status" in update_fields
+        if (not self._state.adding and writes_status and
+                not getattr(self, "_workflow_transition_write", False)):
+            stored_status = type(self).objects.filter(pk=self.pk).values_list("status", flat=True).first()
+            if stored_status is not None and stored_status != self.status:
+                raise ValidationError({"status": "Change work-order status through the workflow transition service."})
+        return super().save(*args, **kwargs)
 
     @property
     def completion_evidence(self):
@@ -99,6 +146,31 @@ class WorkOrder(TenantOwnedModel):
     @property
     def number(self):
         return self.order_number
+
+
+class WorkOrderAssignment(TenantOwnedModel):
+    """Persist the technician and scheduled window accepted at PLANNED → ASSIGNED."""
+    work_order = models.OneToOneField(WorkOrder, on_delete=models.PROTECT, related_name="assignment")
+    technician = models.ForeignKey("tenancy.Membership", on_delete=models.PROTECT,
+                                   related_name="work_order_assignments")
+    scheduled_start = models.DateTimeField()
+    scheduled_end = models.DateTimeField()
+    assigned_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+                                    related_name="created_work_order_assignments")
+
+    class Meta:
+        ordering = ["scheduled_start", "id"]
+        constraints = [models.CheckConstraint(condition=Q(scheduled_end__gt=F("scheduled_start")),
+                                              name="wo_assignment_window_valid")]
+
+    def clean(self):
+        super().clean()
+        if self.scheduled_end <= self.scheduled_start:
+            raise ValidationError({"scheduled_end": "Scheduled end must be later than scheduled start."})
+        if self.work_order_id and self.organization_id != self.work_order.organization_id:
+            raise ValidationError("Assignment and work order must belong to the same organization.")
+        if self.technician_id and self.technician.organization_id != self.organization_id:
+            raise ValidationError({"technician": "Technician must belong to this organization."})
 
 
 class WorkOrderEventQuerySet(TenantQuerySet):

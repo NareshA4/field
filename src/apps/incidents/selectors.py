@@ -29,7 +29,13 @@ def requests_for(membership, org, code: str = "incident.view"):
         mine = rbac.site_scope(membership, "incident.view_assigned")
         linked = Q(reported_by=membership)
         if apps.is_installed("apps.workorders"):  # M06: the source of work assigned to oneself
-            linked |= Q(work_orders__assigned_to=membership)
+            from apps.workorders.models import WorkOrder
+
+            assigned_source_numbers = WorkOrder.objects.for_organization(org).filter(
+                assigned_to=membership,
+                source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
+            ).values("source_reference")
+            linked |= Q(number__in=assigned_source_numbers)
         if mine.all_sites:
             cond |= linked
         elif mine.site_ids:

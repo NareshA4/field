@@ -17,6 +17,7 @@ from .serializers import (AssignSerializer, ChecklistSerializer, CompleteSeriali
                          EvidenceSerializer, LaborInputSerializer, LaborSerializer, MaterialInputSerializer,
                          MaterialSerializer, PlanSerializer, WorkOrderReasonSerializer, ReviewSerializer,
                          ClosureCommentSerializer, WorkNoteSerializer, WorkOrderEventSerializer, WorkOrderSerializer)
+from .serializers import ExpectedVersionSerializer
 from .serializers import UpdateWorkOrderSerializer
 
 
@@ -153,18 +154,30 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = dict(serializer.validated_data)
-        data["site_id"] = data.pop("site")
-        wo = services.create_work_order(request.organization, actor=request.user, membership=request.membership,
-                                        request=request, **data)
+        site = data.pop("site")
+        asset = data.pop("asset")
+        component = data.pop("component", None)
+        source_type = data.pop("source_type")
+        source_request = data.pop("source_request", None)
+        if source_request is not None:
+            from apps.incidents import services as incident_services
+            wo = incident_services.create_work_order_for_request(
+                source_request, actor=request.user, membership=request.membership, request=request,
+                component=component, **data)
+        else:
+            data.pop("source_reference", None)
+            wo = services.create_work_order(request.organization, site_id=site.pk, asset=asset,
+                component=component, source_type=source_type, source_reference="",
+                actor=request.user, membership=request.membership, request=request, **data)
         return Response(WorkOrderSerializer(wo).data, status=status.HTTP_201_CREATED)
 
     def _action(self, pk, fn, serializer=None):
         wo = self.get_object()
         data = {}
-        if serializer:
-            s = serializer(data=self.request.data)
-            s.is_valid(raise_exception=True)
-            data = s.validated_data
+        input_serializer = serializer or ExpectedVersionSerializer
+        s = input_serializer(data=self.request.data)
+        s.is_valid(raise_exception=True)
+        data = s.validated_data
         result = fn(wo, membership=self.request.membership, actor=self.request.user, request=self.request, **data)
         if isinstance(result, WorkOrder):
             return Response(WorkOrderSerializer(result).data)

@@ -18,11 +18,36 @@ ACTIVE_ASSIGNMENT_STATES = [
 ]
 
 
+def available_technicians(work_order):
+    """Return active, authorized technicians with no other active work-order assignment."""
+    if not work_order.planned_start or not work_order.planned_end or work_order.planned_end <= work_order.planned_start:
+        return Membership.objects.none()
+
+    candidates = Membership.objects.for_organization(work_order.organization).filter(
+        status=Membership.Status.ACTIVE,
+        user__is_active=True,
+        membership_roles__role__system_key="technician",
+    ).select_related("user").distinct()
+    allowed_ids = [member.pk for member in candidates
+                   if rbac.has_permission(member, "work_order.start", work_order.site)]
+    if not allowed_ids:
+        return candidates.none()
+
+    booked_ids = WorkOrder.objects.for_organization(work_order.organization).filter(
+        assigned_to_id__in=allowed_ids,
+        status__in=ACTIVE_ASSIGNMENT_STATES,
+    ).exclude(pk=work_order.pk).values_list("assigned_to_id", flat=True)
+    return candidates.filter(pk__in=allowed_ids).exclude(pk__in=booked_ids).order_by(
+        "user__full_name", "user__email")
+
+
 def validate_assignment(work_order, technician):
     if technician.organization_id != work_order.organization_id:
         raise ValidationFailed("Technician must belong to this organization.", code="invalid_technician")
     if technician.status != Membership.Status.ACTIVE or not technician.user.is_active:
         raise ValidationFailed("Technician is inactive.", code="technician_inactive")
+    if not technician.membership_roles.filter(role__system_key="technician").exists():
+        raise ValidationFailed("The assigned member must have the Technician role.", code="technician_role_required")
     if not rbac.has_permission(technician, "work_order.start", work_order.site):
         raise ValidationFailed("Technician is not authorized for this site.", code="technician_site_forbidden")
     if not work_order.planned_start or not work_order.planned_end:
@@ -34,11 +59,9 @@ def validate_assignment(work_order, technician):
     conflict = WorkOrder.objects.for_organization(work_order.organization).filter(
         assigned_to=technician,
         status__in=ACTIVE_ASSIGNMENT_STATES,
-        planned_start__lt=work_order.planned_end,
-        planned_end__gt=work_order.planned_start,
     ).exclude(pk=work_order.pk).exists()
     if conflict:
-        raise Conflict("Technician has a conflicting overlapping work order in this time window.",
+        raise Conflict("Technician already has another active work order; only one active assignment is allowed.",
                        code="technician_conflict")
 
     # TechnicianProfile / Shift / availability do not exist in this checkout.

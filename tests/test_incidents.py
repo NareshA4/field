@@ -170,13 +170,70 @@ def test_reject_needs_a_reason_and_system_actions_are_refused(report, ops):
     assert exc.value.code == "system_action"
 
 
-def test_work_order_creation_is_unavailable_until_m06_is_installed(report, ops, reporter):
-    sr = report()
+@pytest.mark.parametrize(("kind", "source_type"), [
+    (ServiceRequest.Kind.INCIDENT, "INCIDENT"),
+    (ServiceRequest.Kind.SERVICE_REQUEST, "REQUEST"),
+])
+def test_approved_incident_or_request_creates_one_linked_work_order(
+        report, ops, make_member, kind, source_type):
+    from apps.workorders.models import WorkOrder
+    from apps.workorders import services as work_orders
+    from datetime import timedelta
+    from django.utils import timezone
+
+    sr = report(kind=kind, severity=ServiceRequest.Severity.CRITICAL)
     services.transition(sr, action="triage", actor=ops.user)
     services.transition(sr, action="approve", actor=ops.user)
-    with pytest.raises(Conflict) as exc:
-        services.create_work_order_for_request(sr, actor=ops.user, membership=ops)
-    assert exc.value.code == "module_unavailable"
+    planner = make_member(sr.organization, f"work-order-from-{kind.lower()}@alpha.test", "maintenance_planner")
+
+    wo = services.create_work_order_for_request(sr, actor=planner.user, membership=planner)
+    sr.refresh_from_db()
+    assert wo.status == WorkOrder.Status.DRAFT
+    assert wo.source_type == source_type
+    assert wo.source_reference == sr.number
+    assert wo.asset_reference == sr.asset.asset_tag
+    assert wo.site_id == sr.site_id
+    assert wo.priority == WorkOrder.Priority.CRITICAL
+    assert sr.status == "WORK_ORDER_CREATED"
+
+    technician = make_member(sr.organization, f"work-order-tech-{kind.lower()}@alpha.test", "technician")
+    start = timezone.now() + timedelta(days=3)
+    wo = work_orders.plan_work_order(wo, membership=planner, actor=planner.user,
+                                     planned_start=start, planned_end=start + timedelta(hours=1),
+                                     due_at=start + timedelta(hours=1), estimated_hours=1,
+                                     work_type=WorkOrder.WorkType.CORRECTIVE,
+                                     priority=WorkOrder.Priority.CRITICAL)
+    wo = work_orders.assign_work_order(wo, membership=planner, actor=planner.user,
+                                      assignee_id=technician.pk)
+    wo = work_orders.dispatch_work_order(wo, membership=planner, actor=planner.user)
+    work_orders.start_work_order(wo, membership=technician, actor=technician.user)
+    sr.refresh_from_db()
+    assert sr.status == "IN_SERVICE"
+    with pytest.raises(InvalidTransition):
+        services.create_work_order_for_request(sr, actor=planner.user, membership=planner)
+
+
+def test_approved_request_detail_exposes_create_work_order_action(report, ops, make_member):
+    from django.test import Client
+    from django.urls import reverse
+    from apps.workorders.models import WorkOrder
+
+    sr = report(kind=ServiceRequest.Kind.SERVICE_REQUEST, severity=ServiceRequest.Severity.HIGH)
+    services.transition(sr, action="triage", actor=ops.user)
+    services.transition(sr, action="approve", actor=ops.user)
+    planner = make_member(sr.organization, "work-order-from-request-ui@alpha.test", "maintenance_planner")
+    ui = Client()
+    ui.force_login(planner.user)
+    detail = ui.get(reverse("incidents:detail", args=[sr.pk]))
+    assert detail.status_code == 200
+    assert b"Create work order" in detail.content
+
+    response = ui.post(reverse("incidents:create_work_order", args=[sr.pk]))
+    assert response.status_code == 302
+    wo = WorkOrder.objects.get(source_reference=sr.number)
+    assert response.url == reverse("workorders:detail", args=[wo.pk])
+    sr.refresh_from_db()
+    assert sr.status == "WORK_ORDER_CREATED"
 
 
 # --- API --------------------------------------------------------------------------------------------------

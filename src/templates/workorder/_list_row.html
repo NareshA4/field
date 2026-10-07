@@ -1,0 +1,16 @@
+<tr id="workorder-{{ wo.pk }}" class="{% if wo.is_overdue %}is-overdue{% endif %}">
+  <td><a class="wo-number" href="{% url 'workorders:detail' wo.pk %}">{{ wo.order_number }}</a><span class="wo-row-title">{{ wo.title }}</span></td>
+  <td>{{ wo.asset_reference|default:"—" }}{% if wo.component_reference %}<span class="wo-row-title">Component {{ wo.component_reference }}</span>{% endif %}</td><td>{{ wo.site.code }} · {{ wo.site.name }}</td>
+  <td><span class="wo-priority priority-{{ wo.priority|lower }}">{{ wo.get_priority_display }}</span></td>
+  <td><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span></td>
+  <td>{{ wo.assigned_to.user.full_name|default:"Unassigned" }}</td>
+  <td>{% if wo.due_at %}{{ wo.due_at|date:"M j, Y · H:i" }}{% elif wo.planned_end %}{{ wo.planned_end|date:"M j, Y · H:i" }}{% else %}<span class="wo-muted">Not scheduled</span>{% endif %}{% if wo.is_overdue %}<span class="wo-overdue-badge">Past due</span>{% endif %}</td>
+  <td class="wo-actions-cell"><div class="wo-row-actions">
+    <a class="wo-view-button" href="{% url 'workorders:detail' wo.pk %}">View</a>
+    {% for action in wo.allowed_actions %}
+      {% if action.operation == 'edit' %}<a class="wo-edit-button" href="{% url 'workorders:edit' wo.pk %}">{{ action.label }}</a>
+      {% elif action.kind == 'post' %}<form method="post" action="{% url 'workorders:action' wo.pk action.operation %}" class="m-0" hx-post="{% url 'workorders:action' wo.pk action.operation %}" hx-target="#workorder-{{ wo.pk }}" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ wo.version }}"><button class="wo-status-button" type="submit" {% if action.confirm %}data-confirm="{{ action.confirm }}"{% endif %}>{{ action.label }}</button></form>
+      {% else %}<a class="wo-status-button" href="{% url 'workorders:action' wo.pk action.operation %}">{{ action.label }}</a>{% endif %}
+    {% endfor %}
+  </div></td>
+</tr>

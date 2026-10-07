@@ -41,7 +41,7 @@
     {
       "status": "DISPATCHED",
       "title": "Air handling unit condition check",
-      "source_type": "PM",
+      "source_type": "MANUAL",
       "source_reference": "PM-DEMO-{serial:04d}",
       "asset_reference": "AHU-04",
       "work_type": "INSPECTION",
@@ -77,7 +77,7 @@
     {
       "status": "COMPLETED",
       "title": "Cooling tower inspection completed",
-      "source_type": "PM",
+      "source_type": "MANUAL",
       "source_reference": "PM-DEMO-{serial:04d}",
       "asset_reference": "CTWR-07",
       "work_type": "INSPECTION",

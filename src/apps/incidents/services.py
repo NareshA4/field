@@ -38,7 +38,7 @@ from .workflow import (
 
 SNAPSHOT = ["title", "description", "severity", "kind", "service_impact", "impact_notes", "occurred_at"]
 _EDITABLE = {"title", "description", "severity", "service_impact", "impact_notes", "occurred_at"}
-_SEVERITY_TO_PRIORITY = {"LOW": "LOW", "MEDIUM": "MEDIUM", "HIGH": "HIGH", "CRITICAL": "URGENT"}
+_SEVERITY_TO_PRIORITY = {"LOW": "LOW", "MEDIUM": "MEDIUM", "HIGH": "HIGH", "CRITICAL": "CRITICAL"}
 _FUTURE_SLACK = timedelta(minutes=5)
 
 
@@ -222,11 +222,12 @@ def create_work_order_for_request(sr: ServiceRequest, *, actor, membership, requ
     if sr.status != APPROVED:
         REQUEST_STATUS.get(sr.status, "link_work_order")  # raises invalid_transition with the usual envelope
     wo = work_orders.create_work_order(
-        sr.organization, asset=sr.asset, actor=actor, request=request, source_request=sr,
-        work_type="CORRECTIVE", title=plan.pop("title", None) or f"{sr.number}: {sr.title}",
+        sr.organization, asset=sr.asset, actor=actor, membership=membership, request=request, source_request=sr,
+        component=plan.pop("component", None),
+        work_type=plan.pop("work_type", "CORRECTIVE"), title=plan.pop("title", None) or f"{sr.number}: {sr.title}",
         description=plan.pop("description", None) or sr.description,
         priority=plan.pop("priority", None) or _SEVERITY_TO_PRIORITY[sr.severity], **plan)
-    _apply(sr, "link_work_order", reason=wo.number, actor=actor, source="manual", request=request)
+    _apply(sr, "link_work_order", reason=wo.order_number, actor=actor, source="manual", request=request)
     return wo
 
 

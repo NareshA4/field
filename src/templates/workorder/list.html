@@ -1,7 +1,7 @@
 {% extends "shell.html" %}
 {% load static %}
 {% block title %}Work Order Visibility · FieldOps Nexus{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/workorder.css' %}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/workorder.css' %}?v=m06-flow-display-2">{% endblock %}
 {% block content %}
 <div class="wo-page">
   <div class="wo-eyebrow-row">
@@ -13,10 +13,12 @@
     <span class="wo-scope"><span aria-hidden="true">●</span> Scope enforced</span>
   </div>
 
-  <section class="wo-status-grid" aria-label="Work order counts by workflow status">
+  <section id="wo-status-cards" class="wo-status-grid" aria-label="Work order counts by workflow status"
+           hx-get="{{ request.get_full_path }}" hx-trigger="workOrderChanged from:body" hx-select="#wo-status-cards" hx-swap="outerHTML">
     {% for item in status_cards %}
-      <a class="wo-status-card {% if item.code == 'DRAFT' %}is-draft{% elif item.code == 'CLOSED' %}is-closed{% endif %} {% if selected_status == item.code %}is-selected{% endif %}"
-         href="?status={{ item.code }}" aria-label="{{ item.count }} {{ item.label }} work orders">
+      <a class="wo-status-card status-{{ item.code|lower }} {% if item.selected %}is-selected{% endif %}"
+         href="{% url 'workorders:list' %}?status={{ item.code }}"
+         aria-label="Show {{ item.count }} {{ item.label }} work orders" {% if item.selected %}aria-current="page"{% endif %}>
         <span class="wo-status-count">{{ item.count }}</span>
         <span class="wo-status-label">{{ item.label }}</span>
         <span class="wo-status-rule" aria-hidden="true"></span>
@@ -29,9 +31,9 @@
       <h2 id="workflow-title">Workflow protection</h2>
       <p>Exact documented states shown in sequence</p>
     </div>
-    <div class="wo-flow" aria-label="Draft, Planned, Assigned, Dispatched, In Progress, On Hold, Completed, Supervisor Review, Closed">
-      {% for item in status_cards %}
-        <a class="wo-flow-step {% if selected_status == item.code %}is-current{% endif %}" href="?status={{ item.code }}">{{ item.label }}</a>
+    <div class="wo-flow" aria-label="Work-order workflow">
+      {% for code,label in workflow_steps %}
+        <span class="wo-flow-step">{{ label }}</span>
         {% if not forloop.last %}<span class="wo-flow-arrow" aria-hidden="true">›</span>{% endif %}
       {% endfor %}
     </div>
@@ -47,7 +49,7 @@
     </div>
     <div class="wo-admin-grid">
       <div><strong>Transitions are controlled</strong><span>Each status change uses the validated workflow.</span></div>
-      <div><strong>Assignments are checked</strong><span>Technician status and schedule conflicts are validated.</span></div>
+      <div><strong>Assignments are checked</strong><span>Only active, site-authorized technicians without another active job can be assigned.</span></div>
       <div><strong>Records stay in scope</strong><span>Work orders are filtered to your organization and sites.</span></div>
     </div>
   </section>
@@ -57,7 +59,7 @@
       <div><h2 id="records-title">Work orders</h2><p>Search and filter your permitted records.</p></div>
       <div class="wo-view-links"><a href="{% url 'workorders:schedule' %}">Schedule board</a><a href="{% url 'workorders:mine' %}">My jobs</a></div>
     </div>
-    <form class="wo-filter-form" method="get" hx-get="{% url 'workorders:list' %}" hx-trigger="change delay:250ms, submit" hx-target="#workorder-results" hx-select="#workorder-results" hx-swap="outerHTML">
+    <form class="wo-filter-form" method="get" hx-get="{% url 'workorders:list' %}" hx-trigger="change delay:250ms, submit" hx-target="#workorder-results" hx-select="#workorder-results" hx-swap="outerHTML" hx-push-url="true">
       <label class="wo-search"><span class="visually-hidden">Search work orders</span><input type="search" name="q" value="{{ q }}" placeholder="Search number or title"></label>
       <label><span class="visually-hidden">Status</span><select name="status"><option value="">All statuses</option>{% for key,label in statuses %}<option value="{{ key }}" {% if selected_status == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
       <label><span class="visually-hidden">Priority</span><select name="priority"><option value="">All priorities</option>{% for key,label in priorities %}<option value="{{ key }}" {% if selected_priority == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
@@ -72,19 +74,16 @@
     <div id="workorder-results">
     <div class="table-responsive">
       <table class="wo-table">
-        <thead><tr><th>Work order</th><th>Asset</th><th>Site</th><th>Priority</th><th>Status</th><th>Assignee</th><th>Due / planned end</th><th class="wo-actions-heading">Actions</th></tr></thead>
+        <thead><tr><th>Work order</th><th>Asset</th><th>Site</th><th>Priority</th><th>Status</th><th>Assignee</th><th>Due / warning</th><th class="wo-actions-heading">Actions</th></tr></thead>
         <tbody>
         {% for wo in work_orders %}
-          <tr>
-            <td><a class="wo-number" href="{% url 'workorders:detail' wo.pk %}">{{ wo.order_number }}</a><span class="wo-row-title">{{ wo.title }}</span></td>
-            <td>{{ wo.asset_reference|default:"—" }}</td><td>{{ wo.site.code }} · {{ wo.site.name }}</td>
-            <td><span class="wo-priority priority-{{ wo.priority|lower }}">{{ wo.get_priority_display }}</span></td>
-            <td><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span></td>
-            <td>{{ wo.assigned_to.user.full_name|default:"Unassigned" }}</td>
-            <td>{% if wo.due_at %}{{ wo.due_at|date:"M j, Y · H:i" }}{% elif wo.planned_end %}{{ wo.planned_end|date:"M j, Y · H:i" }}{% else %}<span class="wo-muted">Not scheduled</span>{% endif %}</td>
-            <td class="wo-actions-cell"><div class="wo-row-actions">{% if wo.can_edit %}<a class="wo-edit-button" href="{% url 'workorders:edit' wo.pk %}" aria-label="Edit {{ wo.order_number }}">Edit</a>{% endif %}{% if wo.can_update_status %}<a class="wo-status-button" href="{% url 'workorders:detail' wo.pk %}#workflow-actions" aria-label="Update status for {{ wo.order_number }}">Update status</a>{% elif wo.can_update_work %}<a class="wo-view-button" href="{% url 'workorders:detail' wo.pk %}#workflow-actions" aria-label="Open updates for {{ wo.order_number }}">Add update</a>{% elif not wo.can_edit %}<a class="wo-view-button" href="{% url 'workorders:detail' wo.pk %}">View</a>{% endif %}</div></td>
-          </tr>
-        {% empty %}<tr><td colspan="8" class="wo-empty">No work orders match these filters.</td></tr>{% endfor %}
+          {% include "workorder/_list_row.html" with wo=wo %}
+ {% empty %}<tr><td colspan="8" class="wo-empty">
+   {% if not has_visible_work_orders %}
+     <p>No work orders found. Create your first work order to get started.</p>
+     {% if can_create %}<a class="wo-primary-button" href="{% url 'workorders:create' %}">Create work order</a>{% endif %}
+   {% else %}No work orders match these filters.{% endif %}
+ </td></tr>{% endfor %}
         </tbody>
       </table>
     </div>

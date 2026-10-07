@@ -1,23 +1,49 @@
 ﻿from datetime import timedelta
 
+from concurrent.futures import ThreadPoolExecutor
+from uuid import uuid4
+from threading import Barrier
+
 import pytest
 from django.urls import reverse
 from django.test import Client
 from django.utils import timezone
 
-from apps.core.exceptions import Conflict, InvalidTransition, NotFound
+from apps.core.exceptions import Conflict, InvalidTransition, NotFound, PermissionDenied, ValidationFailed
 from apps.audit.models import AuditLog
 from apps.notifications.models import Notification
 from apps.workorders import services
-from apps.workorders.models import ClosureApproval, WorkOrder, WorkOrderEvent
-from apps.tenancy.models import Membership
+from apps.workorders.forms import CreateWorkOrderForm, PlanForm
+from apps.workorders.models import ClosureApproval, WorkOrder, WorkOrderAssignment, WorkOrderEvent
+from apps.tenancy.models import Membership, Organization
 
 pytestmark = pytest.mark.django_db
 
 
 def make_order(org, site, membership, *, title="Pump inspection", **kwargs):
+    from apps.assets import services as asset_services
+    from apps.assets.models import AssetCategory
+
+    category = AssetCategory.objects.for_organization(org).filter(name="Work Order Test Assets").first()
+    if category is None:
+        category = asset_services.create_category(org, name="Work Order Test Assets", actor=membership.user)
+    asset = asset_services.create_asset(org, site=site, category=category, actor=membership.user,
+                                        asset_tag=f"WO-{uuid4().hex[:12].upper()}", name=title[:80])
+    kwargs.setdefault("due_at", timezone.now() + timedelta(days=45))
+    kwargs.setdefault("estimated_hours", 1)
     return services.create_work_order(org, site_id=site.pk, membership=membership, actor=membership.user,
-                                      title=title, work_type=WorkOrder.WorkType.PREVENTIVE, **kwargs)
+                                      title=title, asset=asset, source_type=WorkOrder.SourceType.MANUAL,
+                                      source_reference="", work_type=WorkOrder.WorkType.PREVENTIVE, **kwargs)
+
+
+def attach_test_evidence(wo, organization, membership, *, filename="work-proof.txt"):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from apps.files import services as file_services
+
+    attachment = file_services.attach(SimpleUploadedFile(filename, b"work completed and checked"), target=wo,
+        organization=organization, user=membership.user, description="Work completion evidence",
+        read_permission="work_order.view")
+    services.add_evidence(wo, membership=membership, actor=membership.user, attachment_id=attachment.pk)
 
 
 def make_review_order(org, site, planner, tech):
@@ -29,6 +55,7 @@ def make_review_order(org, site, planner, tech):
     wo = services.assign_work_order(wo, membership=planner, actor=planner.user, assignee_id=tech.pk)
     wo = services.dispatch_work_order(wo, membership=planner, actor=planner.user)
     wo = services.start_work_order(wo, membership=tech, actor=tech.user)
+    attach_test_evidence(wo, wo.organization, tech)
     services.record_labor(wo, membership=tech, actor=tech.user, work_date=timezone.localdate(), hours="1.0",
                           description="Completed the assigned inspection")
     wo = services.complete_work_order(wo, membership=tech, actor=tech.user,
@@ -57,6 +84,7 @@ def test_full_work_order_lifecycle_is_audited(org_a, site_a1, make_member, owner
     with pytest.raises(Conflict, match="checklist"):
         services.complete_work_order(wo, membership=tech, actor=tech.user,
                                      resolution_notes="Inspection completed and unit is safe.")
+    attach_test_evidence(wo, org_a, tech)
     wo = services.complete_work_order(wo, membership=tech, actor=tech.user,
         resolution_notes="Inspection completed and unit is safe.",
         checklist_items=[{"label": "Inspect unit", "required": True, "completed": True}])
@@ -68,8 +96,29 @@ def test_full_work_order_lifecycle_is_audited(org_a, site_a1, make_member, owner
     assert wo.status == WorkOrder.Status.CLOSED
     transitions = list(wo.events.values_list("to_status", flat=True))
     assert transitions == ["DRAFT", "PLANNED", "ASSIGNED", "DISPATCHED", "IN_PROGRESS", "ON_HOLD",
-                           "IN_PROGRESS", "IN_PROGRESS", "COMPLETED", "SUPERVISOR_REVIEW", "CLOSED"]
-    assert WorkOrderEvent.objects.for_organization(org_a).filter(work_order=wo).count() == 11
+                           "IN_PROGRESS", "IN_PROGRESS", "IN_PROGRESS", "COMPLETED", "SUPERVISOR_REVIEW", "CLOSED"]
+    assert WorkOrderEvent.objects.for_organization(org_a).filter(work_order=wo).count() == 12
+    for action in ("planned", "assigned", "dispatched", "started", "held", "resumed", "completed",
+                   "submitted_for_review", "closed"):
+        assert AuditLog.objects.filter(organization=org_a, action=f"work_order.{action}",
+                                       target_id=str(wo.pk)).exists(), action
+
+
+def test_work_order_assignment_is_persisted_with_valid_schedule(org_a, site_a1, make_member, owner_a):
+    planner = Membership.objects.get(organization=org_a, user=owner_a)
+    technician = make_member(org_a, "assignment-record-tech@alpha.test", "technician")
+    wo = make_order(org_a, site_a1, planner)
+    start = timezone.now() + timedelta(days=2)
+    wo = services.plan_work_order(wo, membership=planner, actor=owner_a,
+        planned_start=start, planned_end=start + timedelta(hours=3))
+    wo = services.assign_work_order(wo, membership=planner, actor=owner_a, assignee_id=technician.pk)
+    assignment = WorkOrderAssignment.objects.get(work_order=wo)
+    assert assignment.technician_id == technician.pk
+    assert assignment.scheduled_start == wo.planned_start
+    assert assignment.scheduled_end == wo.planned_end
+    assert assignment.assigned_by_id == owner_a.pk
+    with pytest.raises(InvalidTransition):
+        services.assign_work_order(wo, membership=planner, actor=owner_a, assignee_id=technician.pk)
 
 
 def test_invalid_state_and_cross_tenant_site_are_rejected(org_a, site_a1, site_b1, owner_a):
@@ -83,7 +132,7 @@ def test_invalid_state_and_cross_tenant_site_are_rejected(org_a, site_a1, site_b
                                    title="Cross tenant")
 
 
-def test_assignment_rejects_overlapping_bookings(org_a, site_a1, make_member):
+def test_assignment_rejects_second_active_work_order_even_when_windows_do_not_overlap(org_a, site_a1, make_member):
     planner = make_member(org_a, "planner-conflict@alpha.test", "maintenance_planner")
     tech = make_member(org_a, "tech-conflict@alpha.test", "technician")
     start = timezone.now() + timedelta(days=1)
@@ -91,16 +140,29 @@ def test_assignment_rejects_overlapping_bookings(org_a, site_a1, make_member):
     first = make_order(org_a, site_a1, planner, title="First")
     second = make_order(org_a, site_a1, planner, title="Second")
     services.plan_work_order(first, membership=planner, actor=planner.user, planned_start=start, planned_end=end)
-    services.plan_work_order(second, membership=planner, actor=planner.user, planned_start=start, planned_end=end)
+    services.plan_work_order(second, membership=planner, actor=planner.user,
+                             planned_start=start + timedelta(days=2), planned_end=end + timedelta(days=2))
     services.assign_work_order(first, membership=planner, actor=planner.user, assignee_id=tech.pk)
-    with pytest.raises(Conflict, match="conflicting"):
+    with pytest.raises(Conflict, match="only one active assignment"):
         services.assign_work_order(second, membership=planner, actor=planner.user, assignee_id=tech.pk)
 
 
-def test_api_and_ui_are_registered(org_a, site_a1, owner_a, as_user):
+def test_api_and_ui_are_registered(org_a, site_a1, owner_a, as_user, make_asset):
     api = as_user(owner_a, org_a)
-    response = api.post("/api/v1/work-orders/", {"site": str(site_a1.pk), "title": "UI/API check",
-        "work_type": "PREVENTIVE", "priority": "HIGH"}, format="json")
+    asset = make_asset(org_a, site_a1, "API-WO-ASSET")
+    planned_start = timezone.now() + timedelta(days=3)
+    equal_schedule = api.post("/api/v1/work-orders/", {"site": str(site_a1.pk), "asset": str(asset.pk),
+        "title": "Invalid schedule",
+        "work_type": "PREVENTIVE", "priority": "HIGH", "planned_start": planned_start.isoformat(),
+        "planned_end": planned_start.isoformat(), "due_at": (planned_start + timedelta(hours=1)).isoformat(),
+        "estimated_hours": "1.00"}, format="json")
+    assert equal_schedule.status_code == 400
+    assert "planned_end" in equal_schedule.data["error"]["details"]["fields"]
+    response = api.post("/api/v1/work-orders/", {"site": str(site_a1.pk), "asset": str(asset.pk),
+        "title": "UI/API check",
+        "work_type": "PREVENTIVE", "priority": "HIGH", "planned_start": planned_start.isoformat(),
+        "planned_end": (planned_start + timedelta(hours=1)).isoformat(),
+        "due_at": (planned_start + timedelta(hours=2)).isoformat(), "estimated_hours": "1.00"}, format="json")
     assert response.status_code == 201, response.data
     assert response.data["status"] == "DRAFT"
     ui = Client()
@@ -115,7 +177,14 @@ def test_detail_tabs_and_operator_boards_render_without_server_errors(org_a, sit
     wo = make_order(org_a, site_a1, membership, title="Detail tabs smoke test")
     ui = Client()
     ui.force_login(owner_a)
-    assert ui.get(reverse("workorders:detail", args=[wo.pk])).status_code == 200
+    overview = ui.get(reverse("workorders:detail", args=[wo.pk]))
+    assert overview.status_code == 200
+    assert b"Overview" in overview.content
+    assert b"Assignment and schedule" not in overview.content
+    assignment = ui.get(reverse("workorders:detail", args=[wo.pk]), {"tab": "assignment"})
+    assert assignment.status_code == 200
+    assert b"Assignment and schedule" in assignment.content
+    assert b"aria-current=\"page\"" in assignment.content
     for tab in ("overview", "assignment", "checklist", "parts", "labor", "notes",
                 "attachments", "timeline", "closure"):
         response = ui.get(reverse("workorders:tab", args=[wo.pk, tab]))
@@ -124,21 +193,640 @@ def test_detail_tabs_and_operator_boards_render_without_server_errors(org_a, sit
     assert ui.get(reverse("workorders:mine")).status_code == 200
 
 
-def test_work_order_crud_edits_are_audited_but_status_is_workflow_only(org_a, site_a1, site_a2, owner_a, as_user):
+def test_my_jobs_is_limited_to_the_logged_in_technician(org_a, site_a1, owner_a, make_member):
+    planner = Membership.objects.get(organization=org_a, user=owner_a)
+    technician = make_member(org_a, "mine-jobs-tech@alpha.test", "technician")
+    another_technician = make_member(org_a, "mine-jobs-other-tech@alpha.test", "technician")
+    start = timezone.now() + timedelta(days=4)
+    own = make_order(org_a, site_a1, planner, title="Assigned only to signed-in technician")
+    other = make_order(org_a, site_a1, planner, title="Assigned to another technician")
+    for order in (own, other):
+        services.plan_work_order(order, membership=planner, actor=owner_a,
+            planned_start=start, planned_end=start + timedelta(hours=1))
+        start += timedelta(days=1)
+    services.assign_work_order(own, membership=planner, actor=owner_a, assignee_id=technician.pk)
+    services.assign_work_order(other, membership=planner, actor=owner_a, assignee_id=another_technician.pk)
+
+    ui = Client()
+    ui.force_login(technician.user)
+    response = ui.get(reverse("workorders:mine"))
+    assert response.status_code == 200
+    assert [item.pk for item in response.context["work_orders"]] == [own.pk]
+    assert own.order_number.encode() in response.content
+    assert other.order_number.encode() not in response.content
+
+
+def test_status_cards_only_filter_scoped_work_order_list(org_a, site_a1, make_member):
+    planner = make_member(org_a, "status-filter-planner@alpha.test", "maintenance_planner")
+    draft = make_order(org_a, site_a1, planner, title="Status filter draft")
+    planned = make_order(org_a, site_a1, planner, title="Status filter planned",
+                         priority=WorkOrder.Priority.HIGH)
+    start = timezone.now() + timedelta(days=4)
+    services.plan_work_order(planned, membership=planner, actor=planner.user, planned_start=start,
+                             planned_end=start + timedelta(hours=1))
+
+    ui = Client()
+    ui.force_login(planner.user)
+    response = ui.get(reverse("workorders:list"), {"status": WorkOrder.Status.PLANNED,
+                                                   "priority": WorkOrder.Priority.HIGH})
+    assert response.status_code == 200
+    assert [order.pk for order in response.context["page_obj"].object_list] == [planned.pk]
+    assert b'<span class="wo-flow-step">Draft</span>' in response.content
+    assert b'<a class="wo-flow-step' not in response.content
+    assert b'<a class="wo-status-card' in response.content
+    assert f'href="{reverse("workorders:list")}?status=PLANNED"'.encode() in response.content
+    assert b"Update status" not in response.content
+    counts = {item["code"]: item["count"] for item in response.context["status_cards"]}
+    assert counts[WorkOrder.Status.DRAFT] == 1
+    assert counts[WorkOrder.Status.PLANNED] == 1
+    assert b"Assign technician" in response.content
+
+
+def test_empty_work_order_list_has_scoped_empty_state_and_zero_dashboard_counts(org_a, site_a1, owner_a):
+    ui = Client()
+    ui.force_login(owner_a)
+    response = ui.get(reverse("workorders:list"))
+
+    assert response.status_code == 200
+    assert b"No work orders found. Create your first work order to get started." in response.content
+    assert b'href="/app/work-orders/new/"' in response.content
+    assert all(card["count"] == 0 for card in response.context["status_cards"])
+    assert response.context["has_visible_work_orders"] is False
+
+
+def test_work_order_create_updates_database_backed_dashboard_count(org_a, site_a1, owner_a):
+    ui = Client()
+    ui.force_login(owner_a)
+    assert all(card["count"] == 0 for card in
+               ui.get(reverse("workorders:list")).context["status_cards"])
+
+    membership = Membership.objects.get(organization=org_a, user=owner_a)
+    make_order(org_a, site_a1, membership, title="Database-backed dashboard row")
+    response = ui.get(reverse("workorders:list"))
+    counts = {card["code"]: card["count"] for card in response.context["status_cards"]}
+
+    assert counts[WorkOrder.Status.DRAFT] == 1
+    assert response.context["page_obj"].paginator.count == 1
+    assert b"Database-backed dashboard row" in response.content
+
+
+def test_work_order_api_get_does_not_insert_records(org_a, owner_a, as_user):
+    from apps.workorders.models import WorkOrder
+
+    client = as_user(owner_a, org_a)
+    before = WorkOrder.objects.for_organization(org_a).count()
+    response = client.get("/api/v1/work-orders/")
+
+    assert response.status_code == 200
+    assert WorkOrder.objects.for_organization(org_a).count() == before == 0
+
+
+def test_database_transition_writes_status_history_and_invalid_transition_is_atomic(
+        org_a, site_a1, owner_a):
+    from apps.audit.models import AuditLog
+    from apps.core.exceptions import InvalidTransition
+
+    planner = Membership.objects.get(organization=org_a, user=owner_a)
+    wo = make_order(org_a, site_a1, planner, title="Transition persists in database")
+    with pytest.raises(InvalidTransition):
+        services.dispatch_work_order(wo, membership=planner, actor=owner_a)
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.DRAFT
+    assert not wo.events.filter(action="dispatched").exists()
+
+    start = timezone.now() + timedelta(days=4)
+    wo = services.plan_work_order(wo, membership=planner, actor=owner_a,
+        planned_start=start, planned_end=start + timedelta(hours=2))
+    wo.refresh_from_db()
+    event = wo.events.get(action="planned")
+    assert wo.status == WorkOrder.Status.PLANNED
+    assert event.from_status == WorkOrder.Status.DRAFT
+    assert event.to_status == WorkOrder.Status.PLANNED
+    assert AuditLog.objects.filter(target_id=str(wo.pk), action="work_order.planned").exists()
+
+
+def test_seed_command_is_explicit_complete_and_idempotent(tmp_path, monkeypatch):
+    from django.core.management import call_command
+    from django.test import override_settings
+    from apps.workorders.models import ClosureApproval, WorkOrderEvidence, WorkOrderLabor, WorkOrderMaterial
+    from apps.assets.models import Asset, AssetComponent
+    from apps.incidents.models import ServiceRequest
+
+    monkeypatch.delenv("FIELDOPS_ALLOW_DEMO_SEED", raising=False)
+    with override_settings(DEBUG=True, MEDIA_ROOT=tmp_path):
+        call_command("seed_dev_demo", verbosity=0)
+        call_command("seed_workorders", verbosity=0)
+        organization = Organization.objects.get(name="Demo Organization")
+        seeded = WorkOrder.objects.for_organization(organization)
+        assert set(seeded.values_list("status", flat=True)) >= {
+            WorkOrder.Status.DRAFT, WorkOrder.Status.PLANNED, WorkOrder.Status.ASSIGNED,
+            WorkOrder.Status.DISPATCHED, WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD,
+            WorkOrder.Status.COMPLETED, WorkOrder.Status.SUPERVISOR_REVIEW, WorkOrder.Status.CLOSED,
+        }
+        for expected_status in (
+            WorkOrder.Status.PLANNED, WorkOrder.Status.ASSIGNED, WorkOrder.Status.DISPATCHED,
+            WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD, WorkOrder.Status.COMPLETED,
+            WorkOrder.Status.SUPERVISOR_REVIEW, WorkOrder.Status.CLOSED,
+        ):
+            transition = WorkOrderEvent.objects.filter(work_order__in=seeded,
+                to_status=expected_status).first()
+            assert transition is not None, f"Missing persisted history for {expected_status}"
+            assert AuditLog.objects.filter(target_id=str(transition.work_order_id),
+                action=f"work_order.{transition.action}").exists()
+        assert seeded.filter(assignment__isnull=False).exists()
+        assert WorkOrderEvent.objects.filter(work_order__in=seeded, action="work_update").exists()
+        assert WorkOrderLabor.objects.filter(work_order__in=seeded).exists()
+        assert WorkOrderMaterial.objects.filter(work_order__in=seeded).exists()
+        assert WorkOrderEvidence.objects.filter(work_order__in=seeded).exists()
+        assert ClosureApproval.objects.filter(work_order__in=seeded,
+            decision=ClosureApproval.Decision.APPROVED).exists()
+        assert Asset.objects.for_organization(organization).filter(status="ACTIVE").count() >= 9
+        assert AssetComponent.objects.filter(organization=organization).exists()
+        assert ServiceRequest.objects.for_organization(organization).filter(
+            status="APPROVED", work_order__isnull=True).exists()
+        before = seeded.count()
+        call_command("seed_workorders", verbosity=0)
+        assert WorkOrder.objects.for_organization(organization).count() == before
+
+
+def test_production_work_order_page_and_seed_guard_never_insert_demo_data(
+        org_a, site_a1, owner_a, monkeypatch):
+    from django.core.management import call_command
+    from django.core.management.base import CommandError
+    from django.test import override_settings
+
+    monkeypatch.delenv("FIELDOPS_ALLOW_DEMO_SEED", raising=False)
+    ui = Client()
+    ui.force_login(owner_a)
+    with override_settings(DEBUG=False):
+        response = ui.get(reverse("workorders:list"))
+        assert response.status_code == 200
+        assert b"No work orders found. Create your first work order to get started." in response.content
+        with pytest.raises(CommandError, match="Development seed blocked"):
+            call_command("seed_workorders", count=9)
+    assert WorkOrder.objects.for_organization(org_a).count() == 0
+
+
+def test_create_work_order_form_required_optional_and_schedule_validation(
+        org_a, site_a1, make_member, make_asset):
+    planner = make_member(org_a, "create-form-planner@alpha.test", "maintenance_planner")
+    asset = make_asset(org_a, site_a1, "CREATE-FORM-PUMP")
+
+    blank = CreateWorkOrderForm({}, membership=planner)
+    assert not blank.is_valid()
+    assert list(blank.fields["source_type"].choices)[0] == ("", "Select a source")
+    assert WorkOrder.SourceType.PM not in {value for value, _label in blank.fields["source_type"].choices}
+    assert list(blank.fields["work_type"].choices)[0] == ("", "Select a work type")
+    assert list(blank.fields["priority"].choices)[0] == ("", "Select a priority")
+    for name in ("site", "asset", "component"):
+        assert "form-select" in blank.fields[name].widget.attrs.get("class", "")
+    assert site_a1.code in str(blank["site"])
+    assert asset.asset_tag in str(blank["asset"])
+    assert "Select a work type" in str(blank["work_type"])
+    assert "Select a priority" in str(blank["priority"])
+    assert "Site is required." in blank.errors["site"]
+    assert "Asset is required." in blank.errors["asset"]
+    assert "Enter a work-order title." in blank.errors["title"]
+    assert "Choose a work type." in blank.errors["work_type"]
+    assert "Choose a priority." in blank.errors["priority"]
+    assert "Enter the planned start date and time." in blank.errors["planned_start"]
+    assert "Enter the planned end date and time." in blank.errors["planned_end"]
+    assert "Enter the due date and time." in blank.errors["due_at"]
+    assert "Enter estimated hours." in blank.errors["estimated_hours"]
+    assert "Choose a work-order source." in blank.errors["source_type"]
+    for optional in ("description", "checklist"):
+        assert optional not in blank.errors
+
+    valid_data = {"source_type": WorkOrder.SourceType.MANUAL, "site": str(site_a1.pk),
+                  "asset": str(asset.pk), "title": "Replace pump seal",
+                  "description": "", "work_type": "CORRECTIVE", "priority": "HIGH",
+                  "planned_start": "2030-01-01T09:00", "planned_end": "2030-01-01T11:00",
+                  "due_at": "2030-01-01T17:00", "estimated_hours": "2.00",
+                  "checklist": ""}
+    valid = CreateWorkOrderForm(valid_data, membership=planner)
+    assert valid.is_valid(), valid.errors
+
+    for invalid_title in ("Pump 2 repair", "Pump-repair", "Pump_repair"):
+        title_form = CreateWorkOrderForm({**valid_data, "title": invalid_title}, membership=planner)
+        assert not title_form.is_valid()
+        assert "Title can contain letters and spaces only." in title_form.errors["title"]
+
+    alphabetic_title = CreateWorkOrderForm({**valid_data, "title": "Pump repair"}, membership=planner)
+    assert alphabetic_title.is_valid(), alphabetic_title.errors
+
+    equal_window = CreateWorkOrderForm({**valid_data, "planned_end": "2030-01-01T09:00"}, membership=planner)
+    assert not equal_window.is_valid()
+    assert "Planned end must be later than planned start." in equal_window.errors["planned_end"]
+
+    due_matches_end = CreateWorkOrderForm({**valid_data, "due_at": "2030-01-01T11:00"}, membership=planner)
+    assert due_matches_end.is_valid(), due_matches_end.errors
+    due_before_start = CreateWorkOrderForm({**valid_data, "due_at": "2030-01-01T08:59"}, membership=planner)
+    assert not due_before_start.is_valid()
+    assert "Due date must be on or after planned start." in due_before_start.errors["due_at"]
+
+    estimate_exceeds_window = CreateWorkOrderForm({**valid_data, "estimated_hours": "2.01"}, membership=planner)
+    assert not estimate_exceeds_window.is_valid()
+    assert "Estimated hours cannot exceed the planned start-to-end window." in estimate_exceeds_window.errors["estimated_hours"]
+
+
+def _valid_create_payload(site, asset, *, source_type="MANUAL", source_request="", **overrides):
+    start = timezone.now() + timedelta(days=8)
+    end = start + timedelta(hours=3)
+    payload = {"source_type": source_type, "source_request": str(source_request) if source_request else "",
+        "site": str(site.pk), "asset": str(asset.pk), "component": "", "title": "Create test order",
+        "description": "Create form integration scenario", "work_type": "CORRECTIVE", "priority": "HIGH",
+        "planned_start": timezone.localtime(start).strftime("%Y-%m-%dT%H:%M"),
+        "planned_end": timezone.localtime(end).strftime("%Y-%m-%dT%H:%M"),
+        "due_at": timezone.localtime(end + timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M"),
+        "estimated_hours": "2.00", "checklist": "Inspect component\nVerify readings"}
+    payload.update(overrides)
+    return payload
+
+
+def _approved_source(org, asset, membership, *, kind, title):
+    from apps.incidents import services as incident_services
+    from apps.incidents.models import ServiceRequest
+
+    source = incident_services.create_request(org, asset=asset, reporter=membership, title=title,
+        description="Approved work request for create-form coverage.", kind=kind, severity="HIGH",
+        occurred_at=timezone.now() - timedelta(hours=2), actor=membership.user)
+    source = incident_services.transition(source, action="triage", actor=membership.user)
+    return incident_services.transition(source, action="approve", actor=membership.user)
+
+
+def test_create_form_saves_manual_draft_relationships_and_audit(
+        org_a, site_a1, owner_a, make_asset):
+    asset = make_asset(org_a, site_a1, "FORM-MANUAL-ASSET")
+    ui = Client()
+    ui.force_login(owner_a)
+    response = ui.post(reverse("workorders:create"), _valid_create_payload(site_a1, asset))
+
+    assert response.status_code == 302
+    wo = WorkOrder.objects.get(title="Create test order")
+    wo.refresh_from_db()
+    assert wo.order_number.startswith("WO-")
+    assert wo.asset_id == asset.pk
+    assert wo.asset_reference == asset.asset_tag
+    assert wo.site_id == site_a1.pk
+    assert wo.source_type == WorkOrder.SourceType.MANUAL
+    assert wo.source_request_id is None
+    assert wo.status == WorkOrder.Status.DRAFT
+    assert wo.created_by_id == owner_a.pk and wo.created_at is not None
+    assert wo.events.filter(action="created", to_status=WorkOrder.Status.DRAFT).exists()
+    assert AuditLog.objects.filter(target_id=str(wo.pk), action="work_order.created").exists()
+    assert b"Status" not in ui.get(reverse("workorders:create")).content
+
+
+@pytest.mark.parametrize("kind,source_type", [
+    ("SERVICE_REQUEST", WorkOrder.SourceType.REQUEST),
+    ("INCIDENT", WorkOrder.SourceType.INCIDENT),
+])
+def test_create_form_links_approved_request_or_incident_through_m05_flow(
+        org_a, site_a1, owner_a, make_asset, kind, source_type):
+    membership = Membership.objects.get(organization=org_a, user=owner_a)
+    asset = make_asset(org_a, site_a1, f"FORM-{kind}-ASSET")
+    source = _approved_source(org_a, asset, membership, kind=kind, title=f"Approved {kind} source")
+    ui = Client()
+    ui.force_login(owner_a)
+    form_page = ui.get(reverse("workorders:create"))
+    assert form_page.status_code == 200
+    assert f"{source.number} · Approved {kind} source".encode() in form_page.content
+    source_select = form_page.content.split(b'name="source_request"', 1)[1].split(b'</select>', 1)[0]
+    assert b'class="form-select"' in source_select
+    response = ui.post(reverse("workorders:create"), _valid_create_payload(
+        site_a1, asset, source_type=source_type, source_request=source.pk))
+
+    assert response.status_code == 302
+    wo = WorkOrder.objects.get(source_request=source)
+    source.refresh_from_db()
+    assert wo.source_request_id == source.pk
+    assert wo.source_type == source_type
+    assert wo.source_reference == source.number
+    assert wo.asset_id == asset.pk and wo.site_id == site_a1.pk
+    assert wo.priority == WorkOrder.Priority.HIGH
+    assert wo.status == WorkOrder.Status.DRAFT
+    assert source.status == "WORK_ORDER_CREATED"
+
+
+def test_create_form_rejects_missing_source_pm_and_direct_status(
+        org_a, site_a1, owner_a, make_asset):
+    asset = make_asset(org_a, site_a1, "FORM-SOURCE-GUARD-ASSET")
+    ui = Client()
+    ui.force_login(owner_a)
+    data = _valid_create_payload(site_a1, asset, source_type=WorkOrder.SourceType.REQUEST)
+    missing = ui.post(reverse("workorders:create"), data)
+    assert missing.status_code == 400
+    assert b"Select a valid approved incident or service request." in missing.content
+    pm = ui.post(reverse("workorders:create"), _valid_create_payload(
+        site_a1, asset, source_type=WorkOrder.SourceType.PM))
+    assert pm.status_code == 400
+    assert b"PM schedules are not configured" in pm.content
+    direct_status = ui.post(reverse("workorders:create"), _valid_create_payload(
+        site_a1, asset, status=WorkOrder.Status.CLOSED))
+    assert direct_status.status_code == 400
+    assert b"Status is assigned by the workflow" in direct_status.content
+    assert WorkOrder.objects.for_organization(org_a).count() == 0
+
+
+def test_create_form_validates_site_asset_status_and_component_relation(
+        org_a, site_a1, site_a2, owner_a, make_asset):
+    from apps.assets import hierarchy as asset_hierarchy
+    from apps.assets import services as asset_services
+
+    asset = make_asset(org_a, site_a1, "FORM-ASSET-VALIDATION")
+    other_site_asset = make_asset(org_a, site_a2, "FORM-ASSET-OTHER-SITE")
+    parent = make_asset(org_a, site_a1, "FORM-ASSET-PARENT")
+    other_parent = make_asset(org_a, site_a1, "FORM-ASSET-OTHER-PARENT")
+    child = make_asset(org_a, site_a1, "FORM-ASSET-CHILD")
+    link = asset_hierarchy.add_component(other_parent, child, actor=owner_a)
+    ui = Client()
+    ui.force_login(owner_a)
+
+    wrong_site = ui.post(reverse("workorders:create"),
+        _valid_create_payload(site_a1, other_site_asset))
+    assert wrong_site.status_code == 400
+    assert b"Invalid asset for the selected site." in wrong_site.content
+    wrong_component = ui.post(reverse("workorders:create"),
+        _valid_create_payload(site_a1, parent, component=str(link.pk)))
+    assert wrong_component.status_code == 400
+    assert b"Invalid component for the selected asset." in wrong_component.content
+
+    inactive = asset_services.change_status(asset, action="start_maintenance",
+        reason="Testing the inactive-asset validation", actor=owner_a)
+    inactive_response = ui.post(reverse("workorders:create"), _valid_create_payload(site_a1, asset))
+    assert inactive.status == "UNDER_MAINTENANCE"
+    assert inactive_response.status_code == 400
+    assert b"Selected asset is inactive." in inactive_response.content
+    assert WorkOrder.objects.for_organization(org_a).count() == 0
+
+
+def test_create_form_denies_unauthorized_users_and_reports_empty_parent_data(
+        org_a, site_a1, owner_a, make_member, make_org):
+    from django.test import Client
+
+    auditor = make_member(org_a, "workorder-create-auditor@alpha.test", "auditor")
+    denied = Client()
+    denied.force_login(auditor.user)
+    assert denied.get(reverse("workorders:create")).status_code == 403
+
+    empty_org = make_org("Work Order Empty Setup", "empty-owner@alpha.test")
+    empty_owner = Membership.objects.select_related("user").get(
+        organization=empty_org, user__email="empty-owner@alpha.test").user
+    ui = Client()
+    ui.force_login(empty_owner)
+    response = ui.get(reverse("workorders:create"))
+    assert response.status_code == 200
+    assert b"No active permitted sites are available." in response.content
+    assert WorkOrder.objects.for_organization(empty_org).count() == 0
+
+
+def test_plan_form_requires_valid_schedule_and_due_dates():
+    blank = PlanForm({})
+    assert not blank.is_valid()
+    assert "Enter the planned start date and time." in blank.errors["planned_start"]
+    assert "Enter the planned end date and time." in blank.errors["planned_end"]
+    assert "Enter the due date and time before planning this work order." in blank.errors["due_at"]
+
+    valid = PlanForm({"work_type": "CORRECTIVE", "priority": "MEDIUM",
+                      "planned_start": "2030-01-01T09:00", "planned_end": "2030-01-01T11:00",
+                      "due_at": "2030-01-01T09:00", "estimated_hours": "2.00"})
+    assert valid.is_valid(), valid.errors
+
+    invalid_window = PlanForm({"work_type": "CORRECTIVE", "priority": "MEDIUM",
+                               "planned_start": "2030-01-01T11:00", "planned_end": "2030-01-01T09:00",
+                               "due_at": "2030-01-01T09:00", "estimated_hours": "2.00"})
+    assert not invalid_window.is_valid()
+    assert "Planned end must be later than planned start." in invalid_window.errors["planned_end"]
+    assert "Due date must be on or after planned start." in invalid_window.errors["due_at"]
+
+
+def test_ui_workflow_plan_assign_dispatch_execute_and_supervisor_close(
+        org_a, site_a1, make_member):
+    planner = make_member(org_a, "ui-flow-planner@alpha.test", "maintenance_planner")
+    technician = make_member(org_a, "ui-flow-tech@alpha.test", "technician")
+    supervisor = make_member(org_a, "ui-flow-supervisor@alpha.test", "supervisor")
+    wo = make_order(org_a, site_a1, planner, title="UI end-to-end workflow",
+                    checklist_items=[{"label": "Inspect equipment", "required": True, "completed": False}])
+    planner_ui = Client()
+    planner_ui.force_login(planner.user)
+
+    planned_start = timezone.now() + timedelta(days=5)
+    planned_end = planned_start + timedelta(hours=2)
+    plan_response = planner_ui.post(reverse("workorders:action", args=[wo.pk, "plan"]), {
+        "work_type": "PREVENTIVE", "priority": "MEDIUM",
+        "planned_start": timezone.localtime(planned_start).strftime("%Y-%m-%dT%H:%M"),
+        "planned_end": timezone.localtime(planned_end).strftime("%Y-%m-%dT%H:%M"),
+        "due_at": timezone.localtime(planned_end + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M"),
+        "estimated_hours": "2.00",
+    })
+    assert plan_response.status_code == 302
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.PLANNED
+
+    assign_page = planner_ui.get(reverse("workorders:action", args=[wo.pk, "assign"]))
+    assert assign_page.status_code == 200
+    assert f'value="{wo.version}"'.encode() in assign_page.content
+    assigned_response = planner_ui.post(reverse("workorders:action", args=[wo.pk, "assign"]), {
+        "assigned_to": str(technician.pk), "expected_version": str(wo.version),
+    })
+    assert assigned_response.status_code == 302
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.ASSIGNED
+    assert wo.assigned_to_id == technician.pk
+
+    dispatch_response = planner_ui.post(reverse("workorders:action", args=[wo.pk, "dispatch"]))
+    assert dispatch_response.status_code == 302
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.DISPATCHED
+
+    technician_ui = Client()
+    technician_ui.force_login(technician.user)
+    assert technician_ui.post(reverse("workorders:action", args=[wo.pk, "start"])).status_code == 302
+    assert technician_ui.post(reverse("workorders:action", args=[wo.pk, "hold"]), {
+        "reason": "Waiting for safe site access",
+    }).status_code == 302
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.ON_HOLD
+    assert technician_ui.post(reverse("workorders:action", args=[wo.pk, "resume"])).status_code == 302
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.IN_PROGRESS
+
+    assert technician_ui.post(reverse("workorders:action", args=[wo.pk, "labor"]), {
+        "work_date": timezone.localdate().isoformat(), "hours": "1.50",
+        "description": "Inspected equipment and verified operation",
+    }).status_code == 302
+    labor_tab = technician_ui.get(reverse("workorders:tab", args=[wo.pk, "labor"]))
+    assert labor_tab.status_code == 200
+    assert b"1.50 hours" in labor_tab.content
+    attach_test_evidence(wo, org_a, technician)
+    assert technician_ui.post(reverse("workorders:action", args=[wo.pk, "complete"]), {
+        "resolution_notes": "Inspection complete; equipment is operating within normal limits.",
+        "checklist_item_0": "on",
+    }).status_code == 302
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.COMPLETED
+    assert technician_ui.post(reverse("workorders:action", args=[wo.pk, "submit_for_review"])).status_code == 302
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.SUPERVISOR_REVIEW
+
+    supervisor_ui = Client()
+    supervisor_ui.force_login(supervisor.user)
+    close_page = supervisor_ui.get(reverse("workorders:action", args=[wo.pk, "close"]))
+    assert close_page.status_code == 200
+    closed = supervisor_ui.post(reverse("workorders:action", args=[wo.pk, "close"]), {
+        "comment": "Reviewed checklist and confirmed the reported resolution.",
+    })
+    assert closed.status_code == 302
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.CLOSED
+    assert wo.closed_by_id == supervisor.user_id
+
+
+def test_schedule_board_assignment_form_updates_work_order(org_a, site_a1, make_member):
+    planner = make_member(org_a, "schedule-planner@alpha.test", "maintenance_planner")
+    technician = make_member(org_a, "schedule-tech@alpha.test", "technician")
+    wo = make_order(org_a, site_a1, planner, title="Schedule board assignment")
+    draft = make_order(org_a, site_a1, planner, title="Draft must stay off schedule")
+    start = timezone.now() + timedelta(days=7)
+    wo = services.plan_work_order(wo, membership=planner, actor=planner.user, planned_start=start,
+                                  planned_end=start + timedelta(hours=2))
+    ui = Client()
+    ui.force_login(planner.user)
+    board = ui.get(reverse("workorders:schedule"), {"day": timezone.localtime(start).date().isoformat()})
+    assert board.status_code == 200
+    assert wo.order_number.encode() in board.content
+    assert draft.order_number.encode() not in board.content
+    assert f'name="expected_version" value="{wo.version}"'.encode() in board.content
+
+    response = ui.post(reverse("workorders:schedule_assign", args=[wo.pk]), {
+        "assigned_to": str(technician.pk), "expected_version": str(wo.version),
+    })
+    assert response.status_code == 302
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.ASSIGNED
+    assert wo.assigned_to_id == technician.pk
+    assert WorkOrderEvent.objects.filter(work_order=wo, action="assigned").exists()
+
+
+def test_assignment_ui_hides_and_rejects_inactive_technician_and_stale_version(
+        org_a, site_a1, make_member, owner_a):
+    planner = make_member(org_a, "assignment-protection-planner@alpha.test", "maintenance_planner")
+    technician = make_member(org_a, "assignment-protection-tech@alpha.test", "technician")
+    busy_technician = make_member(org_a, "assignment-protection-busy@alpha.test", "technician")
+    inactive = make_member(org_a, "assignment-protection-inactive@alpha.test", "technician", active=False)
+    wo = make_order(org_a, site_a1, planner, title="Assignment validation")
+    start = timezone.now() + timedelta(days=12)
+    wo = services.plan_work_order(wo, membership=planner, actor=planner.user, planned_start=start,
+                                  planned_end=start + timedelta(hours=2))
+    occupied = make_order(org_a, site_a1, planner, title="Technician already booked")
+    occupied = services.plan_work_order(occupied, membership=planner, actor=planner.user,
+        planned_start=start + timedelta(days=3), planned_end=start + timedelta(days=3, hours=2))
+    services.assign_work_order(occupied, membership=planner, actor=planner.user,
+                               assignee_id=busy_technician.pk)
+
+    ui = Client()
+    ui.force_login(planner.user)
+    assign_page = ui.get(reverse("workorders:action", args=[wo.pk, "assign"]))
+    assert assign_page.status_code == 200
+    assert str(technician.pk).encode() in assign_page.content
+    assert str(busy_technician.pk).encode() not in assign_page.content
+    assert str(inactive.pk).encode() not in assign_page.content
+    owner_membership = Membership.objects.get(organization=org_a, user=owner_a)
+    assert str(owner_membership.pk).encode() not in assign_page.content
+    with pytest.raises(ValidationFailed, match="Technician role"):
+        services.assign_work_order(wo, membership=planner, actor=planner.user, assignee_id=owner_membership.pk)
+
+    board = ui.get(reverse("workorders:schedule"), {"day": timezone.localtime(start).date().isoformat()})
+    assert board.status_code == 200
+    assert f'value="{technician.pk}"'.encode() in board.content
+    assert f'value="{busy_technician.pk}"'.encode() not in board.content
+    assert f'value="{owner_membership.pk}"'.encode() not in board.content
+
+    inactive_post = ui.post(reverse("workorders:schedule_assign", args=[wo.pk]), {
+        "assigned_to": str(inactive.pk), "expected_version": str(wo.version),
+    })
+    assert inactive_post.status_code == 302
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.PLANNED
+    assert wo.assigned_to_id is None
+    with pytest.raises(ValidationFailed, match="inactive"):
+        services.assign_work_order(wo, membership=planner, actor=planner.user, assignee_id=inactive.pk)
+
+    with pytest.raises(Conflict, match="changed"):
+        services.assign_work_order(wo, membership=planner, actor=planner.user, assignee_id=technician.pk,
+                                   expected_version=wo.version - 1)
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.PLANNED
+    assert wo.assigned_to_id is None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_assignments_allow_only_one_winner(org_a, site_a1, make_member):
+    from django.db import close_old_connections, connections
+
+    planner = make_member(org_a, "concurrent-assignment-planner@alpha.test", "maintenance_planner")
+    technicians = [
+        make_member(org_a, f"concurrent-assignment-tech-{index}@alpha.test", "technician")
+        for index in range(2)
+    ]
+    wo = make_order(org_a, site_a1, planner, title="Concurrent assignment protection")
+    start = timezone.now() + timedelta(days=15)
+    wo = services.plan_work_order(wo, membership=planner, actor=planner.user, planned_start=start,
+                                  planned_end=start + timedelta(hours=2))
+    original_version = wo.version
+    gate = Barrier(2)
+
+    def assign(technician_id):
+        close_old_connections()
+        try:
+            gate.wait(timeout=10)
+            current = WorkOrder.objects.get(pk=wo.pk)
+            services.assign_work_order(current, membership=planner, actor=planner.user,
+                                       assignee_id=technician_id, expected_version=original_version)
+            return "assigned"
+        except Conflict:
+            return "conflict"
+        finally:
+            connections.close_all()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        outcomes = list(pool.map(assign, [technician.pk for technician in technicians]))
+
+    assert sorted(outcomes) == ["assigned", "conflict"]
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.ASSIGNED
+    assert wo.assigned_to_id in {technician.pk for technician in technicians}
+    assert WorkOrderEvent.objects.filter(work_order=wo, action="assigned").count() == 1
+
+
+def test_work_order_crud_edits_are_audited_but_status_is_workflow_only(
+        org_a, site_a1, site_a2, owner_a, as_user, make_asset):
     api = as_user(owner_a, org_a)
+    planned_start = timezone.now() + timedelta(days=3)
+    asset1 = make_asset(org_a, site_a1, "UPDATE-WO-ASSET-1")
+    asset2 = make_asset(org_a, site_a2, "UPDATE-WO-ASSET-2")
+    child2 = make_asset(org_a, site_a2, "UPDATE-WO-COMPONENT")
+    from apps.assets import hierarchy as asset_hierarchy
+    asset_hierarchy.add_component(asset2, child2, actor=owner_a)
     created = api.post("/api/v1/work-orders/", {
-        "site": str(site_a1.pk), "title": "Updateable work order", "work_type": "PREVENTIVE",
-        "priority": "MEDIUM", "source_type": "MANUAL", "source_reference": "",
+        "site": str(site_a1.pk), "asset": str(asset1.pk), "title": "Updateable work order", "work_type": "PREVENTIVE",
+        "priority": "MEDIUM", "source_type": "MANUAL",
+        "planned_start": planned_start.isoformat(), "planned_end": (planned_start + timedelta(hours=1)).isoformat(),
+        "due_at": (planned_start + timedelta(hours=2)).isoformat(), "estimated_hours": "1.00",
     }, format="json")
     assert created.status_code == 201, created.data
 
     edited = api.patch(f"/api/v1/work-orders/{created.data['id']}/", {
-        "title": "Updated work order", "priority": "HIGH", "due_at": (timezone.now() + timedelta(days=1)).isoformat(),
+        "title": "Updated work order", "priority": "HIGH", "asset": str(asset2.pk),
+        "component": str(child2.pk),
+        "due_at": (planned_start + timedelta(days=1)).isoformat(),
         "site": str(site_a2.pk),
     }, format="json")
     assert edited.status_code == 200, edited.data
     assert edited.data["title"] == "Updated work order"
     assert edited.data["priority"] == "HIGH"
+    assert edited.data["component_reference"] == child2.asset_tag
+    assert edited.data["asset"] == asset2.pk
     assert str(edited.data["site"]) == str(site_a2.pk)
     assert edited.data["status"] == WorkOrder.Status.DRAFT
     assert WorkOrderEvent.objects.filter(work_order_id=created.data["id"], action="updated").exists()
@@ -147,13 +835,103 @@ def test_work_order_crud_edits_are_audited_but_status_is_workflow_only(org_a, si
     assert status_edit.status_code == 400
     assert WorkOrder.objects.get(pk=created.data["id"]).status == WorkOrder.Status.DRAFT
 
+    direct_model_write = WorkOrder.objects.get(pk=created.data["id"])
+    direct_model_write.status = WorkOrder.Status.CLOSED
+    from django.core.exceptions import ValidationError
+    with pytest.raises(ValidationError, match="workflow transition service"):
+        direct_model_write.save()
+
     ui = Client()
     ui.force_login(owner_a)
-    assert ui.get(reverse("workorders:edit", args=[created.data["id"]])).status_code == 200
+    edit_page = ui.get(reverse("workorders:edit", args=[created.data["id"]]))
+    assert edit_page.status_code == 200
+    assert "status" not in edit_page.context["form"].fields
+    assert {"title", "description", "source_type", "source_reference", "site", "asset",
+            "component", "work_type", "priority", "planned_start", "planned_end", "due_at",
+            "estimated_hours"} <= set(edit_page.context["form"].fields)
     detail = ui.get(reverse("workorders:detail", args=[created.data["id"]]))
     assert detail.status_code == 200
     assert b"Current status: Draft" in detail.content
     assert b"Next: plan the work" in detail.content
+
+
+def test_role_specific_actions_and_closed_work_order_is_view_only(org_a, site_a1, make_member, owner_a):
+    planner = Membership.objects.get(organization=org_a, user=owner_a)
+    technician = make_member(org_a, "actions-technician@alpha.test", "technician")
+    supervisor = make_member(org_a, "actions-supervisor@alpha.test", "supervisor")
+    planned = make_order(org_a, site_a1, planner, title="Action matrix")
+    start = timezone.now() + timedelta(days=6)
+    planned = services.plan_work_order(planned, membership=planner, actor=owner_a,
+        planned_start=start, planned_end=start + timedelta(hours=2))
+    assert [action["operation"] for action in services.allowed_actions(planned, planner)] == ["edit", "assign"]
+    planned = services.assign_work_order(planned, membership=planner, actor=owner_a, assignee_id=technician.pk)
+    assert [action["operation"] for action in services.allowed_actions(planned, planner)] == ["edit", "dispatch"]
+    planned = services.dispatch_work_order(planned, membership=planner, actor=owner_a)
+    planned = services.start_work_order(planned, membership=technician, actor=technician.user)
+    actions = [action["operation"] for action in services.allowed_actions(planned, technician)]
+    assert actions == ["hold", "complete"]
+    with pytest.raises(PermissionDenied):
+        services.close_work_order(planned, membership=technician, actor=technician.user,
+                                  comment="Unauthorized close")
+
+    review_technician = make_member(org_a, "actions-review-technician@alpha.test", "technician")
+    reviewed = make_review_order(org_a, site_a1, planner, review_technician)
+    closed = services.close_work_order(reviewed, membership=supervisor, actor=supervisor.user,
+                                       comment="Approved after review")
+    assert services.allowed_actions(closed, supervisor) == []
+    ui = Client()
+    ui.force_login(supervisor.user)
+    response = ui.get(reverse("workorders:list"))
+    row = response.content.split(f'id="workorder-{closed.pk}"'.encode(), 1)[1].split(b"</tr>", 1)[0]
+    assert b">View</a>" in row
+    assert b"Edit details" not in row
+    assert b"Dispatch" not in row
+
+
+def test_transition_service_rejects_stale_versions_and_does_not_change_status(org_a, site_a1, owner_a):
+    planner = Membership.objects.get(organization=org_a, user=owner_a)
+    wo = make_order(org_a, site_a1, planner, title="Optimistic transition version")
+    start = timezone.now() + timedelta(days=3)
+    with pytest.raises(Conflict, match="changed since you loaded it"):
+        services.plan_work_order(wo, membership=planner, actor=owner_a,
+            planned_start=start, planned_end=start + timedelta(hours=2),
+            due_at=start + timedelta(hours=3), expected_version=wo.version + 1)
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.DRAFT
+    assert not WorkOrderEvent.objects.filter(work_order=wo, action="planned").exists()
+
+
+def test_htmx_status_action_refreshes_workflow_and_rejects_stale_retry(org_a, site_a1, owner_a, make_member):
+    planner = Membership.objects.get(organization=org_a, user=owner_a)
+    technician = make_member(org_a, "htmx-action-tech@alpha.test", "technician")
+    wo = make_order(org_a, site_a1, planner, title="HTMX dashboard transition")
+    start = timezone.now() + timedelta(days=3)
+    wo = services.plan_work_order(wo, membership=planner, actor=owner_a,
+        planned_start=start, planned_end=start + timedelta(hours=1), due_at=start + timedelta(hours=2))
+    wo = services.assign_work_order(wo, membership=planner, actor=owner_a, assignee_id=technician.pk)
+    version_before = wo.version
+
+    ui = Client()
+    ui.force_login(owner_a)
+    response = ui.post(reverse("workorders:action", args=[wo.pk, "dispatch"]),
+        {"expected_version": str(version_before)}, HTTP_HX_REQUEST="true",
+        HTTP_HX_TARGET="wo-workflow-panel")
+    assert response.status_code == 200
+    assert b"Current status: Dispatched" in response.content
+    assert "workOrderChanged" in response.headers["HX-Trigger"]
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.DISPATCHED
+
+    stale_retry = ui.post(reverse("workorders:action", args=[wo.pk, "dispatch"]),
+        {"expected_version": str(version_before)}, HTTP_HX_REQUEST="true",
+        HTTP_HX_TARGET="wo-workflow-panel")
+    assert stale_retry.status_code == 200
+    assert stale_retry.content == b""
+    assert stale_retry.headers["HX-Reswap"] == "none"
+    assert "workOrderActionError" in stale_retry.headers["HX-Trigger"]
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.DISPATCHED
+    assert WorkOrderEvent.objects.filter(work_order=wo, action="dispatched").count() == 1
 
 
 def test_api_persists_completed_before_separate_review_transition(org_a, site_a1, owner_a, make_member, as_user):
@@ -167,6 +945,7 @@ def test_api_persists_completed_before_separate_review_transition(org_a, site_a1
     wo = services.assign_work_order(wo, membership=planner, actor=owner_a, assignee_id=tech.pk)
     wo = services.dispatch_work_order(wo, membership=planner, actor=owner_a)
     wo = services.start_work_order(wo, membership=tech, actor=tech.user)
+    attach_test_evidence(wo, org_a, tech)
     api = as_user(tech.user, org_a)
     completed = api.post(f"/api/v1/work-orders/{wo.pk}/complete/", {
         "resolution_notes": "Inspection completed; readings are within normal limits.",
@@ -190,15 +969,20 @@ def test_api_persists_completed_before_separate_review_transition(org_a, site_a1
     assert submitted.data["status"] == WorkOrder.Status.SUPERVISOR_REVIEW
 
 
-def test_api_full_workflow_and_close_is_idempotent(org_a, site_a1, owner_a, make_member, as_user):
+def test_api_full_workflow_and_close_is_idempotent(org_a, site_a1, owner_a, make_member, as_user, make_asset):
     planner = make_member(org_a, "api-flow-planner@alpha.test", "maintenance_planner")
     tech = make_member(org_a, "api-flow-tech@alpha.test", "technician")
     supervisor = make_member(org_a, "api-flow-supervisor@alpha.test", "supervisor")
     client = as_user(planner.user, org_a)
 
+    planned_start = timezone.now() + timedelta(days=3)
+    asset = make_asset(org_a, site_a1, "API-FLOW-WO-ASSET")
     created = client.post("/api/v1/work-orders/", {
-        "site": str(site_a1.pk), "title": "API end-to-end work order", "work_type": "PREVENTIVE",
+        "site": str(site_a1.pk), "asset": str(asset.pk),
+        "title": "API end-to-end work order", "work_type": "PREVENTIVE",
         "priority": "HIGH", "checklist_items": [{"label": "Inspect unit", "required": True}],
+        "planned_start": planned_start.isoformat(), "planned_end": (planned_start + timedelta(hours=1)).isoformat(),
+        "due_at": (planned_start + timedelta(hours=2)).isoformat(), "estimated_hours": "1.00",
     }, format="json")
     assert created.status_code == 201, created.data
     wo_id = created.data["id"]
@@ -215,7 +999,9 @@ def test_api_full_workflow_and_close_is_idempotent(org_a, site_a1, owner_a, make
     assert response.status_code == 200, response.data
     start = timezone.now() + timedelta(days=4)
     response = client.post(f"/api/v1/work-orders/{wo_id}/plan/", {
+        "work_type": "CORRECTIVE", "priority": "MEDIUM", "estimated_hours": "1.00",
         "planned_start": start.isoformat(), "planned_end": (start + timedelta(hours=2)).isoformat(),
+        "due_at": (start + timedelta(hours=1)).isoformat(),
     }, format="json")
     assert response.status_code == 200, response.data
     response = client.post(f"/api/v1/work-orders/{wo_id}/assign/", {
@@ -376,11 +1162,13 @@ def test_legacy_review_endpoint_remains_compatible(org_a, site_a1, owner_a, make
     assert ClosureApproval.objects.filter(work_order_id=wo.pk, decision=ClosureApproval.Decision.RETURNED).exists()
 
 
-def test_corrective_completion_requires_shared_attachment(org_a, site_a1, make_member):
+def test_corrective_completion_requires_shared_attachment(org_a, site_a1, make_member, make_asset):
     planner = make_member(org_a, "evidence-planner@alpha.test", "maintenance_planner")
     tech = make_member(org_a, "evidence-tech@alpha.test", "technician")
-    wo = services.create_work_order(org_a, site_id=site_a1.pk, membership=planner, actor=planner.user,
+    asset = make_asset(org_a, site_a1, "EVIDENCE-WO-ASSET")
+    wo = services.create_work_order(org_a, site_id=site_a1.pk, asset=asset, membership=planner, actor=planner.user,
         title="Corrective without evidence", work_type=WorkOrder.WorkType.CORRECTIVE,
+        due_at=timezone.now() + timedelta(days=8), estimated_hours=1,
         checklist_items=[{"label": "Repair", "required": True, "completed": False}])
     start = timezone.now() + timedelta(days=5)
     wo = services.plan_work_order(wo, membership=planner, actor=planner.user, planned_start=start,

@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     "apps.sites",
     "apps.assets",
     "apps.incidents",
+    "apps.workorders",
     "apps.ui",
 ]
 

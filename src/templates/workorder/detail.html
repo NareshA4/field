@@ -5,47 +5,13 @@
 {% block content %}
 <div class="wo-page wo-detail-page">
   <nav aria-label="Breadcrumb" class="mb-3"><a href="{% url 'workorders:list' %}">Work Orders</a> <span class="text-secondary">/ {{ wo.order_number }}</span></nav>
-  <header class="wo-detail-header"><div><p class="wo-eyebrow">WORK ORDER · {{ wo.order_number }}</p><h1>{{ wo.title }}</h1><p>{{ wo.site.code }} · {{ wo.site.name }}{% if wo.asset_reference %} · Asset {{ wo.asset_reference }}{% endif %}</p></div><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span></header>
-  <section class="wo-detail-card wo-workflow-card" id="workflow-actions">
-    <div class="wo-workflow-intro"><div><p class="wo-eyebrow">STATUS UPDATE</p><h2>Current status: {{ wo.get_status_display }}</h2><p>{{ workflow_guidance }}</p></div><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span></div>
-    <div class="wo-status-track" aria-label="Documented work-order workflow">{% for code,label in workflow_steps %}<span class="wo-track-step {% if wo.status == code %}is-current{% endif %}">{{ label }}</span>{% if not forloop.last %}<span class="wo-track-arrow" aria-hidden="true">›</span>{% endif %}{% endfor %}</div>
-    <div class="wo-workflow-actions"><h3>Available actions</h3><p>Actions are filtered by this status and your site permissions.</p><div class="wo-action-row">
-      {% for action in allowed_actions %}
-        {% if action.kind == 'post' %}<form method="post" action="{% url 'workorders:action' wo.pk action.operation %}" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-primary" type="submit" {% if action.confirm %}data-confirm="{{ action.confirm }}"{% endif %}>{{ action.label }}</button></form>
-        {% elif action.operation == 'edit' %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'workorders:edit' wo.pk %}">{{ action.label }}</a>
-        {% else %}<a class="btn btn-sm btn-primary" href="{% url 'workorders:action' wo.pk action.operation %}">{{ action.label }}</a>{% endif %}
-      {% empty %}<span class="text-secondary small">No workflow action is available for your role in this status.</span>{% endfor %}
-      {% if can_update_work %}<a class="wo-update-action" href="{% url 'workorders:action' wo.pk 'work_update' %}">Add work update</a>{% endif %}
-    </div></div>
-  </section>
-  <nav class="wo-detail-nav" role="tablist" aria-label="Work order details">
-    {% for key,label in detail_tabs %}<button type="button" role="tab" class="{% if forloop.first %}is-active{% endif %}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}" hx-get="{% url 'workorders:tab' wo.pk key %}" hx-target="#wo-tab-panel" hx-swap="innerHTML" hx-indicator="#wo-tab-loading">{{ label }}</button>{% endfor %}
+  {% include "workorder/_workflow_panel.html" %}
+<nav class="wo-detail-nav" aria-label="Work order details">
+    {% for key,label in detail_tabs %}<a class="{% if active_tab == key %}is-active{% endif %}" {% if active_tab == key %}aria-current="page"{% endif %} href="{% url 'workorders:detail' wo.pk %}?tab={{ key }}">{{ label }}</a>{% endfor %}
   </nav>
-  <div id="wo-tab-loading" class="htmx-indicator wo-loading" role="status">Loading work-order details…</div>
-  <div id="wo-tab-panel" class="wo-tab-panel" role="tabpanel" hx-get="{% url 'workorders:tab' wo.pk 'overview' %}" hx-trigger="load" hx-swap="innerHTML" hx-indicator="#wo-tab-loading"><div class="wo-loading-placeholder">Loading overview…</div></div>
+  <div id="wo-tab-panel" class="wo-tab-panel" aria-label="{{ active_tab|title }} details"
+       hx-get="{% url 'workorders:tab' wo.pk active_tab %}" hx-trigger="workOrderChanged from:body" hx-swap="innerHTML">
+    {% include tab_template %}
+  </div>
 </div>
-{% endblock %}
-{% block scripts %}
-<script>
-document.addEventListener('click', function (event) {
-  const tab = event.target.closest('.wo-detail-nav [role="tab"]');
-  if (!tab) return;
-  document.querySelectorAll('.wo-detail-nav [role="tab"]').forEach(function (item) {
-    const active = item === tab;
-    item.classList.toggle('is-active', active);
-    item.setAttribute('aria-selected', active ? 'true' : 'false');
-    item.tabIndex = active ? 0 : -1;
-  });
-});
-document.addEventListener('keydown', function (event) {
-  const tab = event.target.closest('.wo-detail-nav [role="tab"]');
-  if (!tab || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-  const tabs = Array.from(document.querySelectorAll('.wo-detail-nav [role="tab"]'));
-  let index = tabs.indexOf(tab);
-  if (event.key === 'Home') index = 0;
-  else if (event.key === 'End') index = tabs.length - 1;
-  else index = (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
-  event.preventDefault(); tabs[index].focus(); tabs[index].click();
-});
-</script>
 {% endblock %}

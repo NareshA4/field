@@ -2,8 +2,10 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
-from django.http import Http404
+from django.db.models import Count, Q, Sum
+import json
+
+from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views import View
@@ -15,6 +17,7 @@ from apps.tenancy.models import Membership
 from apps.ui.mixins import TenantPermissionMixin
 
 from . import services
+from .assignment_rules import available_technicians
 from .forms import (AssignForm, ChecklistForm, ClosureCommentForm, CompleteForm, CreateWorkOrderForm, EditWorkOrderForm, EvidenceForm, LaborForm,
                     MaterialForm, PlanForm, ReasonForm, ReviewForm, WorkUpdateForm)
 from .models import WorkOrder
@@ -38,10 +41,6 @@ def _can_view(membership, wo):
              rbac.has_permission(membership, "work_order.view_assigned", wo.site)))
 
 
-def _can_update_status(membership, wo):
-    return any(action["operation"] != "edit" for action in services.allowed_actions(wo, membership))
-
-
 WORKFLOW_GUIDANCE = {
     WorkOrder.Status.DRAFT: "Next: plan the work and set its scheduled start and end.",
     WorkOrder.Status.PLANNED: "Next: assign an active, site-authorized technician.",
@@ -55,13 +54,8 @@ WORKFLOW_GUIDANCE = {
     WorkOrder.Status.CANCELLED: "This work order is cancelled.",
 }
 
-WORKFLOW_STEPS = [
-    (WorkOrder.Status.DRAFT, "Draft"), (WorkOrder.Status.PLANNED, "Planned"),
-    (WorkOrder.Status.ASSIGNED, "Assigned"), (WorkOrder.Status.DISPATCHED, "Dispatched"),
-    (WorkOrder.Status.IN_PROGRESS, "In Progress"), (WorkOrder.Status.ON_HOLD, "On Hold"),
-    (WorkOrder.Status.COMPLETED, "Completed"), (WorkOrder.Status.SUPERVISOR_REVIEW, "Supervisor Review"),
-    (WorkOrder.Status.CLOSED, "Closed"),
-]
+WORKFLOW_STEPS = tuple((code, label) for code, label in WorkOrder.Status.choices
+                       if code != WorkOrder.Status.CANCELLED)
 DETAIL_TABS = [
     ("overview", "Overview"), ("assignment", "Assignment"), ("checklist", "Checklist"),
     ("parts", "Parts"), ("labor", "Labor"), ("notes", "Notes"),
@@ -79,6 +73,9 @@ class WorkOrderListView(TenantPermissionMixin, View):
 
     def get(self, request):
         qs = _orders(request)
+        # Keep the distinction between an actually empty visible dataset and a
+        # filtered query with no matches. Both remain within tenant/site scope.
+        has_visible_work_orders = qs.exists()
         visible_sites = set(qs.values_list("site_id", flat=True).distinct())
         from apps.sites.models import Site
         sites = Site.objects.for_organization(request.organization).filter(pk__in=visible_sites).order_by("name")
@@ -94,11 +91,21 @@ class WorkOrderListView(TenantPermissionMixin, View):
         if assignee_id not in valid_assignee_ids:
             assignee_id = ""
         state = request.GET.get("status", "")
+        if state not in dict(WorkOrder.Status.choices):
+            state = ""
         search = request.GET.get("q", "").strip()
         priority = request.GET.get("priority", "")
         work_type = request.GET.get("work_type", "")
         overdue = request.GET.get("overdue", "")
         source = request.GET.get("source", "")
+        if priority not in dict(WorkOrder.Priority.choices):
+            priority = ""
+        if work_type not in dict(WorkOrder.WorkType.choices):
+            work_type = ""
+        if source not in dict(WorkOrder.SourceType.choices):
+            source = ""
+        if overdue != "1":
+            overdue = ""
         if priority in dict(WorkOrder.Priority.choices):
             qs = qs.filter(priority=priority)
         if work_type in dict(WorkOrder.WorkType.choices):
@@ -125,10 +132,11 @@ class WorkOrderListView(TenantPermissionMixin, View):
         qs = qs.order_by(ordering)
         card_statuses = [choice for choice in WorkOrder.Status.choices if choice[0] != WorkOrder.Status.CANCELLED]
         counts = {row["status"]: row["total"] for row in _orders(request).values("status").annotate(total=Count("pk"))}
-        status_cards = [{"code": code, "label": label, "count": counts.get(code, 0)}
-                        for code, label in card_statuses]
         query = request.GET.copy()
         query.pop("page", None)
+        status_cards = [{"code": code, "label": label, "count": counts.get(code, 0),
+                         "selected": state == code}
+                        for code, label in card_statuses]
         page_obj = Paginator(qs.select_related("site", "assigned_to__user"), 25).get_page(request.GET.get("page"))
         for order in page_obj.object_list:
             order.can_edit = (order.status in (WorkOrder.Status.DRAFT, WorkOrder.Status.PLANNED,
@@ -138,7 +146,9 @@ class WorkOrderListView(TenantPermissionMixin, View):
                 and rbac.has_permission(request.membership, "work_order.record", order.site)
                 and (order.assigned_to_id == request.membership.pk or
                      rbac.has_permission(request.membership, "work_order.dispatch", order.site)))
-            order.can_update_status = _can_update_status(request.membership, order)
+            order.allowed_actions = services.allowed_actions(order, request.membership)
+            order.is_overdue = bool(order.due_at and order.due_at < timezone.now()
+                                    and order.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED))
         return render(request, self.template_name, {
             "page_obj": page_obj, "work_orders": page_obj.object_list, "status_cards": status_cards,
             "statuses": card_statuses, "priorities": WorkOrder.Priority.choices,
@@ -146,9 +156,11 @@ class WorkOrderListView(TenantPermissionMixin, View):
             "selected_status": state, "selected_priority": priority, "selected_work_type": work_type,
             "selected_site": site_id, "selected_assignee": assignee_id, "overdue": overdue,
             "selected_source": source, "source_types": WorkOrder.SourceType.choices,
-            "selected_ordering": ordering, "q": search,
-            "querystring": query.urlencode(),
-            "can_create": rbac.has_permission_anywhere(request.membership, "work_order.create")})
+              "selected_ordering": ordering, "q": search,
+              "querystring": query.urlencode(),
+              "has_visible_work_orders": has_visible_work_orders,
+              "can_create": rbac.has_permission_anywhere(request.membership, "work_order.create"),
+            "workflow_steps": WORKFLOW_STEPS})
 
 
 class MyJobsView(TenantPermissionMixin, View):
@@ -169,6 +181,8 @@ class MyJobsView(TenantPermissionMixin, View):
             order.checklist_done = sum(1 for item in order.checklist_items
                                        if item.get("required", True) and item.get("completed"))
             order.evidence_count = order.evidence_links.count()
+            order.can_record_work = (order.status in (WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD)
+                and rbac.has_permission(request.membership, "work_order.record", order.site))
         return render(request, self.template_name, {
             "work_orders": orders,
             "statuses": WorkOrder.Status.choices, "selected_status": state,
@@ -184,8 +198,8 @@ class ScheduleBoardView(TenantPermissionMixin, View):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
-        qs = _orders(request).exclude(
-            status__in=[WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED]).select_related(
+        qs = _orders(request).filter(
+            status__in=[WorkOrder.Status.PLANNED, WorkOrder.Status.ASSIGNED]).select_related(
                 "site", "assigned_to__user").order_by("planned_start", "assigned_to__user__full_name")
         day = request.GET.get("day", "")
         try:
@@ -221,18 +235,15 @@ class ScheduleBoardView(TenantPermissionMixin, View):
                         and first.planned_start < second.planned_end and first.planned_end > second.planned_start):
                     conflicts.update((first.pk, second.pk))
         grouped = {}
-        active_members = list(Membership.objects.for_organization(request.organization).filter(
-            status=Membership.Status.ACTIVE, user__is_active=True).select_related("user"))
         for order in orders:
             order.schedule_day = timezone.localtime(order.planned_start).date() if order.planned_start else None
             order.overdue = bool(order.due_at and order.due_at < timezone.now()
                                  and order.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED))
             order.inactive_technician = bool(order.assigned_to_id and not order.assigned_to.is_active)
             order.has_conflict = order.pk in conflicts
-            order.can_assign = (order.status in (WorkOrder.Status.PLANNED, WorkOrder.Status.ASSIGNED)
+            order.can_assign = (order.status == WorkOrder.Status.PLANNED
                                 and rbac.has_permission(request.membership, "work_order.assign", order.site))
-            order.assignable_technicians = [m for m in active_members
-                if rbac.has_permission(m, "work_order.start", order.site)] if order.can_assign else []
+            order.assignable_technicians = available_technicians(order) if order.can_assign else []
             key = (order.schedule_day, order.assigned_to_id)
             grouped.setdefault(key, {"day": order.schedule_day, "technician": order.assigned_to,
                                      "orders": []})["orders"].append(order)
@@ -259,7 +270,7 @@ class ScheduleAssignmentView(TenantPermissionMixin, View):
             wo = services.get_work_order(request.membership, pk)
         except NotFound as exc:
             raise Http404 from exc
-        form = AssignForm(request.POST, membership=request.membership, site=wo.site)
+        form = AssignForm(request.POST, membership=request.membership, site=wo.site, work_order=wo)
         assigned_successfully = False
         if form.is_valid():
             try:
@@ -291,25 +302,54 @@ class WorkOrderCreateView(TenantPermissionMixin, View):
     required_permission = "work_order.create"
 
     def get(self, request):
-        return render(request, "workorder/form.html", {"form": CreateWorkOrderForm(membership=request.membership),
-                       "title": "Create work order", "submit": "Create work order"})
+        form = CreateWorkOrderForm(membership=request.membership)
+        return render(request, "workorder/form.html", self._context(request, form))
+
+    @staticmethod
+    def _context(request, form):
+        source_priority = {"LOW": WorkOrder.Priority.LOW, "MEDIUM": WorkOrder.Priority.MEDIUM,
+                           "HIGH": WorkOrder.Priority.HIGH, "CRITICAL": WorkOrder.Priority.CRITICAL}
+        sources = {str(sr.pk): {"kind": ("REQUEST" if sr.kind == "SERVICE_REQUEST" else "INCIDENT"),
+                    "site": str(sr.site_id), "asset": str(sr.asset_id),
+                    "priority": source_priority[sr.severity]}
+                   for sr in form.fields["source_request"].queryset}
+        return {"form": form, "title": "Create work order", "submit": "Create work order",
+                "source_metadata": sources,
+                "has_sites": form.fields["site"].queryset.exists(),
+                "has_assets": form.fields["asset"].queryset.exists(),
+                "has_source_requests": form.fields["source_request"].queryset.exists(),
+                "can_create_site": rbac.has_permission_anywhere(request.membership, "site.create"),
+                "can_create_asset": rbac.has_permission_anywhere(request.membership, "asset.create"),
+                "can_create_incident": rbac.has_permission_anywhere(request.membership, "incident.create")}
 
     def post(self, request):
         form = CreateWorkOrderForm(request.POST, membership=request.membership)
         if form.is_valid():
             values = dict(form.cleaned_data)
+            source_type = values.pop("source_type")
+            source_request = values.pop("source_request")
             site = values.pop("site")
+            asset = values.pop("asset")
+            component = values.pop("component")
             checklist = values.pop("checklist")
             try:
-                wo = services.create_work_order(request.organization, site_id=site.pk, actor=request.user,
-                    membership=request.membership, request=request, checklist_items=checklist, **values)
+                if source_request is not None:
+                    from apps.incidents import services as incident_services
+                    wo = incident_services.create_work_order_for_request(
+                        source_request, actor=request.user, membership=request.membership, request=request,
+                        component=component.child if component else None,
+                        checklist_items=checklist, **values)
+                else:
+                    wo = services.create_work_order(request.organization, site_id=site.pk, actor=request.user,
+                        membership=request.membership, request=request, checklist_items=checklist,
+                        asset=asset, component=component.child if component else None,
+                        source_type=source_type, source_reference="", **values)
             except DomainError as exc:
                 form.add_error(None, exc.message)
             else:
-                messages.success(request, f"Work order {wo.order_number} created.")
+                messages.success(request, f"Work order {wo.order_number} created as Draft.")
                 return redirect("workorders:detail", pk=wo.pk)
-        return render(request, "workorder/form.html", {"form": form, "title": "Create work order",
-                       "submit": "Create work order"}, status=400)
+        return render(request, "workorder/form.html", self._context(request, form), status=400)
 
 
 class WorkOrderEditView(TenantPermissionMixin, View):
@@ -341,7 +381,8 @@ class WorkOrderEditView(TenantPermissionMixin, View):
         form = EditWorkOrderForm(request.POST, membership=request.membership, work_order=wo)
         if form.is_valid():
             values = dict(form.cleaned_data)
-            checklist = values.pop("checklist", None)
+            component_link = values.pop("component", None)
+            values["component"] = component_link.child if component_link else None
             try:
                 updated = services.update_work_order(wo, membership=request.membership, actor=request.user,
                                                      request=request, **values)
@@ -369,20 +410,78 @@ class WorkOrderDetailView(TenantPermissionMixin, View):
             raise Http404 from exc
         if not _can_view(request.membership, wo):
             raise Http404
-        can_record = rbac.has_permission(request.membership, "work_order.record", wo.site)
-        is_assignee = wo.assigned_to_id == request.membership.pk
-        can_execute = is_assignee or rbac.has_permission(request.membership, "work_order.dispatch", wo.site)
-        return render(request, "workorder/detail.html", {"wo": wo,
-            "detail_tabs": DETAIL_TABS,
-            "workflow_guidance": WORKFLOW_GUIDANCE.get(wo.status, "No further workflow action is available."),
-            "workflow_steps": WORKFLOW_STEPS,
-            "allowed_actions": services.allowed_actions(wo, request.membership),
-            "can_update_work": (can_execute and can_record and
-                                wo.status in (WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD)),
-        })
+        active_tab = request.GET.get("tab", "overview")
+        if active_tab not in TAB_TEMPLATES:
+            active_tab = "overview"
+        context = _work_order_detail_context(request, wo, active_tab)
+        return render(request, "workorder/detail.html", context)
 
 
 TAB_TEMPLATES = {key: f"workorder/tabs/{key}.html" for key, _ in DETAIL_TABS}
+
+
+def _work_order_detail_context(request, wo, active_tab="overview"):
+    if active_tab not in TAB_TEMPLATES:
+        active_tab = "overview"
+    can_record = rbac.has_permission(request.membership, "work_order.record", wo.site)
+    can_execute = (wo.assigned_to_id == request.membership.pk or
+                   rbac.has_permission(request.membership, "work_order.dispatch", wo.site))
+    context = {"wo": wo, "detail_tabs": DETAIL_TABS, "active_tab": active_tab,
+        "tab_template": TAB_TEMPLATES[active_tab],
+        "workflow_guidance": WORKFLOW_GUIDANCE.get(wo.status, "No further workflow action is available."),
+        "allowed_actions": services.allowed_actions(wo, request.membership),
+        "can_update_work": (can_execute and can_record and
+                            wo.status in (WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD)),
+    }
+    status_events = set(wo.events.exclude(to_status="").values_list("to_status", flat=True))
+    next_statuses = {action.get("next_status") for action in context["allowed_actions"]}
+    context["workflow_steps"] = [{"code": code, "label": label,
+        "current": wo.status == code,
+        "completed": code in status_events and code != wo.status,
+        "next": code in next_statuses}
+        for code, label in WORKFLOW_STEPS]
+    context.update(_work_order_tab_context(wo, request.membership, active_tab))
+    return context
+
+
+def _work_order_tab_context(wo, membership, tab):
+    """Build each detail tab from the same scoped work-order record."""
+    can_execute = wo.assigned_to_id == membership.pk or rbac.has_permission(
+        membership, "work_order.dispatch", wo.site)
+    context = {"wo": wo, "permissions": {
+        "update": rbac.has_permission(membership, "work_order.update", wo.site),
+        "record": rbac.has_permission(membership, "work_order.record", wo.site),
+        "attach": rbac.has_permission(membership, "work_order.attach", wo.site),
+    }, "can_execute": can_execute,
+       "can_edit_checklist": (wo.status in (WorkOrder.Status.DRAFT, WorkOrder.Status.PLANNED,
+                                              WorkOrder.Status.ASSIGNED) and
+                              rbac.has_permission(membership, "work_order.update", wo.site)),
+       "can_record_work": (wo.status in (WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD) and
+                           can_execute and rbac.has_permission(membership, "work_order.record", wo.site)),
+       "can_attach_evidence": (wo.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED) and
+                               rbac.has_permission(membership, "work_order.attach", wo.site)),
+       "is_closed": wo.status == WorkOrder.Status.CLOSED,
+       "due_is_overdue": bool(wo.due_at and wo.due_at < timezone.now() and
+                               wo.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED))}
+    if tab in ("assignment", "timeline", "closure"):
+        context["events"] = wo.events.select_related("actor", "assigned_to__user")
+    if tab == "assignment":
+        context["assignment_events"] = wo.events.filter(action="assigned").select_related(
+            "actor", "assigned_to__user")
+    elif tab == "parts":
+        context["material_entries"] = wo.material_entries.all()
+    elif tab == "labor":
+        context["labor_entries"] = wo.labor_entries.select_related("technician__user")
+        context["labor_total"] = wo.labor_entries.aggregate(total=Sum("hours"))["total"] or 0
+    elif tab == "notes":
+        context["work_updates"] = wo.events.filter(action="work_update").select_related("actor")
+    elif tab == "attachments":
+        context["evidence"] = wo.completion_evidence
+    elif tab == "closure":
+        context["closure_events"] = wo.events.filter(
+            action__in=("closed", "review_rejected")).select_related("actor")
+        context["approvals"] = wo.closure_approvals.select_related("approver")
+    return context
 
 
 class WorkOrderTabView(TenantPermissionMixin, View):
@@ -403,26 +502,7 @@ class WorkOrderTabView(TenantPermissionMixin, View):
             raise Http404 from exc
         if not _can_view(request.membership, wo):
             raise Http404
-        context = {"wo": wo, "permissions": {"update": rbac.has_permission(request.membership, "work_order.update", wo.site),
-                    "record": rbac.has_permission(request.membership, "work_order.record", wo.site),
-                    "attach": rbac.has_permission(request.membership, "work_order.attach", wo.site)},
-                   "can_execute": wo.assigned_to_id == request.membership.pk or
-                       rbac.has_permission(request.membership, "work_order.dispatch", wo.site)}
-        if tab in ("assignment", "timeline", "closure"):
-            context["events"] = wo.events.select_related("actor")
-        if tab == "assignment":
-            context["assignment_events"] = wo.events.filter(action="assigned").select_related("actor")
-        elif tab == "parts":
-            context["material_entries"] = wo.material_entries.all()
-        elif tab == "labor":
-            context["labor_entries"] = wo.labor_entries.select_related("technician__user")
-        elif tab == "notes":
-            context["work_updates"] = wo.events.filter(action="work_update").select_related("actor")
-        elif tab == "attachments":
-            context["evidence"] = wo.completion_evidence
-        elif tab == "closure":
-            context["closure_events"] = wo.events.filter(action__in=("closed", "review_rejected")).select_related("actor")
-            context["approvals"] = wo.closure_approvals.select_related("approver")
+        context = _work_order_tab_context(wo, request.membership, tab)
         return render(request, template_name, context)
 
 
@@ -470,28 +550,31 @@ class WorkOrderActionView(TenantPermissionMixin, View):
         kwargs = {}
         if self.operation == "assign":
             kwargs = {"membership": request.membership, "site": wo.site,
+                      "work_order": wo,
                       "initial": {"expected_version": wo.version}}
         elif self.operation == "plan":
-            kwargs = {"initial": {"planned_start": wo.planned_start, "planned_end": wo.planned_end,
-                                   "estimated_hours": wo.estimated_hours}}
+            kwargs = {"initial": {"work_type": wo.work_type, "priority": wo.priority,
+                                   "planned_start": wo.planned_start, "planned_end": wo.planned_end,
+                                   "due_at": wo.due_at,
+                                   "estimated_hours": wo.estimated_hours if wo.estimated_hours > 0 else ""}}
         elif self.operation == "complete":
             kwargs = {"work_order": wo}
         elif self.operation in ("plan", "hold", "cancel", "complete", "review", "labor", "materials", "evidence", "checklist", "work_update"):
             kwargs = {}
         form = form_type(**kwargs)
-        if self.operation == "assign":
-            form.fields["assigned_to"].queryset = [m for m in form.fields["assigned_to"].queryset
-                if rbac.has_permission(m, "work_order.start", wo.site)]
         return render(request, "workorder/action.html", {"wo": wo, "form": form,
                        "operation": self.operation.replace("_", " ").title(),
+                       "expected_version": wo.version,
                        "is_close_action": self.operation == "close",
+                       "scheduled_start": wo.planned_start if self.operation == "assign" else None,
+                       "scheduled_end": wo.planned_end if self.operation == "assign" else None,
                        "labor_entries": wo.labor_entries.all(), "material_entries": wo.material_entries.all(),
                        "evidence_count": wo.evidence_links.count()})
 
     def post(self, request, pk, operation):
         wo = self._get_order(request, pk)
         form_type = ACTION_FORMS.get(self.operation)
-        form_kwargs = {"membership": request.membership, "site": wo.site} if self.operation == "assign" else {}
+        form_kwargs = {"membership": request.membership, "site": wo.site, "work_order": wo} if self.operation == "assign" else {}
         if self.operation == "complete":
             form_kwargs = {"work_order": wo}
         form = form_type(request.POST, **form_kwargs) if form_type else None
@@ -499,30 +582,45 @@ class WorkOrderActionView(TenantPermissionMixin, View):
             form = type("ActionForm", (), {"is_valid": lambda self: True, "cleaned_data": {}})()
         elif not form.is_valid():
             return render(request, "workorder/action.html", {"wo": wo, "form": form,
-                           "operation": self.operation.title()}, status=400)
+                           "operation": self.operation.replace("_", " ").title(),
+                           "expected_version": wo.version,
+                           "is_close_action": self.operation == "close"}, status=400)
         data = getattr(form, "cleaned_data", {})
+        raw_version = data.pop("expected_version", request.POST.get("expected_version"))
+        try:
+            expected_version = int(raw_version) if raw_version not in (None, "") else None
+            if expected_version is not None and expected_version < 1:
+                raise ValueError
+        except (TypeError, ValueError):
+            messages.error(request, "Refresh this work order and retry the action.")
+            return redirect("workorders:detail", pk=wo.pk)
         try:
             if self.operation == "plan":
-                result = services.plan_work_order(wo, membership=request.membership, actor=request.user, request=request, **data)
+                result = services.plan_work_order(wo, membership=request.membership, actor=request.user,
+                    expected_version=expected_version, request=request, **data)
             elif self.operation == "assign":
                 result = services.assign_work_order(wo, membership=request.membership, actor=request.user,
-                    assignee_id=data["assigned_to"].pk, expected_version=data["expected_version"], request=request)
-            elif self.operation == "dispatch": result = services.dispatch_work_order(wo, membership=request.membership, actor=request.user, request=request)
-            elif self.operation == "start": result = services.start_work_order(wo, membership=request.membership, actor=request.user, request=request)
-            elif self.operation == "hold": result = services.hold_work_order(wo, membership=request.membership, actor=request.user, reason=data["reason"], request=request)
-            elif self.operation == "resume": result = services.resume_work_order(wo, membership=request.membership, actor=request.user, request=request)
+                    assignee_id=data["assigned_to"].pk, expected_version=expected_version, request=request)
+            elif self.operation == "dispatch": result = services.dispatch_work_order(wo, membership=request.membership, actor=request.user, expected_version=expected_version, request=request)
+            elif self.operation == "start": result = services.start_work_order(wo, membership=request.membership, actor=request.user, expected_version=expected_version, request=request)
+            elif self.operation == "hold": result = services.hold_work_order(wo, membership=request.membership, actor=request.user, reason=data["reason"], expected_version=expected_version, request=request)
+            elif self.operation == "resume": result = services.resume_work_order(wo, membership=request.membership, actor=request.user, expected_version=expected_version, request=request)
             elif self.operation == "complete": result = services.complete_work_order(wo, membership=request.membership,
-                actor=request.user, resolution_notes=data["resolution_notes"], checklist_items=data["checklist_items"], request=request)
+                actor=request.user, resolution_notes=data["resolution_notes"], checklist_items=data["checklist_items"],
+                expected_version=expected_version, request=request)
             elif self.operation == "submit_for_review": result = services.submit_for_review(
-                wo, membership=request.membership, actor=request.user, request=request)
+                wo, membership=request.membership, actor=request.user, expected_version=expected_version, request=request)
             elif self.operation == "review": result = services.review_work_order(wo, membership=request.membership,
-                actor=request.user, approved=data["approved"], notes=data["notes"], request=request)
+                actor=request.user, approved=data["approved"], notes=data["notes"],
+                expected_version=expected_version, request=request)
             elif self.operation == "close": result = services.close_work_order(
-                wo, membership=request.membership, actor=request.user, comment=data["comment"], request=request)
+                wo, membership=request.membership, actor=request.user, comment=data["comment"],
+                expected_version=expected_version, request=request)
             elif self.operation == "return_for_rework": result = services.return_for_rework(
-                wo, membership=request.membership, actor=request.user, comment=data["comment"], request=request)
+                wo, membership=request.membership, actor=request.user, comment=data["comment"],
+                expected_version=expected_version, request=request)
             elif self.operation == "cancel": result = services.cancel_work_order(wo, membership=request.membership,
-                actor=request.user, reason=data["reason"], request=request)
+                actor=request.user, reason=data["reason"], expected_version=expected_version, request=request)
             elif self.operation == "checklist": result = services.set_checklist(wo, membership=request.membership,
                 actor=request.user, items=data["items"], request=request)
             elif self.operation == "labor": result = services.record_labor(wo, membership=request.membership,
@@ -538,11 +636,40 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                     attachment_id=att.pk, request=request)
             else: raise Http404
         except DomainError as exc:
+            if request.headers.get("HX-Request"):
+                response = HttpResponse("")
+                response["HX-Reswap"] = "none"
+                response["HX-Trigger"] = json.dumps({"workOrderActionError": {"message": exc.message}})
+                return response
             messages.error(request, exc.message)
             return redirect("workorders:detail", pk=wo.pk)
         if self.operation == "assign":
             event = result.events.order_by("-created_at").first()
             for warning in (event.metadata.get("warnings", []) if event else []):
                 messages.warning(request, warning)
-        messages.success(request, f"Work order updated: {result.status}.")
+        if isinstance(result, WorkOrder):
+            success_message = f"Work order updated: {result.get_status_display()}."
+        else:
+            success_message = {
+                "labor": "Labor entry recorded.",
+                "materials": "Material usage recorded.",
+                "evidence": "Evidence attached to the work order.",
+            }.get(self.operation, "Work order record saved.")
+        messages.success(request, success_message)
+        if request.headers.get("HX-Request") and isinstance(result, WorkOrder):
+            current = services.get_work_order(request.membership, result.pk)
+            target = request.headers.get("HX-Target", "")
+            response_context = _work_order_detail_context(request, current)
+            if target.startswith("workorder-"):
+                current.allowed_actions = services.allowed_actions(current, request.membership)
+                current.is_overdue = bool(current.due_at and current.due_at < timezone.now()
+                    and current.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED))
+                response = render(request, "workorder/_list_row.html", {"wo": current})
+            else:
+                response = render(request, "workorder/_workflow_panel.html", response_context)
+            response["HX-Trigger"] = json.dumps({"workOrderChanged": {
+                "id": str(current.pk), "status": current.status,
+                "message": f"{current.order_number} updated: {current.get_status_display()}.",
+            }})
+            return response
         return redirect("workorders:detail", pk=wo.pk)

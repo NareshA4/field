@@ -5,11 +5,11 @@
     <dt>Description</dt><dd>{{ wo.description|default:"No description provided."|linebreaksbr }}</dd>
     <dt>Source</dt><dd>{{ wo.get_source_type_display }}{% if wo.source_reference %} · {{ wo.source_reference }}{% endif %}</dd>
     <dt>Site</dt><dd>{{ wo.site.code }} · {{ wo.site.name }}</dd><dt>Asset</dt><dd>{{ wo.asset_reference|default:"Not linked" }}</dd>
-    <dt>Zone / component</dt><dd>Not linked in the current work-order schema</dd>
+    <dt>Component</dt><dd>{{ wo.component_reference|default:"Not specified" }}</dd>
     <dt>Work type</dt><dd>{{ wo.get_work_type_display }}</dd><dt>Priority</dt><dd><span class="wo-priority priority-{{ wo.priority|lower }}">{{ wo.get_priority_display }}</span></dd>
     <dt>Status</dt><dd><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span></dd>
     <dt>Planned dates</dt><dd>{{ wo.planned_start|date:"M j, Y · H:i"|default:"Not planned" }}{% if wo.planned_end %} – {{ wo.planned_end|date:"M j, Y · H:i" }}{% endif %}</dd>
-    <dt>Due</dt><dd>{% if wo.due_at %}{{ wo.due_at|date:"M j, Y · H:i" }}{% else %}No due date{% endif %}</dd>
-    <dt>SLA</dt><dd>Not configured for this module environment</dd>
+    <dt>Due</dt><dd>{% if wo.due_at %}{{ wo.due_at|date:"M j, Y · H:i" }}{% else %}No due date{% endif %}{% if due_is_overdue %}<span class="wo-overdue-badge">Past due</span>{% endif %}</dd>
+    <dt>SLA warning</dt><dd>No SLA profile is linked to this work order; the due date is shown as the available warning target.</dd>
   </dl>
 </section>
