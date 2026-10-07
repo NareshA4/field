@@ -1,0 +1,257 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Inspection Runner · {{ insp.template.name }} · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item"><a href="{% url 'checklists:inspections' %}" class="text-decoration-none">Inspections</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'checklists:inspection' insp.pk %}" class="text-decoration-none">{{ insp.template.name }}</a></li>
+        <li class="breadcrumb-item active">Execution Runner</li>
+      </ol>
+    </nav>
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <h1 class="mb-0">Run Checklist: {{ insp.template.name }}</h1>
+      <span class="badge fx-badge fx-badge-secondary">v{{ insp.template.version }}</span>
+      {% status_badge insp.status %}
+    </div>
+    <div class="text-body-secondary small">
+      Asset: <span class="badge bg-light text-dark border font-monospace">{{ insp.asset.asset_tag }}</span> ·
+      Site: <span class="fw-semibold text-dark">{{ insp.site.code }}</span>
+      {% if wo %}
+        · Work Order: <a href="{% url 'workorders:detail' wo.pk %}" class="badge fx-badge fx-badge-info text-decoration-none">{{ wo.number }}</a>
+      {% endif %}
+      · Technician: <span class="fw-semibold text-dark">{{ insp.started_by.user.display_name }}</span>
+    </div>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a href="{% url 'checklists:inspection' insp.pk %}" class="btn btn-outline-secondary btn-sm">
+      Exit to Overview
+    </a>
+  </div>
+</div>
+
+<!-- Progress Banner -->
+<div class="fx-card p-3 mb-4 bg-white shadow-sm">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+      <span class="fw-bold text-dark fs-6">Checklist Execution Progress</span>
+      <span class="text-muted small ms-2">{{ answered_count }} of {{ rows|length }} items completed</span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      {% if exception_count > 0 %}
+        <span class="badge fx-badge fx-badge-danger">{% icon 'alert-triangle' 12 %} {{ exception_count }} Exception{{ exception_count|pluralize }}</span>
+      {% endif %}
+      <span class="fw-bold fs-6 {% if progress_pct == 100 %}text-success{% else %}text-primary{% endif %}">{{ progress_pct }}%</span>
+    </div>
+  </div>
+  <div class="progress" style="height: 8px;">
+    <div class="progress-bar {% if progress_pct == 100 %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ progress_pct }}%;" aria-valuenow="{{ progress_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+  </div>
+</div>
+
+{% if issues %}
+<div class="alert alert-warning border d-flex align-items-start gap-2 py-2 px-3 mb-4">
+  {% icon 'alert-triangle' 18 %}
+  <div>
+    <strong>Action Required Before Completing:</strong>
+    <ul class="mb-0 small ps-3 mt-1">
+      {% for issue in issues %}
+        <li>{{ issue }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+<!-- Checklist Items Runner Container -->
+<div class="space-y-3 mb-4">
+  {% for r in rows %}
+  <div class="fx-question-card {% if r.response %}{% if r.response.is_exception %}state-fail{% else %}state-pass{% endif %}{% endif %}" id="item-card-{{ r.item.pk }}">
+    <div class="d-flex align-items-start gap-3 mb-2">
+      <div class="fx-num-circle {% if r.response %}{% if r.response.is_exception %}fail{% else %}pass{% endif %}{% endif %}">
+        {% if r.response %}
+          {% if r.response.is_exception %}✗{% else %}✓{% endif %}
+        {% else %}
+          {{ r.item.position }}
+        {% endif %}
+      </div>
+      <div class="flex-grow-1">
+        <div class="d-flex align-items-center flex-wrap gap-2">
+          <span class="fw-semibold text-dark fs-6">{{ r.item.prompt }}</span>
+          {% if r.item.required %}<span class="text-danger small fw-bold" title="Required">* Required</span>{% endif %}
+          {% if r.item.evidence_required %}
+            <span class="badge fx-badge fx-badge-gold">
+              {% icon 'camera' 12 %} Photo Required
+            </span>
+          {% endif %}
+          <span class="badge bg-light text-muted border small">{{ r.item.get_item_type_display }}</span>
+        </div>
+        {% if r.item.guidance %}
+          <div class="small text-muted mt-1">{{ r.item.guidance }}</div>
+        {% endif %}
+        {% if r.item.item_type == "NUMERIC" and r.item.min_value or r.item.max_value %}
+          <div class="small text-secondary mt-0.5 font-monospace">
+            Acceptable Range: {% if r.item.min_value %}{{ r.item.min_value }}{% else %}—{% endif %} to {% if r.item.max_value %}{{ r.item.max_value }}{% else %}—{% endif %} {{ r.item.unit }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Answer Submission Form -->
+    <div class="ms-md-5 mt-2 pt-2 border-top">
+      <form method="post" action="{% url 'checklists:inspection_save_answer' insp.pk r.item.pk %}" class="row g-2 align-items-center">
+        {% csrf_token %}
+        <div class="col-auto flex-grow-1">
+          {% if r.item.item_type == "BOOLEAN" %}
+            <div class="btn-group w-100 w-sm-auto" role="group">
+              <button type="submit" name="value" value="PASS" class="btn btn-sm {% if r.response and r.response.value_bool == True %}btn-success{% else %}btn-outline-success{% endif %} px-3">
+                {% icon 'check' 14 %} Pass
+              </button>
+              <button type="submit" name="value" value="FAIL" class="btn btn-sm {% if r.response and r.response.value_bool == False %}btn-danger{% else %}btn-outline-danger{% endif %} px-3">
+                {% icon 'x' 14 %} Fail
+              </button>
+            </div>
+          {% elif r.item.item_type == "NUMERIC" %}
+            <div class="input-group input-group-sm" style="max-width: 240px;">
+              <input type="number" step="any" name="value" class="form-control" value="{% if r.response and r.response.value_number is not None %}{{ r.response.value_number }}{% endif %}" placeholder="Value..." required>
+              {% if r.item.unit %}<span class="input-group-text font-monospace">{{ r.item.unit }}</span>{% endif %}
+              <button class="btn btn-outline-primary" type="submit">Save</button>
+            </div>
+          {% elif r.item.item_type == "SELECTION" %}
+            <div class="d-flex gap-2" style="max-width: 320px;">
+              <select name="value" class="form-select form-select-sm" required>
+                <option value="">Select option...</option>
+                {% for opt in r.item.options %}
+                  <option value="{{ opt }}" {% if r.response and r.response.value_text == opt %}selected{% endif %}>{{ opt }}</option>
+                {% endfor %}
+              </select>
+              <button class="btn btn-sm btn-outline-primary" type="submit">Save</button>
+            </div>
+          {% else %}
+            <div class="input-group input-group-sm">
+              <input type="text" name="value" class="form-control" value="{% if r.response %}{{ r.response.value_text }}{% endif %}" placeholder="Enter response..." required maxlength="2000">
+              <button class="btn btn-outline-primary" type="submit">Save</button>
+            </div>
+          {% endif %}
+        </div>
+
+        {% if r.response %}
+          <div class="col-auto">
+            <span class="small text-muted">Answered {{ r.response.answered_at|date:"H:i" }}</span>
+            {% if r.response.is_exception %}
+              <span class="badge fx-badge fx-badge-danger ms-1">{% icon 'alert-triangle' 11 %} Out of Spec</span>
+            {% endif %}
+          </div>
+        {% endif %}
+      </form>
+    </div>
+
+    <!-- Mandatory Evidence Dropzone & Attachments -->
+    <div class="ms-md-5 mt-2 pt-2 border-top bg-light p-2 rounded">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+        <div class="d-flex align-items-center gap-1 small fw-semibold text-dark">
+          {% icon 'camera' 14 %} Photos & Evidence 
+          {% if r.item.evidence_required %}
+            <span class="text-danger" title="Mandatory photo">* (Mandatory)</span>
+          {% endif %}
+        </div>
+        {% if r.evidence|length > 0 %}
+          <span class="badge fx-badge fx-badge-success small">✓ {{ r.evidence|length }} photo{{ r.evidence|length|pluralize }} attached</span>
+        {% elif r.item.evidence_required %}
+          <span class="badge fx-badge fx-badge-warning small">Missing required photo</span>
+        {% endif %}
+      </div>
+
+      <!-- Upload Form with Camera Support -->
+      {% if r.response %}
+        <form method="post" action="{% url 'checklists:inspection_upload_evidence' insp.pk r.item.pk %}" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap mb-2">
+          {% csrf_token %}
+          <input type="file" name="file" accept="image/*" capture="environment" class="form-control form-control-sm" style="max-width: 280px;" required>
+          <input type="text" name="description" placeholder="Caption / description (optional)" class="form-control form-control-sm" style="max-width: 220px;">
+          <button type="submit" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1">
+            {% icon 'upload' 12 %} Upload Photo
+          </button>
+        </form>
+      {% else %}
+        <div class="small text-muted fst-italic">
+          Please record an answer above before attaching photo evidence.
+        </div>
+      {% endif %}
+
+      <!-- Attached Photos List -->
+      {% if r.evidence %}
+        <div class="d-flex gap-2 flex-wrap mt-1">
+          {% for att in r.evidence %}
+            <div class="border rounded bg-white p-1 px-2 d-inline-flex align-items-center gap-2 small">
+              <span class="text-truncate" style="max-width: 180px;">{{ att.original_name }}</span>
+              <a href="{% url 'files:download' att.pk %}" class="btn btn-link btn-sm p-0 text-decoration-none" title="Download">
+                {% icon 'download' 12 %}
+              </a>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Finding / Non-conformance Form if marked as exception -->
+    {% if r.response and r.response.is_exception %}
+      <div class="ms-md-5 mt-2 pt-2 border-top">
+        <div class="p-2.5 bg-danger-subtle border border-danger-subtle rounded">
+          <div class="d-flex align-items-center gap-1 text-danger fw-semibold small mb-1">
+            {% icon 'alert-triangle' 14 %} Non-Conformance Exception Finding Required
+          </div>
+          {% if r.finding %}
+            <div class="small bg-white p-2 rounded border">
+              <strong>Recorded Finding:</strong> {{ r.finding.description }}
+              <div class="text-muted mt-0.5">Severity: {% status_badge r.finding.severity %} · Status: {% status_badge r.finding.status %}</div>
+            </div>
+          {% else %}
+            <form method="post" action="{% url 'checklists:inspection_add_finding' insp.pk r.item.pk %}" class="row g-2 align-items-end">
+              {% csrf_token %}
+              <div class="col-sm-7">
+                <input type="text" name="description" class="form-control form-control-sm" placeholder="Describe the failure / defect..." required minlength="3">
+              </div>
+              <div class="col-sm-3">
+                <select name="severity" class="form-select form-select-sm">
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM" selected>Medium</option>
+                  <option value="HIGH">High</option>
+                  <option value="CRITICAL">Critical</option>
+                </select>
+              </div>
+              <div class="col-sm-2">
+                <button type="submit" class="btn btn-sm btn-danger w-100">Save Finding</button>
+              </div>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Complete Inspection Submission Form -->
+<div class="fx-card p-4 bg-white border shadow-sm mb-4">
+  <h3 class="h5 mb-2">Complete Inspection</h3>
+  <p class="text-muted small mb-3">
+    Once submitted, all recorded answers, exceptions, and photographic evidence are permanently locked for compliance audit integrity.
+  </p>
+  <form method="post" action="{% url 'checklists:inspection_complete' insp.pk %}" class="row g-3">
+    {% csrf_token %}
+    <div class="col-12">
+      <label class="form-label small fw-semibold" for="id_summary">Technician Summary & Field Observations</label>
+      <textarea name="summary" id="id_summary" rows="3" class="form-control" placeholder="Summarize inspection findings, equipment state, or additional observations..."></textarea>
+    </div>
+    <div class="col-12 d-flex justify-content-end gap-2">
+      <a href="{% url 'checklists:inspection' insp.pk %}" class="btn btn-outline-secondary">Save Draft & Exit</a>
+      <button type="submit" class="btn btn-success d-inline-flex align-items-center gap-1" {% if issues %}data-confirm="Some required items or photos may be missing. Attempt completion anyway?"{% endif %}>
+        {% icon 'check' 16 %} Submit & Complete Checklist
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

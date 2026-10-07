@@ -27,7 +27,15 @@
       {% endif %}
     </div>
   </div>
+  {% if can_execute %}
+  <div class="d-flex align-items-center gap-2">
+    <a href="{% url 'checklists:inspection_run' insp.pk %}" class="btn btn-primary d-inline-flex align-items-center gap-1">
+      {% icon 'play' 14 %} Continue Checklist Execution
+    </a>
+  </div>
+  {% endif %}
 </div>
+
 
 {% if insp.summary %}
 <div class="alert alert-light border d-flex align-items-start gap-2 py-2 px-3 mb-3">
