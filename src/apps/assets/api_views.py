@@ -215,6 +215,13 @@ class MoveSerializer(serializers.Serializer):
     parent = serializers.UUIDField()
 
 
+class ReplaceSerializer(serializers.Serializer):
+    new_child = serializers.UUIDField(
+        help_text="UUID of the standalone asset that will replace the current component in this position.")
+    reason = serializers.CharField(max_length=300, required=False, allow_blank=True,
+                                   help_text="Human-readable reason for the swap (e.g. 'Worn bearing replaced').")
+
+
 class ValidateLinkSerializer(serializers.Serializer):
     child = serializers.UUIDField()
 
@@ -316,7 +323,7 @@ class AssetViewSet(TenantAPIMixin, viewsets.ViewSet):
         "location_history": "asset.history.view", "changes": "asset.history.view", "documents:get": "asset.view",
         "documents:post": "asset.document.manage", "remove_document": "asset.document.manage", "tree": "asset.view", "validate": "asset.view",
         "components:get": "asset.view", "components:post": "asset.hierarchy.manage",
-        "validate_link": "asset.hierarchy.manage",
+        "validate_link": "asset.hierarchy.manage", "qr": "asset.view",
     }
 
     def _qs(self, request):
@@ -466,11 +473,41 @@ class AssetViewSet(TenantAPIMixin, viewsets.ViewSet):
         link = hierarchy.add_component(asset, child, actor=request.user, request=request, **d)
         return Response(ComponentSerializer(link).data, status=status.HTTP_201_CREATED)
 
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    @action(detail=True, methods=["get"])
+    def qr(self, request, pk=None):
+        """Returns active QR and barcode identifiers and image URLs for this asset."""
+        asset = self._asset(request, pk)
+        from apps.identification import selectors as id_selectors
+        active = id_selectors.active_for_asset(request.organization, asset)
+        qr_ident = active.get("QR")
+        bc_ident = active.get("BARCODE")
+        return Response({
+            "asset_id": str(asset.pk),
+            "asset_tag": asset.asset_tag,
+            "qr": {
+                "id": str(qr_ident.pk),
+                "token": qr_ident.token,
+                "svg_url": reverse("identification:image", args=[asset.pk, "qr", "svg"]),
+                "png_url": reverse("identification:image", args=[asset.pk, "qr", "png"]),
+                "is_active": qr_ident.is_active,
+                "created_at": qr_ident.created_at,
+            } if qr_ident else None,
+            "barcode": {
+                "id": str(bc_ident.pk),
+                "token": bc_ident.token,
+                "svg_url": reverse("identification:image", args=[asset.pk, "barcode", "svg"]),
+                "is_active": bc_ident.is_active,
+                "created_at": bc_ident.created_at,
+            } if bc_ident else None,
+        })
+
 
 @extend_schema(parameters=[ID_PARAM])
 class ComponentViewSet(TenantAPIMixin, viewsets.ViewSet):
     permission_map = {"list": "asset.view", "retrieve": "asset.view", "partial_update": "asset.hierarchy.manage",
-                      "move": "asset.hierarchy.manage", "destroy": "asset.hierarchy.manage"}
+                      "move": "asset.hierarchy.manage", "replace": "asset.hierarchy.manage",
+                      "destroy": "asset.hierarchy.manage"}
 
     def _link(self, request, pk, code=None):
         link = selectors.get_component(request.membership, request.organization, pk)
@@ -516,6 +553,51 @@ class ComponentViewSet(TenantAPIMixin, viewsets.ViewSet):
         require_permission(request.membership, "asset.hierarchy.manage", new_parent.site_id)
         return Response(ComponentSerializer(hierarchy.move_component(
             link, new_parent, actor=request.user, request=request)).data)
+
+    @extend_schema(
+        request=ReplaceSerializer,
+        responses={200: ComponentSerializer},
+        description=(
+            "Swap the child in this link with a different standalone asset. "
+            "The replacement must be at the same site and must not be an ancestor or descendant of the current "
+            "parent to prevent hierarchy cycles. The old link is removed and a new link is created under the same "
+            "parent with the same relationship type and quantity. Full audit trail is recorded."
+        ),
+    )
+    @action(detail=True, methods=["post"])
+    def replace(self, request, pk=None):
+        """Replace the component child with a different standalone asset (same site, no-cycle guarantee)."""
+        link = self._link(request, pk, "asset.hierarchy.manage")
+        d = _validated(ReplaceSerializer, request)
+
+        # Build the same safe candidate set as the HTML view: exclude the current child's entire subtree
+        # and all ancestors of the parent (to prevent cycles).
+        child = link.child
+        below = {n["asset"].pk for n in hierarchy.flatten(hierarchy.build_tree(child))}
+        parent_ancestors = (
+            {a.pk for a in hierarchy.ancestors(link.parent)}
+            | {link.parent_id, child.pk}
+            | below
+        )
+        new_child_qs = (
+            selectors.asset_choices(request.membership, request.organization, "asset.hierarchy.manage",
+                                    site=link.parent.site)
+            .filter(parent_link__isnull=True)
+            .exclude(pk__in=parent_ancestors)
+        )
+        try:
+            new_child = new_child_qs.get(pk=d["new_child"])
+        except selectors.Asset.DoesNotExist:
+            from rest_framework.exceptions import ValidationError as DRFValidationError
+            raise DRFValidationError(
+                {"new_child": "Asset not found, not at the same site, already in a hierarchy, "
+                              "or would create a cycle."}
+            )
+
+        new_link = hierarchy.replace_component(
+            link, new_child, reason=d.get("reason", ""), actor=request.user, request=request
+        )
+        return Response(ComponentSerializer(new_link).data)
 
     @extend_schema(responses={204: None})
     def destroy(self, request, pk=None):

@@ -1,0 +1,150 @@
+{% load ui_tags %}
+<div class="modal-header bg-light">
+  <div class="d-flex align-items-center gap-2">
+    <div class="fx-avatar fx-avatar-md bg-primary-subtle text-primary fw-bold">
+      {% icon 'cpu' 18 %}
+    </div>
+    <div>
+      <div class="d-flex align-items-center gap-2">
+        <h5 class="modal-title fw-bold mb-0">{{ asset.asset_tag }}</h5>
+        {% status_badge asset.status %}
+      </div>
+      <div class="text-body-secondary small">{{ asset.name }}</div>
+    </div>
+  </div>
+  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<div class="modal-body p-3 p-md-4">
+  <!-- Ancestor Breadcrumb -->
+  {% if ancestors %}
+    <div class="mb-3 p-2 px-3 bg-light rounded-3 border">
+      <div class="text-uppercase text-body-secondary fw-semibold" style="font-size: 0.65rem; letter-spacing: 0.05em;">Hierarchy Placement</div>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0 small">
+          {% for anc in ancestors %}
+            <li class="breadcrumb-item"><a href="{% url 'assets:detail' anc.pk %}?tab=hierarchy" class="text-decoration-none">{{ anc.asset_tag }}</a></li>
+          {% endfor %}
+          <li class="breadcrumb-item active fw-bold text-primary">{{ asset.asset_tag }}</li>
+        </ol>
+      </nav>
+    </div>
+  {% endif %}
+
+  <!-- Core Specifications -->
+  <div class="row g-2 mb-3">
+    <div class="col-sm-6">
+      <div class="p-2 border rounded-2 bg-body-tertiary h-100">
+        <div class="text-body-secondary small">Category</div>
+        <div class="fw-semibold">{{ asset.category.name }}</div>
+      </div>
+    </div>
+    <div class="col-sm-6">
+      <div class="p-2 border rounded-2 bg-body-tertiary h-100">
+        <div class="text-body-secondary small">Location / Site</div>
+        <div class="fw-semibold">{{ asset.site.name }} {% if asset.zone %}· <span class="text-body-secondary">{{ asset.zone.name }}</span>{% endif %}</div>
+      </div>
+    </div>
+    <div class="col-sm-6">
+      <div class="p-2 border rounded-2 bg-body-tertiary h-100">
+        <div class="text-body-secondary small">Manufacturer &amp; Model</div>
+        <div class="fw-medium">{{ asset.manufacturer|default:"—" }} {{ asset.model|default:"" }}</div>
+      </div>
+    </div>
+    <div class="col-sm-6">
+      <div class="p-2 border rounded-2 bg-body-tertiary h-100">
+        <div class="text-body-secondary small">Serial Number</div>
+        <div class="font-monospace fw-medium">{{ asset.serial_number|default:"—" }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Parent Link / Hierarchy Metadata -->
+  {% if parent_link %}
+    <div class="card border-primary-subtle bg-primary-subtle bg-opacity-10 mb-3">
+      <div class="card-body p-3">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="fw-bold small text-primary">Installed In Parent: {{ parent_link.parent.asset_tag }}</span>
+          {% if parent_link.relationship_type == 'ASSEMBLY' %}
+            <span class="fx-role-badge fx-role-assembly">{% icon 'layers' 12 %} Assembly</span>
+          {% elif parent_link.relationship_type == 'REPLACEABLE_PART' %}
+            <span class="fx-role-badge fx-role-replaceable">{% icon 'refresh-cw' 12 %} Replaceable Part</span>
+          {% else %}
+            <span class="fx-role-badge fx-role-component">{% icon 'package' 12 %} Component</span>
+          {% endif %}
+        </div>
+        <div class="row g-2 small">
+          <div class="col-4">
+            <span class="text-body-secondary">Quantity:</span> <span class="fw-semibold">{{ parent_link.quantity }}</span>
+          </div>
+          <div class="col-8">
+            <span class="text-body-secondary">Part #:</span> <span class="font-monospace fw-semibold">{{ parent_link.part_number|default:"None specified" }}</span>
+          </div>
+          {% if parent_link.notes %}
+            <div class="col-12 mt-1">
+              <span class="text-body-secondary">Notes:</span> <em>{{ parent_link.notes }}</em>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="p-2 px-3 bg-secondary-subtle bg-opacity-25 rounded-2 mb-3 small d-flex align-items-center gap-2">
+      <span class="fx-role-badge fx-role-root">{% icon 'hard-drive' 12 %} Top-Level Root Assembly</span>
+      <span class="text-body-secondary">This asset is the top node of this equipment hierarchy.</span>
+    </div>
+  {% endif %}
+
+  <!-- Custom Attributes -->
+  {% if custom_attributes %}
+    <div class="mb-3">
+      <h6 class="fw-bold small text-uppercase text-body-secondary mb-2">Technical Attributes</h6>
+      <div class="table-responsive">
+        <table class="table table-sm fx-table mb-0">
+          <tbody>
+            {% for attr in custom_attributes %}
+              <tr>
+                <td class="text-body-secondary w-50">{{ attr.label }}</td>
+                <td class="fw-medium">{{ attr.value|default:"—" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Child Components Summary -->
+  {% if tree.children %}
+    <div>
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <h6 class="fw-bold small text-uppercase text-body-secondary mb-0">Direct Sub-components ({{ tree.children|length }})</h6>
+      </div>
+      <div class="list-group list-group-flush border rounded-2">
+        {% for child in tree.children %}
+          <div class="list-group-item d-flex align-items-center justify-content-between p-2">
+            <div class="min-w-0">
+              <a href="{% url 'assets:detail' child.asset.pk %}?tab=hierarchy" class="fw-semibold text-decoration-none small">
+                {{ child.asset.asset_tag }}
+              </a>
+              <span class="small text-body-secondary d-block text-truncate">{{ child.asset.name }}</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              {% if child.link.part_number %}
+                <span class="badge text-bg-light border font-monospace small"># {{ child.link.part_number }}</span>
+              {% endif %}
+              {% status_badge child.asset.status %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<div class="modal-footer bg-light">
+  <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+  <a href="{% url 'assets:detail' asset.pk %}?tab=hierarchy" class="btn btn-sm btn-primary">
+    {% icon 'external-link' 13 %} Open Full Asset Record
+  </a>
+</div>

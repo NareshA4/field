@@ -22,6 +22,7 @@ from apps.contracts.api_views import (
     ProviderViewSet,
 )
 from apps.core import health
+from apps.identification.api_views import IdentifierViewSet
 from apps.incidents.api_views import ServiceRequestViewSet
 from apps.inventory.api_views import (
     PartReservationViewSet,
@@ -66,7 +67,8 @@ router.register("platform/organizations", PlatformOrganizationViewSet, basename=
 router.register("assets", AssetViewSet, basename="asset")
 router.register("asset-categories", AssetCategoryViewSet, basename="asset-category")
 router.register("asset-components", ComponentViewSet, basename="asset-component")
-router.register("meters", MeterViewSet, basename="meter")
+router.register("asset-meters", MeterViewSet, basename="asset-meter")
+router.register("asset-identifiers", IdentifierViewSet, basename="asset-identifier")
 router.register("service-requests", ServiceRequestViewSet, basename="service-request")
 router.register("work-orders", WorkOrderViewSet, basename="work-order")
 router.register("checklist-templates", ChecklistTemplateViewSet, basename="checklist-template")
@@ -109,6 +111,7 @@ urlpatterns = [
     path("app/", include("apps.files.urls")),
     path("app/", include("apps.sites.urls")),
     path("app/", include("apps.assets.urls")),
+    path("app/", include("apps.identification.urls")),
     path("app/", include("apps.incidents.urls")),
     path("app/", include("apps.workorders.urls")),
     path("app/", include("apps.inventory.urls")),

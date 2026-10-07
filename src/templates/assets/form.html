@@ -1,0 +1,120 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}{{ title }} · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header">
+  <div>
+    {% if crumbs %}
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1 small">
+          {% for label, url in crumbs %}
+            {% if url %}
+              <li class="breadcrumb-item"><a href="{{ url }}">{{ label }}</a></li>
+            {% else %}
+              <li class="breadcrumb-item active">{{ label }}</li>
+            {% endif %}
+          {% endfor %}
+        </ol>
+      </nav>
+    {% endif %}
+    <h1>{{ title }}</h1>
+    {% if parent %}
+      <div class="text-body-secondary">
+        Registering a child component directly under <a href="{% url 'assets:detail' parent.pk %}"><strong>{{ parent.asset_tag }} ({{ parent.name }})</strong></a> at {{ parent.site.code }}.
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-8">
+    <div class="fx-card">
+      <div class="fx-card-body p-4">
+        <form method="post" id="asset-form">
+          {% csrf_token %}
+          {% if parent %}
+            <input type="hidden" name="parent" value="{{ parent.pk }}">
+          {% endif %}
+          
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+              {{ form.non_field_errors }}
+            </div>
+          {% endif %}
+
+          <h5 class="mb-3 border-bottom pb-2">Asset Identification &amp; Placement</h5>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">{{ form.asset_tag.label_tag }}{{ form.asset_tag }}{{ form.asset_tag.errors }}<div class="form-text">{{ form.asset_tag.help_text }}</div></div>
+            <div class="col-md-6">{{ form.name.label_tag }}{{ form.name }}{{ form.name.errors }}</div>
+            <div class="col-md-6">{{ form.category.label_tag }}{{ form.category }}{{ form.category.errors }}</div>
+            <div class="col-md-6">{{ form.site.label_tag }}{{ form.site }}{{ form.site.errors }}</div>
+            <div class="col-md-6">{{ form.zone.label_tag }}{{ form.zone }}{{ form.zone.errors }}</div>
+            <div class="col-md-6">{{ form.owner.label_tag }}{{ form.owner }}{{ form.owner.errors }}</div>
+          </div>
+
+          <h5 class="mb-3 border-bottom pb-2">Manufacturer &amp; Technical Specs</h5>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">{{ form.manufacturer.label_tag }}{{ form.manufacturer }}{{ form.manufacturer.errors }}</div>
+            <div class="col-md-4">{{ form.model.label_tag }}{{ form.model }}{{ form.model.errors }}</div>
+            <div class="col-md-4">{{ form.serial_number.label_tag }}{{ form.serial_number }}{{ form.serial_number.errors }}</div>
+            <div class="col-md-4">{{ form.purchase_date.label_tag }}{{ form.purchase_date }}{{ form.purchase_date.errors }}</div>
+            <div class="col-md-4">{{ form.commission_date.label_tag }}{{ form.commission_date }}{{ form.commission_date.errors }}</div>
+            <div class="col-md-4">{{ form.warranty_ref.label_tag }}{{ form.warranty_ref }}{{ form.warranty_ref.errors }}</div>
+            <div class="col-12">{{ form.description.label_tag }}{{ form.description }}{{ form.description.errors }}</div>
+            {% if form.reason %}
+              <div class="col-12">{{ form.reason.label_tag }}{{ form.reason }}{{ form.reason.errors }}<div class="form-text">{{ form.reason.help_text }}</div></div>
+            {% endif %}
+          </div>
+
+          {% if form.attribute_defs %}
+            <h5 class="mb-3 border-bottom pb-2">Custom Category Attributes</h5>
+            <div class="row g-3 mb-3">
+              {% for field_name in form.fields %}
+                {% if field_name|slice:":5" == "attr_" %}
+                  <div class="col-md-6">
+                    {{ form|get_item:field_name }}
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          {% if rel_form %}
+            <h5 class="mb-3 border-bottom pb-2 text-primary">Hierarchy Relationship to Parent</h5>
+            <div class="row g-3 mb-3 p-3 bg-light rounded border">
+              <div class="col-md-4">{{ rel_form.relationship_type.label_tag }}{{ rel_form.relationship_type }}{{ rel_form.relationship_type.errors }}</div>
+              <div class="col-md-4">{{ rel_form.quantity.label_tag }}{{ rel_form.quantity }}{{ rel_form.quantity.errors }}</div>
+              <div class="col-md-4">{{ rel_form.part_number.label_tag }}{{ rel_form.part_number }}{{ rel_form.part_number.errors }}</div>
+              <div class="col-12">{{ rel_form.notes.label_tag }}{{ rel_form.notes }}{{ rel_form.notes.errors }}</div>
+            </div>
+          {% endif %}
+
+          <div class="d-flex gap-2 justify-content-end mt-4">
+            <a href="{{ cancel_url }}" class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">{{ submit|default:"Save Asset" }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script nonce="{{ csp_nonce }}">
+/* Convenience only: narrow the location list to the chosen site (the server validates the pairing). */
+(function () {
+  var site = document.querySelector("[data-site-select]"), zone = document.querySelector("[data-site-filter]");
+  if (!site || !zone) return;
+  var siteCodes = {};
+  Array.prototype.forEach.call(site.options, function (o) { siteCodes[o.value] = o.text.split(" ·")[0].trim(); });
+  function apply() {
+    var code = siteCodes[site.value];
+    Array.prototype.forEach.call(zone.options, function (o) {
+      if (!o.value) return;
+      var show = !code || o.text.indexOf(code + " ·") === 0;
+      o.hidden = !show; o.disabled = !show;
+    });
+    if (zone.selectedOptions[0] && zone.selectedOptions[0].disabled) zone.value = "";
+  }
+  site.addEventListener("change", apply); apply();
+})();
+</script>{% endblock %}

@@ -114,6 +114,16 @@ class ComponentMoveForm(BootstrapFormMixin, forms.Form):
         self.fields["parent"].queryset = candidates
 
 
+class ComponentReplaceForm(BootstrapFormMixin, forms.Form):
+    new_child = forms.ModelChoiceField(queryset=None, label="Replacement Asset")
+    reason = forms.CharField(max_length=300, required=False, label="Replacement Reason",
+                             help_text="e.g. Scheduled part swap, worn bearing replaced during PM.")
+
+    def __init__(self, *args, candidates, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["new_child"].queryset = candidates
+
+
 class DocumentForm(BootstrapFormMixin, forms.Form):
     file = forms.FileField()
     title = forms.CharField(max_length=150, required=False)

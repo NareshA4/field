@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     "apps.platform_admin",
     "apps.sites",
     "apps.assets",
+    "apps.identification",
     "apps.incidents",
     "apps.workorders",
     "apps.inventory",
@@ -78,6 +79,7 @@ INSTALLED_APPS = [
     "apps.contracts",
     "apps.checklists",
     "apps.ui",
+
 ]
 
 MIDDLEWARE = [
