@@ -7,32 +7,21 @@
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb mb-1 small">
         <li class="breadcrumb-item"><a href="{% url 'assets:list' %}">Assets</a></li>
+        {% if parent_link %}<li class="breadcrumb-item"><a href="{% url 'assets:detail' parent_link.parent_id %}">{{ parent_link.parent.asset_tag }}</a></li>{% endif %}
         <li class="breadcrumb-item active">{{ asset.asset_tag }}</li>
       </ol>
     </nav>
     <h1>{{ asset.name }} {% status_badge asset.status %}</h1>
     <div class="text-body-secondary">
-      <span class="fw-medium text-dark">{{ asset.asset_tag }}</span> · {{ asset.category.name }} · {{ asset.site.name }}
-      {% if asset.zone %} ({{ asset.zone.name }}){% endif %}
+      <span class="fw-medium text-dark">{{ asset.asset_tag }}</span> · {{ asset.category.name }} · <a href="{% url 'sites:detail' asset.site_id %}">{{ asset.site.code }}</a>
+      {% if asset.zone %} · {{ asset.zone.name }}{% endif %}
       {% if asset.serial_number %} · SN: <span class="font-monospace">{{ asset.serial_number }}</span>{% endif %}
     </div>
   </div>
-  
   <div class="d-flex gap-2 flex-wrap align-items-center">
-    {% if can.asset_update and not terminal %}
-      <a class="btn btn-outline-primary" href="{% url 'assets:edit' asset.pk %}">{% icon 'edit-2' 14 %} Edit</a>
-    {% endif %}
-    
-    {% if transitions %}
-      {% for t in transitions %}
-        <form method="post" action="{{ t.url }}" class="d-inline">
-          {% csrf_token %}
-          <button class="btn btn-{{ t.style|default:'outline-secondary' }}" {% if t.confirm %}data-confirm="{{ t.confirm }}"{% endif %}>
-            {{ t.label }}
-          </button>
-        </form>
-      {% endfor %}
-    {% endif %}
+    {% if can.incident_create and not terminal %}<a class="btn btn-outline-danger" id="report-problem" href="{% url 'incidents:create' %}?asset={{ asset.pk }}">Report a problem</a>{% endif %}
+    {% if can.asset_update and not terminal %}<a class="btn btn-outline-primary" href="{% url 'assets:edit' asset.pk %}">{% icon 'edit-2' 14 %} Edit</a>{% endif %}
+    {% if transitions %}{% include "components/_workflow_bar.html" %}{% elif terminal %}<div class="alert alert-secondary py-1 px-2 m-0">This asset is {{ asset.status|lower }}: its lifecycle is complete and it is read-only.</div>{% endif %}
   </div>
 </div>
 
@@ -46,67 +35,63 @@
 <div class="row g-3">
   <div class="col-lg-7">
     <div class="fx-card mb-3">
-      <div class="fx-card-header">Asset Specifications</div>
+      <div class="fx-card-header">Identity &amp; Specifications</div>
       <div class="fx-card-body">
         <dl class="fx-kv">
-          <dt>Asset Tag</dt><dd class="fw-bold">{{ asset.asset_tag }}</dd>
+          <dt>Asset tag</dt><dd class="fw-bold">{{ asset.asset_tag }}</dd>
           <dt>Name</dt><dd>{{ asset.name }}</dd>
           <dt>Category</dt><dd>{{ asset.category.name }}</dd>
-          <dt>Site</dt><dd><a href="{% url 'sites:detail' asset.site.pk %}">{{ asset.site.name }} ({{ asset.site.code }})</a></dd>
-          <dt>Location / Zone</dt><dd>{{ asset.zone.name|default:"—" }}</dd>
           <dt>Manufacturer</dt><dd>{{ asset.manufacturer|default:"—" }}</dd>
           <dt>Model</dt><dd>{{ asset.model|default:"—" }}</dd>
-          <dt>Serial Number</dt><dd class="font-monospace">{{ asset.serial_number|default:"—" }}</dd>
-          <dt>Purchase Date</dt><dd>{{ asset.purchase_date|default:"—" }}</dd>
-          <dt>Commissioning Date</dt><dd>{{ asset.commission_date|default:"—" }}</dd>
-          <dt>Custodian / Owner</dt><dd>{{ asset.owner.user.display_name|default:"—" }}</dd>
-          <dt>Warranty Ref</dt><dd>{{ asset.warranty_ref|default:"—" }}</dd>
+          <dt>Serial number</dt><dd class="font-monospace">{{ asset.serial_number|default:"—" }}</dd>
           <dt>Description</dt><dd>{{ asset.description|default:"—"|linebreaksbr }}</dd>
         </dl>
       </div>
     </div>
-    
     {% if custom_attributes %}
-    <div class="fx-card">
-      <div class="fx-card-header">Category Custom Attributes</div>
+      <div class="fx-card" id="custom-attributes">
+        <div class="fx-card-header">{{ asset.category.name }} attributes</div>
+        <div class="fx-card-body">
+          <dl class="fx-kv">
+            {% for label, value in custom_attributes %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
+          </dl>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    <div class="fx-card mb-3">
+      <div class="fx-card-header">Location &amp; ownership</div>
       <div class="fx-card-body">
         <dl class="fx-kv">
-          {% for attr in custom_attributes %}
-            <dt>{{ attr.label }}</dt>
-            <dd>{{ attr.value|default:"—" }}</dd>
-          {% endfor %}
+          <dt>Site</dt><dd><a href="{% url 'sites:detail' asset.site_id %}">{{ asset.site.code }} · {{ asset.site.name }}</a></dd>
+          <dt>Location</dt><dd>{{ asset.zone.name|default:"—" }}</dd>
+          <dt>Owner</dt><dd>{{ asset.owner.user.display_name|default:"—" }}</dd>
+          <dt>Parent</dt><dd>{% if parent_link %}<a href="{% url 'assets:detail' parent_link.parent_id %}">{{ parent_link.parent.asset_tag }}</a> ({{ parent_link.get_relationship_type_display }}){% else %}—{% endif %}</dd>
         </dl>
       </div>
     </div>
-    {% endif %}
-  </div>
-  
-  <div class="col-lg-5">
-    <div class="fx-card mb-3">
-      <div class="fx-card-header">Hierarchy Summary</div>
+
+    <div class="fx-card">
+      <div class="fx-card-header">Lifecycle</div>
       <div class="fx-card-body">
-        {% if parent_link %}
-          <div class="p-3 bg-light rounded border mb-3">
-            <div class="text-body-secondary small mb-1">Installed under parent:</div>
-            <div class="fw-semibold">
-              <a href="{% url 'assets:detail' parent_link.parent.pk %}">{{ parent_link.parent.asset_tag }}</a> — {{ parent_link.parent.name }}
-            </div>
-            <div class="small text-body-secondary mt-1">
-              Role: <span class="badge text-bg-secondary">{{ parent_link.get_relationship_type_display }}</span>
-              {% if parent_link.part_number %} · Part # {{ parent_link.part_number }}{% endif %}
-            </div>
-          </div>
-        {% else %}
-          <div class="p-2 text-body-secondary mb-2">This asset is a top-level root in the hierarchy.</div>
-        {% endif %}
-        
-        <div class="d-flex justify-content-between align-items-center">
-          <span class="text-body-secondary">Direct Sub-components:</span>
-          <span class="fw-bold">{{ asset.child_links.count }}</span>
-        </div>
-        <div class="mt-3">
-          <a class="btn btn-sm btn-outline-primary w-100" href="?tab=hierarchy">{% icon 'git-branch' 14 %} Open Hierarchy Tree</a>
-        </div>
+        <dl class="fx-kv">
+          <dt>Purchased</dt><dd>{{ asset.purchase_date|date:"d M Y"|default:"—" }}</dd>
+          <dt>Commissioned</dt><dd>{{ asset.commission_date|date:"d M Y"|default:"—" }}</dd>
+          <dt>Warranty ref.</dt><dd>{{ asset.warranty_ref|default:"—" }}</dd>
+          {% if coverage_now is not None %}
+            <dt>Coverage now</dt>
+            <dd id="coverage-now">
+              {% for e in coverage_now %}
+                <div><a href="{% url 'contracts:agreement' e.agreement.pk %}">{{ e.agreement.reference }}</a> · {{ e.agreement.get_kind_display }} until {{ e.agreement.end_date|date:"d M Y" }}</div>
+              {% empty %}
+                <span class="text-body-secondary">Not covered by a warranty, AMC or contract</span>
+              {% endfor %}
+            </dd>
+          {% endif %}
+          <dt>Registered</dt><dd>{{ asset.created_at|date:"d M Y H:i" }}</dd>
+        </dl>
       </div>
     </div>
   </div>
@@ -114,7 +99,6 @@
 
 {% elif tab == "hierarchy" %}
 <div class="row g-3">
-  <!-- Tree Navigation Card -->
   <div class="col-lg-7">
     <div class="fx-card">
       <div class="fx-card-header d-flex justify-content-between align-items-center">
@@ -123,7 +107,6 @@
           {% icon 'refresh-cw' 12 %} Refresh Tree
         </button>
       </div>
-      
       {% if ancestors %}
         <div class="p-3 bg-light border-bottom">
           <div class="small text-body-secondary mb-1">Ancestor Path (Root to Parent):</div>
@@ -137,343 +120,197 @@
           </nav>
         </div>
       {% endif %}
-      
       <div class="fx-card-body p-0" id="tree-container" hx-get="{% url 'assets:tree' asset.pk %}" hx-trigger="load" hx-swap="innerHTML">
         <div class="p-4 text-center text-body-secondary">Loading tree hierarchy…</div>
       </div>
     </div>
   </div>
-  
-  <!-- Management Controls -->
-  <div class="col-lg-5">
-    {% if can.asset_hierarchy_manage and not terminal %}
-      <!-- Add Child Component -->
-      <div class="fx-card mb-3">
-        <div class="fx-card-header">{% icon 'plus' 14 %} Attach Child Component</div>
-        <div class="fx-card-body">
-          <p class="small text-body-secondary">Attach an existing standalone asset at this site as a child component of <strong>{{ asset.asset_tag }}</strong>.</p>
-          <form hx-post="{% url 'assets:component_add' asset.pk %}" hx-target="body">
-            {% csrf_token %}
-            {{ add_form.as_p }}
-            <button type="submit" class="btn btn-primary btn-sm w-100">Attach Component</button>
-          </form>
-          <div class="mt-2 text-center">
-            <span class="small text-body-secondary">or </span>
-            <a href="{% url 'assets:create' %}?parent={{ asset.pk }}" class="small">Register and link brand new asset &rarr;</a>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Edit / Move Parent Link -->
-      {% if asset.parent_link %}
-        <div class="fx-card mb-3">
-          <div class="fx-card-header">{% icon 'sliders' 14 %} Modify Relationship with Parent</div>
-          <div class="fx-card-body">
-            <form hx-post="{% url 'assets:component_edit' asset.parent_link.pk %}" hx-target="body">
-              {% csrf_token %}
-              {{ edit_link_form.as_p }}
-              <button type="submit" class="btn btn-outline-primary btn-sm">Save Relationship Changes</button>
-            </form>
-          </div>
-        </div>
-        
-        <div class="fx-card mb-3">
-          <div class="fx-card-header">{% icon 'corner-up-right' 14 %} Move to New Parent</div>
-          <div class="fx-card-body">
-            <p class="small text-body-secondary">Re-parent <strong>{{ asset.asset_tag }}</strong> and its entire subtree under another asset in the same site.</p>
-            <form hx-post="{% url 'assets:component_move' asset.parent_link.pk %}" hx-target="body">
-              {% csrf_token %}
-              {{ move_form.as_p }}
-              <button type="submit" class="btn btn-outline-warning btn-sm" data-confirm="Move this component and its sub-components to the new parent?">
-                Move Subtree
-              </button>
-            </form>
-          </div>
-        </div>
-        
-        <div class="fx-card mb-3" id="replace-section">
-          <div class="fx-card-header">{% icon 'refresh-cw' 14 %} Replace Component / Swap Part</div>
-          <div class="fx-card-body">
-            <p class="small text-body-secondary">Swap <strong>{{ asset.asset_tag }}</strong> with another standalone asset. The old component will be detached and the replacement will inherit its position and attributes.</p>
-            <form hx-post="{% url 'assets:component_replace' asset.parent_link.pk %}" hx-target="body">
-              {% csrf_token %}
-              {{ replace_form.as_p }}
-              <button type="submit" class="btn btn-warning btn-sm" data-confirm="Replace {{ asset.asset_tag }} with the selected asset in the hierarchy?">
-                {% icon 'refresh-cw' 13 %} Perform Component Replacement
-              </button>
-            </form>
-          </div>
-        </div>
 
-        <div class="fx-card border-danger-subtle">
-          <div class="fx-card-header text-danger">Detach from Hierarchy</div>
-          <div class="fx-card-body">
-            <p class="small text-body-secondary">Detach <strong>{{ asset.asset_tag }}</strong> from <strong>{{ asset.parent_link.parent.asset_tag }}</strong>. It will become an independent top-level asset.</p>
-            <form hx-post="{% url 'assets:component_remove' asset.parent_link.pk %}" hx-target="body">
-              {% csrf_token %}
-              <input type="hidden" name="next_asset" value="child">
-              <button type="submit" class="btn btn-danger btn-sm" data-confirm="Detach this asset from its parent?">
-                Detach from {{ asset.parent_link.parent.asset_tag }}
-              </button>
-            </form>
-          </div>
-        </div>
-      {% endif %}
-    {% else %}
-      <div class="fx-card">
-        <div class="fx-card-body text-body-secondary small">
-          Hierarchy management is read-only for your current role or asset status.
+  <div class="col-lg-5">
+    {% if parent_link %}
+      <div class="fx-card mb-3">
+        <div class="fx-card-header">Parent</div>
+        <div class="fx-card-body">
+          Part of <a href="{% url 'assets:detail' parent_link.parent_id %}">{{ parent_link.parent.asset_tag }} · {{ parent_link.parent.name }}</a> as {{ parent_link.get_relationship_type_display|lower }}{% if parent_link.quantity > 1 %} ×{{ parent_link.quantity }}{% endif %}.
+          {% if ancestors %}<div class="small text-body-secondary mt-1">Path: {% for a in ancestors %}{{ a.asset_tag }} › {% endfor %}{{ asset.asset_tag }}</div>{% endif %}
+          {% if can.asset_hierarchy_manage and not terminal %}
+            {% if edit_link_form %}
+              <details class="mt-3"><summary class="small fw-semibold">Edit relationship</summary>
+                <form method="post" action="{% url 'assets:component_edit' parent_link.pk %}" class="mt-2">{% csrf_token %}
+                  {% for field in edit_link_form %}{% include "components/_form_field.html" %}{% endfor %}<button class="btn btn-sm btn-primary">Save relationship</button></form></details>
+            {% endif %}
+            {% if move_form %}
+              <form method="post" action="{% url 'assets:component_move' parent_link.pk %}" class="d-flex gap-2 mt-3">{% csrf_token %}<div class="flex-grow-1">{{ move_form.parent }}</div><button class="btn btn-outline-primary">Move</button></form>
+            {% endif %}
+            <form method="post" action="{% url 'assets:component_remove' parent_link.pk %}" class="mt-2">{% csrf_token %}<input type="hidden" name="next_asset" value="child"><button class="btn btn-sm btn-outline-danger" data-confirm="Detach {{ asset.asset_tag }} from {{ parent_link.parent.asset_tag }}? The asset itself is kept.">Detach from parent</button></form>
+          {% endif %}
         </div>
       </div>
+    {% endif %}
+
+    {% if can.asset_hierarchy_manage and not terminal %}
+      <div class="fx-card mb-3">
+        <div class="fx-card-header">Add existing asset as a child</div>
+        <div class="fx-card-body">
+          <form method="post" action="{% url 'assets:component_add' asset.pk %}">{% csrf_token %}
+            {% for field in add_form %}{% include "components/_form_field.html" %}{% endfor %}<button class="btn btn-primary">Add to hierarchy</button></form>
+        </div>
+      </div>
+      <a class="btn btn-outline-primary" href="{% url 'assets:create' %}?parent={{ asset.pk }}">{% icon 'plus' 14 %} Register a new child asset</a>
     {% endif %}
   </div>
 </div>
 
 {% elif tab == "documents" %}
-<div class="row g-3">
-  <div class="col-lg-8">
-    <div class="fx-card">
-      <div class="fx-card-header">Asset Documents &amp; Manuals</div>
-      <div class="table-responsive">
-        <table class="table fx-table mb-0">
-          <thead>
-            <tr><th>Title</th><th>Type</th><th>Uploaded by</th><th>Date</th><th></th></tr>
-          </thead>
-          <tbody>
-            {% for doc in documents %}
-              <tr>
-                <td class="fw-medium">{{ doc.title }}</td>
-                <td><span class="badge text-bg-light border">{{ doc.get_doc_type_display }}</span></td>
-                <td>{{ doc.uploaded_by.display_name }}</td>
-                <td>{{ doc.created_at|date:"d M Y" }}</td>
-                <td class="text-end">
-                  {% if can.asset_document_manage %}
-                    <form method="post" action="{% url 'assets:document_remove' doc.pk %}" class="d-inline">
-                      {% csrf_token %}
-                      <button class="btn btn-sm btn-outline-danger" data-confirm="Remove document {{ doc.title }}?">Remove</button>
-                    </form>
-                  {% endif %}
-                </td>
-              </tr>
-            {% empty %}
-              <tr><td colspan="5">{% include "components/_empty_state.html" with title="No documents" text="No manuals, datasheets or certificates uploaded yet." %}</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-4">
-    {% if can.asset_document_manage and not terminal %}
-      <div class="fx-card">
-        <div class="fx-card-header">Upload Document</div>
-        <div class="fx-card-body">
-          <form method="post" action="{% url 'assets:document_upload' asset.pk %}" enctype="multipart/form-data">
-            {% csrf_token %}
-            {{ doc_form.as_p }}
-            <button class="btn btn-primary btn-sm w-100">Upload</button>
-          </form>
-        </div>
-      </div>
-    {% endif %}
-  </div>
-</div>
-
-{% elif tab == "meters" %}
-<div class="row g-3">
-  <div class="col-lg-8">
-    <div class="fx-card">
-      <div class="fx-card-header">Telemetry &amp; Usage Meters</div>
-      <div class="table-responsive">
-        <table class="table fx-table mb-0">
-          <thead>
-            <tr><th>Meter Name</th><th>Unit</th><th>Latest Reading</th><th>Status</th><th></th></tr>
-          </thead>
-          <tbody>
-            {% for m in meters %}
-              <tr>
-                <td class="fw-semibold">{{ m.name }}</td>
-                <td>{{ m.unit }}</td>
-                <td>{{ m.readings.first.value|default:"—" }} {{ m.unit }}</td>
-                <td>{% if m.is_active %}<span class="badge text-bg-success">Active</span>{% else %}<span class="badge text-bg-secondary">Inactive</span>{% endif %}</td>
-                <td class="text-end">
-                  {% if can.asset_meter_record and m.is_active %}
-                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#reading-form-{{ m.pk }}">
-                      Record Reading
-                    </button>
-                  {% endif %}
-                </td>
-              </tr>
-              {% if can.asset_meter_record and m.is_active %}
-                <tr class="collapse" id="reading-form-{{ m.pk }}">
-                  <td colspan="5" class="bg-light p-3">
-                    <form method="post" action="{% url 'assets:meter_reading' m.pk %}" class="row g-2 align-items-center">
-                      {% csrf_token %}
-                      <div class="col-md-3">
-                        <input type="number" step="0.001" name="value" required class="form-control form-control-sm" placeholder="Reading value">
-                      </div>
-                      <div class="col-md-4">
-                        <input type="text" name="notes" class="form-control form-control-sm" placeholder="Notes (optional)">
-                      </div>
-                      <div class="col-md-3">
-                        <button class="btn btn-sm btn-primary">Save Reading</button>
-                      </div>
-                    </form>
-                  </td>
-                </tr>
-              {% endif %}
-            {% empty %}
-              <tr><td colspan="5">{% include "components/_empty_state.html" with title="No meters" text="Configure running hours or cycle counters for predictive maintenance." %}</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-4">
-    {% if can.asset_update and not terminal %}
-      <div class="fx-card">
-        <div class="fx-card-header">Add New Meter</div>
-        <div class="fx-card-body">
-          <form method="post" action="{% url 'assets:meter_create' asset.pk %}">
-            {% csrf_token %}
-            {{ meter_form.as_p }}
-            <button class="btn btn-primary btn-sm w-100">Create Meter</button>
-          </form>
-        </div>
-      </div>
-    {% endif %}
-  </div>
-</div>
-
-{% elif tab == "history" %}
-<div class="row g-3">
-  <div class="col-lg-6">
-    <div class="fx-card">
-      <div class="fx-card-header">Status &amp; Lifecycle History</div>
-      <div class="table-responsive">
-        <table class="table fx-table mb-0">
-          <thead><tr><th>Transition</th><th>Reason</th><th>Changed By</th><th>Date</th></tr></thead>
-          <tbody>
-            {% for sh in status_history %}
-              <tr>
-                <td><span class="badge text-bg-light border">{{ sh.from_status|default:"New" }} &rarr; {{ sh.to_status }}</span></td>
-                <td>{{ sh.reason|default:"—" }}</td>
-                <td>{{ sh.changed_by.display_name|default:"System" }}</td>
-                <td>{{ sh.created_at|date:"d M Y H:i" }}</td>
-              </tr>
-            {% empty %}
-              <tr><td colspan="4">{% include "components/_empty_state.html" with title="No status history" %}</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  
-  <div class="col-lg-6">
-    <div class="fx-card">
-      <div class="fx-card-header">Location Movement History</div>
-      <div class="table-responsive">
-        <table class="table fx-table mb-0">
-          <thead><tr><th>Movement</th><th>Reason</th><th>Moved By</th><th>Date</th></tr></thead>
-          <tbody>
-            {% for lh in location_history %}
-              <tr>
-                <td>{{ lh.from_site.code|default:"—" }} &rarr; {{ lh.to_site.code }}</td>
-                <td>{{ lh.reason|default:"—" }}</td>
-                <td>{{ lh.moved_by.display_name|default:"System" }}</td>
-                <td>{{ lh.created_at|date:"d M Y H:i" }}</td>
-              </tr>
-            {% empty %}
-              <tr><td colspan="4">{% include "components/_empty_state.html" with title="No location transfers" %}</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</div>
-
-{% if can.asset_history_view %}
-<div class="fx-card mt-3">
-  <div class="fx-card-header d-flex align-items-center gap-2">
-    {% icon 'activity' 16 %} Full Audit &amp; Hierarchy Change Log
-    <span class="badge text-bg-secondary ms-auto">{{ change_log|length }} event{{ change_log|length|pluralize }}</span>
-  </div>
-  {% if change_log %}
+<div class="fx-card">
+  <div class="fx-card-header">Documents</div>
   <div class="table-responsive">
-    <table class="table fx-table mb-0 align-middle">
-      <thead>
-        <tr>
-          <th style="width:170px;">Event</th>
-          <th>Details / Field Changes</th>
-          <th>Actor</th>
-          <th style="width:145px;">Date &amp; Time</th>
-        </tr>
-      </thead>
+    <table class="table fx-table">
+      <thead><tr><th>Title</th><th>Type</th><th>File</th><th>Size</th><th>Uploaded</th><th></th></tr></thead>
       <tbody>
-        {% for entry in change_log %}
+        {% for d in documents %}
           <tr>
-            <td>
-              {% if "replace" in entry.action %}
-                <span class="badge text-bg-warning text-wrap" style="font-size:.7rem;">{% icon 'refresh-cw' 11 %} Part Replaced</span>
-              {% elif "component_added" in entry.action %}
-                <span class="badge text-bg-success text-wrap" style="font-size:.7rem;">{% icon 'plus' 11 %} Component Added</span>
-              {% elif "component_removed" in entry.action %}
-                <span class="badge text-bg-danger text-wrap" style="font-size:.7rem;">{% icon 'trash-2' 11 %} Component Removed</span>
-              {% elif "component_moved" in entry.action %}
-                <span class="badge text-bg-info text-wrap" style="font-size:.7rem;">{% icon 'corner-up-right' 11 %} Component Moved</span>
-              {% elif "component_updated" in entry.action %}
-                <span class="badge text-bg-light border text-wrap" style="font-size:.7rem;">{% icon 'sliders' 11 %} Link Updated</span>
-              {% elif "created" in entry.action %}
-                <span class="badge text-bg-success text-wrap" style="font-size:.7rem;">{% icon 'plus-circle' 11 %} Asset Created</span>
-              {% elif "updated" in entry.action %}
-                <span class="badge text-bg-light border text-wrap" style="font-size:.7rem;">{% icon 'edit-2' 11 %} Asset Updated</span>
-              {% elif "status" in entry.action %}
-                <span class="badge text-bg-secondary text-wrap" style="font-size:.7rem;">{% icon 'activity' 11 %} Status Change</span>
-              {% else %}
-                <span class="badge text-bg-light border text-wrap" style="font-size:.7rem;">{{ entry.action }}</span>
+            <td>{{ d.title }}</td><td>{{ d.get_doc_type_display }}</td><td>{{ d.attachment.original_name }}</td><td>{{ d.attachment.size|filesizeformat }}</td>
+            <td>{{ d.created_at|date:"d M Y H:i" }} · {{ d.uploaded_by.email }}</td>
+            <td class="text-end">
+              {% if d.attachment_id %}<a class="btn btn-sm btn-outline-primary" href="{% url 'files:download' d.attachment_id %}">Download</a>{% endif %}
+              {% if can.asset_document_manage %}
+                <form method="post" action="{% url 'assets:document_remove' d.pk %}" class="d-inline-flex gap-1 ms-1 align-items-center">
+                  {% csrf_token %}<input class="form-control form-control-sm" style="width:9rem" name="reason" placeholder="Reason" aria-label="Reason for removing {{ d.title }}" required minlength="3"><button class="btn btn-sm btn-outline-danger">Remove</button>
+                </form>
               {% endif %}
             </td>
-            <td class="small">
-              {% if entry.changes %}
-                {% for ch in entry.changes %}
-                  <div class="mb-1">
-                    <span class="fw-semibold text-body-secondary text-capitalize">{{ ch.field }}:</span>
-                    <span class="text-danger-emphasis">{{ ch.old|default:"(none)" }}</span>
-                    <span class="text-body-secondary mx-1">&rarr;</span>
-                    <span class="text-success-emphasis fw-medium">{{ ch.new|default:"(none)" }}</span>
-                  </div>
-                {% endfor %}
-              {% endif %}
-              {% if entry.metadata %}
-                <div class="d-flex flex-wrap gap-1 mt-1">
-                  {% for k, v in entry.metadata.items %}
-                    <span class="badge text-bg-light border small">
-                      <span class="text-body-secondary text-capitalize">{{ k }}:</span>
-                      <span class="font-monospace fw-semibold">{{ v }}</span>
-                    </span>
-                  {% endfor %}
-                </div>
-              {% endif %}
-              {% if not entry.changes and not entry.metadata %}
-                <span class="text-body-secondary fst-italic">Event recorded — no field diffs.</span>
-              {% endif %}
-            </td>
-            <td class="small text-body-secondary">{{ entry.actor }}</td>
-            <td class="small text-body-secondary text-nowrap">{{ entry.occurred_at|date:"d M Y H:i" }}</td>
           </tr>
+        {% empty %}
+          <tr><td colspan="6">{% include "components/_empty_state.html" with title="No documents" text="Upload manuals, certificates, commissioning records or photographs." %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  {% else %}
-    <div class="fx-card-body">
-      {% include "components/_empty_state.html" with title="No audit events" text="No changes have been recorded for this asset yet." %}
+  {% if can.asset_document_manage %}
+    <div class="fx-card-body border-top">
+      <form method="post" action="{% url 'assets:document_upload' asset.pk %}" enctype="multipart/form-data" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <div class="col-md-4"><label class="form-label small" for="id_file">File</label>{{ doc_form.file }}</div>
+        <div class="col-md-3"><label class="form-label small" for="id_title">Title</label>{{ doc_form.title }}</div>
+        <div class="col-md-3"><label class="form-label small" for="id_doc_type">Type</label>{{ doc_form.doc_type }}</div>
+        <div class="col-md-2"><button class="btn btn-primary w-100">Upload</button></div>
+      </form>
+      <div class="form-text">PDF, images, Office documents, text/CSV. Content type and size are validated on the server.</div>
     </div>
   {% endif %}
 </div>
+
+{% elif tab == "meters" %}
+{% for m in meters %}
+  <div class="fx-card mb-3">
+    <div class="fx-card-header">
+      <span>{{ m.name }} <span class="text-body-secondary">({{ m.unit }})</span> {% if not m.is_active %}{% status_badge "INACTIVE" %}{% endif %}</span>
+      {% if can.asset_update and not terminal %}
+        <form method="post" action="{% url 'assets:meter_toggle' m.pk %}" class="m-0">
+          {% csrf_token %}<input type="hidden" name="action" value="{% if m.is_active %}deactivate{% else %}activate{% endif %}"><button class="btn btn-sm btn-outline-secondary">{% if m.is_active %}Deactivate{% else %}Activate{% endif %}</button>
+        </form>
+      {% endif %}
+    </div>
+    <div class="fx-card-body">
+      <div class="mb-2">Last reading: <strong>{% if m.last_value is not None %}{{ m.last_value|floatformat:"-3" }} {{ m.unit }}</strong> on {{ m.last_read_at|date:"d M Y H:i" }}{% else %}none yet</strong>{% endif %}</div>
+      {% if can.asset_meter_record and m.is_active and not terminal %}
+        <form method="post" action="{% url 'assets:meter_reading' m.pk %}" class="row g-2 align-items-end">
+          {% csrf_token %}
+          <div class="col-md-3"><label class="form-label small" for="v{{ m.pk }}">New reading ({{ m.unit }})</label><input id="v{{ m.pk }}" class="form-control" name="value" type="number" step="0.001" min="0" required></div>
+          <div class="col-md-3"><label class="form-label small" for="t{{ m.pk }}">Time (blank = now)</label><input id="t{{ m.pk }}" class="form-control" name="read_at" type="datetime-local"></div>
+          <div class="col-md-4"><label class="form-label small" for="n{{ m.pk }}">Notes</label><input id="n{{ m.pk }}" class="form-control" name="notes" maxlength="300"></div>
+          <div class="col-md-2"><button class="btn btn-primary w-100">Record</button></div>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+{% empty %}
+  <div class="fx-card mb-3">{% include "components/_empty_state.html" with title="No meters" text="Add a meter (run hours, odometer, cycles…) to record readings." %}</div>
+{% endfor %}
+{% if can.asset_update and not terminal %}
+  <div class="fx-card" style="max-width:640px">
+    <div class="fx-card-header">Add meter</div>
+    <div class="fx-card-body">
+      <form method="post" action="{% url 'assets:meter_create' asset.pk %}" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <div class="col-sm-5"><label class="form-label small" for="id_name">Name</label>{{ meter_form.name }}</div>
+        <div class="col-sm-4"><label class="form-label small" for="id_unit">Unit</label>{{ meter_form.unit }}</div>
+        <div class="col-sm-3"><button class="btn btn-outline-primary w-100">Add meter</button></div>
+      </form>
+    </div>
+  </div>
 {% endif %}
+
+{% elif tab == "history" %}
+{% if not can.asset_history_view %}
+  <div class="fx-card fx-card-body text-body-secondary">You do not have permission to view the history of this asset.</div>
+{% else %}
+  <div class="row g-3">
+    <div class="col-lg-5">
+      <div class="fx-card">
+        <div class="fx-card-header">Status history</div>
+        <div class="fx-card-body">
+          <ul class="fx-timeline" id="status-history">
+            {% for h in status_history %}
+              <li>
+                <div class="fw-semibold">{% if h.from_status %}{{ h.from_status|cut:"_"|title }} → {% endif %}{% status_badge h.to_status %}</div>
+                <div class="small text-body-secondary">{{ h.created_at|date:"d M Y H:i" }} · {{ h.changed_by.email|default:"system" }} · {{ h.action }}</div>
+                {% if h.reason %}<div class="small">{{ h.reason }}</div>{% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      <div class="fx-card mt-3">
+        <div class="fx-card-header">Location history</div>
+        <div class="table-responsive">
+          <table class="table fx-table" id="location-history">
+            <thead><tr><th>When</th><th>From</th><th>To</th></tr></thead>
+            <tbody>
+              {% for l in location_history %}
+                <tr>
+                  <td class="small">{{ l.created_at|date:"d M Y H:i" }}<br>{{ l.moved_by.email|default:"system" }}</td>
+                  <td>{% if l.from_site %}{{ l.from_site.code }}{% if l.from_zone %} · {{ l.from_zone.name }}{% endif %}{% else %}—{% endif %}</td>
+                  <td>{{ l.to_site.code }}{% if l.to_zone %} · {{ l.to_zone.name }}{% endif %}{% if l.reason %}<div class="small text-body-secondary">{{ l.reason }}</div>{% endif %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-7">
+      <div class="fx-card">
+        <div class="fx-card-header">Change log (who changed what)</div>
+        <div class="fx-card-body">
+          <ul class="fx-timeline" id="change-log">
+            {% for e in change_log %}
+              <li>
+                <div class="fw-semibold">{{ e.action }}</div>
+                <div class="small text-body-secondary">{{ e.occurred_at|date:"d M Y H:i" }} · {{ e.actor }}</div>
+                {% for c in e.changes %}
+                  <div class="small"><code>{{ c.field }}</code>: {% if c.old is not None %}<s>{{ c.old }}</s> → {% endif %}{{ c.new|default_if_none:"—" }}</div>
+                {% endfor %}
+              </li>
+            {% empty %}
+              <li class="text-body-secondary">No changes recorded.</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+{% elif tab == "coverage" %}
+<div id="coverage-host" hx-get="{% url 'contracts:asset_panel' asset.pk %}" hx-trigger="load" hx-swap="innerHTML">
+  <span class="text-body-secondary">Loading coverage…</span>
+</div>
+
+{% elif tab == "labels" %}
+<div id="labels-host" hx-get="{% url 'identification:panel' asset.pk %}" hx-trigger="load" hx-swap="innerHTML">
+  <span class="text-body-secondary">Loading labels…</span>
+</div>
 {% endif %}
 {% endblock %}

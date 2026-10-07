@@ -137,6 +137,11 @@ def create_asset(org, *, site, category, zone=None, owner=None, actor, request=N
     _location_row(asset, actor, from_site=None, from_zone=None, reason="Asset registered")
     audit.record("asset.created", actor=actor, organization=org, target=asset,
                  after=audit.snapshot(asset, ASSET_FIELDS + ["status"]), request=request)
+    try:
+        from apps.identification.services import generate_identifier
+        generate_identifier(asset, kind="QR", actor=actor, request=request)
+    except Exception:
+        pass
     return asset
 
 

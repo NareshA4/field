@@ -325,7 +325,18 @@ class AssetDetailView(AssetBase):
         asset = _asset(request, pk)
         m, org = request.membership, request.organization
         tab = request.GET.get("tab", "overview")
-        if tab not in dict(TABS):
+        available_tabs = [
+            ("overview", "Overview"),
+            ("documents", "Documents"),
+            ("meters", "Meters"),
+            ("history", "History"),
+            ("hierarchy", "Hierarchy"),
+        ]
+        if rbac.catalog.is_registered("contract.view"):
+            available_tabs.append(("coverage", "Coverage"))
+        available_tabs.append(("labels", "Labels"))
+
+        if tab not in dict(available_tabs):
             tab = "overview"
         can = {
             c.replace(".", "_"): (
@@ -349,7 +360,7 @@ class AssetDetailView(AssetBase):
                             "confirm": f"{t.label}: the asset will become {t.target.replace('_', ' ').title()}."
                             if t.target in TERMINAL_STATES else ""}
                            for t in ASSET_STATUS.available(asset.status)]
-        ctx = {"asset": asset, "tab": tab, "tabs": TABS, "can": can, "transitions": transitions,
+        ctx = {"asset": asset, "tab": tab, "tabs": available_tabs, "can": can, "transitions": transitions,
                "custom_attributes": attributes.display(asset.category.attribute_definitions, asset.attributes),
                "terminal": asset.status in TERMINAL_STATES, "parent_link": getattr(asset, "parent_link", None)}
         if tab == "overview" and rbac.catalog.is_registered("contract.view") and rbac.has_permission(m, "contract.view", asset.site_id):

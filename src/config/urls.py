@@ -11,6 +11,7 @@ from apps.assets.api_views import (
 )
 from apps.audit.api_views import AuditLogViewSet
 from apps.core import health
+from apps.identification.api_views import IdentifierViewSet
 from apps.incidents.api_views import ServiceRequestViewSet
 from apps.notifications.api_views import NotificationViewSet
 from apps.platform_admin.api_views import PlatformOrganizationViewSet
@@ -36,12 +37,13 @@ router.register("zones", ZoneViewSet, basename="zone")
 router.register("calendars", CalendarViewSet, basename="calendar")
 router.register("calendar-holidays", HolidayViewSet, basename="calendar-holiday")
 router.register("site-contacts", ContactViewSet, basename="site-contact")
+router.register("platform/organizations", PlatformOrganizationViewSet, basename="platform-organization")
 router.register("assets", AssetViewSet, basename="asset")
 router.register("asset-categories", AssetCategoryViewSet, basename="asset-category")
 router.register("asset-components", ComponentViewSet, basename="asset-component")
-router.register("meters", MeterViewSet, basename="meter")
+router.register("asset-meters", MeterViewSet, basename="asset-meter")
+router.register("asset-identifiers", IdentifierViewSet, basename="asset-identifier")
 router.register("service-requests", ServiceRequestViewSet, basename="service-request")
-router.register("platform/organizations", PlatformOrganizationViewSet, basename="platform-organization")
 
 api_v1 = [
     path("auth/", include("apps.accounts.api_urls")),
@@ -65,7 +67,9 @@ urlpatterns = [
     path("app/", include("apps.files.urls")),
     path("app/", include("apps.sites.urls")),
     path("app/", include("apps.assets.urls")),
+    path("app/", include("apps.identification.urls")),
     path("app/", include("apps.incidents.urls")),
+    path("app/", include("apps.contracts.urls")),
     # Module teams: add path("app/", include("apps.<module>.urls")) for your module here.
     path("", include("apps.ui.urls")),
 ]
