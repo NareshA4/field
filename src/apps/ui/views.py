@@ -14,8 +14,6 @@ from apps.tenancy.models import Membership
 
 @login_required
 def root(request):
-    if request.user.is_platform_admin and request.membership is None:
-        return redirect("platform_admin:organizations")
     return redirect("ui:home")
 
 
@@ -25,8 +23,6 @@ def home(request):
     if request.tenant_error:
         return render(request, "errors/tenant.html", {"code": request.tenant_error}, status=403)
     if request.membership is None:
-        if request.user.is_platform_admin:
-            return redirect("platform_admin:organizations")
         return redirect("ui:choose_org")
     org = request.organization
     perms = rbac.membership_permissions(request.membership)

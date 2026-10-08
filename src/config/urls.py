@@ -33,7 +33,6 @@ from apps.inventory.api_views import (
     WorkOrderPartViewSet,
 )
 from apps.notifications.api_views import NotificationViewSet
-from apps.platform_admin.api_views import PlatformOrganizationViewSet
 from apps.rbac.api_views import PermissionViewSet, RoleViewSet
 from apps.sites.api_views import (
     CalendarViewSet,
@@ -63,7 +62,6 @@ router.register("zones", ZoneViewSet, basename="zone")
 router.register("calendars", CalendarViewSet, basename="calendar")
 router.register("calendar-holidays", HolidayViewSet, basename="calendar-holiday")
 router.register("site-contacts", ContactViewSet, basename="site-contact")
-router.register("platform/organizations", PlatformOrganizationViewSet, basename="platform-organization")
 router.register("assets", AssetViewSet, basename="asset")
 router.register("asset-categories", AssetCategoryViewSet, basename="asset-category")
 router.register("asset-components", ComponentViewSet, basename="asset-component")
@@ -103,7 +101,6 @@ urlpatterns = [
     path("health/ready/", health.ready, name="health_ready"),
     path("api/v1/", include(api_v1)),
     path("accounts/", include("apps.accounts.urls")),
-    path("platform/", include("apps.platform_admin.urls")),
     path("app/", include("apps.tenancy.urls")),
     path("app/", include("apps.rbac.urls")),
     path("app/", include("apps.audit.urls")),

@@ -2,28 +2,17 @@
 {% load ui_tags %}
 {% block body_class %}fx-app{% endblock %}
 {% block body %}
-{% with is_platform=request.path|slice:":10" %}
 <div class="fx-layout" id="fx-layout">
   <aside class="fx-sidebar" id="fx-sidebar" aria-label="Primary navigation">
     <div class="fx-brand px-3 py-3"><span class="fx-brand-mark">FX</span> FieldOps Nexus</div>
     {% if shell_org %}<div class="fx-org-chip" title="{{ shell_org.name }}">{{ shell_org.name }}</div>{% endif %}
     <nav class="fx-nav">
-      {% if request.user.is_platform_admin and is_platform == "/platform/" %}
-        <div class="fx-nav-section">Platform</div>
-        <a class="fx-nav-link {% if '/platform/organizations' in request.path %}active{% endif %}" href="{% url 'platform_admin:organizations' %}">{% icon 'globe' %} Organizations</a>
-        <a class="fx-nav-link {% if request.path == '/platform/audit/' %}active{% endif %}" href="{% url 'platform_admin:audit' %}">{% icon 'clock' %} Platform Audit</a>
-      {% else %}
-        {% for section, items in shell_nav_sections.items %}
-          <div class="fx-nav-section">{{ section }}</div>
-          {% for item in items %}
-            <a class="fx-nav-link {% if item.active %}active{% endif %}" href="{{ item.url }}">{% icon item.icon %} {{ item.label }}</a>
-          {% endfor %}
+      {% for section, items in shell_nav_sections.items %}
+        <div class="fx-nav-section">{{ section }}</div>
+        {% for item in items %}
+          <a class="fx-nav-link {% if item.active %}active{% endif %}" href="{{ item.url }}">{% icon item.icon %} {{ item.label }}</a>
         {% endfor %}
-        {% if request.user.is_platform_admin %}
-          <div class="fx-nav-section">Platform</div>
-          <a class="fx-nav-link" href="{% url 'platform_admin:organizations' %}">{% icon 'globe' %} Platform console</a>
-        {% endif %}
-      {% endif %}
+      {% endfor %}
     </nav>
   </aside>
   <div class="fx-main">
@@ -69,5 +58,4 @@
     </main>
   </div>
 </div>
-{% endwith %}
 {% endblock %}

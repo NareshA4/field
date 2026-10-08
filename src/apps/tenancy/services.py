@@ -41,11 +41,11 @@ def _check_timezone(tz: str):
 
 
 @transaction.atomic
-def create_organization(*, name, owner_email, owner_name, actor, slug=None, timezone_name="UTC",
+def create_organization(*, name, owner_email, owner_name, actor=None, slug=None, timezone_name="UTC",
                         country="", contact_email="", request=None) -> tuple[Organization, Membership]:
-    """Super Admin onboarding: creates the org, seeds system roles, invites the initial Owner."""
-    if actor is None or not actor.is_platform_admin:
-        raise PermissionDenied("Only platform administrators can create organizations.")
+    """Enterprise onboarding: creates the org, seeds system roles, invites the initial Owner."""
+    if actor is not None and not (actor.is_superuser or actor.is_staff or getattr(actor, "is_platform_admin", False)):
+        raise PermissionDenied("Only administrators can create organizations.")
     name = (name or "").strip()
     if len(name) < 2:
         raise ValidationFailed("Organization name is required.")
@@ -71,9 +71,9 @@ def create_organization(*, name, owner_email, owner_name, actor, slug=None, time
 
 
 @transaction.atomic
-def set_organization_status(org: Organization, *, active: bool, actor, reason: str = "", request=None):
-    if actor is None or not actor.is_platform_admin:
-        raise PermissionDenied("Only platform administrators can change organization status.")
+def set_organization_status(org: Organization, *, active: bool, actor=None, reason: str = "", request=None):
+    if actor is not None and not (actor.is_superuser or actor.is_staff or getattr(actor, "is_platform_admin", False)):
+        raise PermissionDenied("Only administrators can change organization status.")
     target = Organization.Status.ACTIVE if active else Organization.Status.SUSPENDED
     if org.status == target:
         raise Conflict(f"Organization is already {target.lower()}.", code="no_change")

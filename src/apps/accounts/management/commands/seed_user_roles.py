@@ -134,28 +134,7 @@ class Command(BaseCommand):
             },
         ]
 
-        # 4. Create Platform Admin User
-        platform_admin_email = "platform.admin@fieldops.io"
-        p_user = User.objects.filter(email__iexact=platform_admin_email).first()
-        if not p_user:
-            p_user = User.objects.create_user(
-                email=platform_admin_email,
-                password=password,
-                full_name="Platform Super Administrator",
-                is_platform_admin=True,
-                is_staff=True,
-                is_superuser=True,
-            )
-        else:
-            p_user.set_password(password)
-            p_user.is_platform_admin = True
-            p_user.is_staff = True
-            p_user.is_superuser = True
-            p_user.save()
-
-        self.stdout.write(self.style.SUCCESS(f"[OK] Platform Admin: {platform_admin_email}"))
-
-        # 5. Create Persona Users, Memberships & Assign Roles
+        # 4. Create Persona Users, Memberships & Assign Roles
         created_users = []
         for p in personas:
             email = p["email"]

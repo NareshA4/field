@@ -119,12 +119,3 @@ def test_jwt_flow_and_me(api, owner_a, org_a):
 def test_jwt_bad_password_rejected(api, owner_a):
     r = api.post("/api/v1/auth/token/", {"email": owner_a.email, "password": "nope-nope-nope-1"}, format="json")
     assert r.status_code == 401
-
-
-def test_create_platform_admin_command_never_takes_password_arg(db, monkeypatch):
-    from django.core.management import call_command
-    monkeypatch.setenv("FIELDOPS_ADMIN_PASSWORD", PASSWORD)
-    call_command("create_platform_admin", email="Admin@Platform.Test", full_name="P Admin")
-    u = User.objects.get(email="admin@platform.test")
-    assert u.is_platform_admin and u.check_password(PASSWORD)
-    assert Organization.objects.count() == 0
