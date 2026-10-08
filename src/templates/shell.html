@@ -4,8 +4,12 @@
 {% block body %}
 <div class="fx-layout" id="fx-layout">
   <aside class="fx-sidebar" id="fx-sidebar" aria-label="Primary navigation">
-    <div class="fx-brand px-3 py-3"><span class="fx-brand-mark">FX</span> FieldOps Nexus</div>
-    {% if shell_org %}<div class="fx-org-chip" title="{{ shell_org.name }}">{{ shell_org.name }}</div>{% endif %}
+    <div class="fx-sidebar-header">
+      <a href="{% url 'ui:home' %}" class="fx-brand px-3 py-3 text-decoration-none">
+        <span class="fx-brand-mark">FX</span> FieldOps Nexus
+      </a>
+      {% if shell_org %}<div class="fx-org-chip" title="{{ shell_org.name }}">{{ shell_org.name }}</div>{% endif %}
+    </div>
     <nav class="fx-nav">
       {% for section, items in shell_nav_sections.items %}
         <div class="fx-nav-section">{{ section }}</div>
@@ -15,6 +19,7 @@
       {% endfor %}
     </nav>
   </aside>
+  <div class="fx-sidebar-backdrop" data-fx-toggle-nav aria-hidden="true"></div>
   <div class="fx-main">
     <header class="fx-topbar">
       <button class="btn btn-sm btn-outline-secondary d-lg-none" type="button" aria-label="Toggle navigation"

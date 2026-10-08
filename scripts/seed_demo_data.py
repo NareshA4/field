@@ -29,16 +29,15 @@ def seed():
     print("[*] Seeding FieldOps Nexus System Data & Demo Environment...")
 
     # 1. Organization
-    org, _ = Organization.objects.get_or_create(
-        code="APEX-IND",
-        defaults={
-            "name": "Apex Industrial Technologies Ltd",
-            "slug": "apex-industrial",
-            "contact_email": "operations@apexindustrial.com",
-            "contact_phone": "+94 11 289 9000",
-        },
-    )
-    print(f"[OK] Organization: {org.name} ({org.code})")
+    org = Organization.objects.filter(name__iexact="Apex Industrial Technologies Ltd").first()
+    if not org:
+        org = Organization.objects.create(
+            name="Apex Industrial Technologies Ltd",
+            slug="apex-industrial",
+            contact_email="operations@apexindustrial.com",
+            contact_phone="+94 11 289 9000",
+        )
+    print(f"[OK] Organization: {org.name} ({org.slug})")
 
     # 2. System Roles
     roles = rbac.seed_system_roles(org)
@@ -107,8 +106,7 @@ def seed():
         code="ZN-HVAC-01",
         defaults={
             "name": "Central Utility Plant & Chillers",
-            "floor_or_level": "Roof Deck / Level 4",
-            "description": "Industrial chilling plants and AHU distribution",
+            "description": "Industrial chilling plants and AHU distribution (Roof Deck / Level 4)",
         },
     )
 
@@ -118,8 +116,7 @@ def seed():
         code="ZN-ELEC-01",
         defaults={
             "name": "Main Electrical Switchgear Room",
-            "floor_or_level": "Ground Floor",
-            "description": "33kV / 415V Substation & Power Distribution",
+            "description": "33kV / 415V Substation & Power Distribution (Ground Floor)",
         },
     )
     print(f"[OK] Sites & Zones created for {site_cmb.name}")

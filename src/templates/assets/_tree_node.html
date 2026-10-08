@@ -33,7 +33,7 @@
           <div class="small text-body-secondary mt-1">
             {% if node.asset.manufacturer %}{{ node.asset.manufacturer }}{% endif %}
             {% if node.asset.model %} {{ node.asset.model }}{% endif %}
-            {% if node.asset.serial_number %} · SN: <span class="font-monospace text-dark">{{ node.asset.serial_number }}</span>{% endif %}
+            {% if node.asset.serial_number %}<span class="text-nowrap"> · SN: <span class="font-monospace text-dark">{{ node.asset.serial_number }}</span></span>{% endif %}
           </div>
         {% endif %}
       </div>
@@ -55,9 +55,14 @@
         {% endif %}
 
         {% if node.link.part_number %}
-          <button type="button" class="fx-part-pill btn p-1 text-decoration-none" data-copy="{{ node.link.part_number }}" title="Click to copy part number">
-            {% icon 'copy' 11 %} Part # {{ node.link.part_number }}
-          </button>
+          <div class="d-inline-flex align-items-center gap-1">
+            <button type="button" class="fx-part-pill btn p-1 text-decoration-none" data-copy="{{ node.link.part_number }}" title="Click to copy part number">
+              {% icon 'copy' 11 %} Part # {{ node.link.part_number }}
+            </button>
+            <a href="{% url 'inventory:parts' %}?q={{ node.link.part_number|urlencode }}" class="btn btn-sm btn-outline-secondary p-1 fx-tree-btn" title="Search '{{ node.link.part_number }}' in Parts Catalog">
+              {% icon 'external-link' 11 %}
+            </a>
+          </div>
         {% endif %}
       {% else %}
         <span class="fx-role-badge fx-role-root">{% icon 'hard-drive' 12 %} Root Assembly</span>
@@ -66,14 +71,14 @@
       {% status_badge node.asset.status %}
 
       <!-- Quick Inspect Button -->
-      <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" hx-get="{% url 'assets:quick_view' node.asset.pk %}" hx-target="#quickViewModalContent" data-bs-toggle="modal" data-bs-target="#quickViewModal" title="Quick inspect {{ node.asset.asset_tag }}">
+      <button type="button" class="btn btn-sm btn-outline-secondary fx-tree-btn" hx-get="{% url 'assets:quick_view' node.asset.pk %}" hx-target="#quickViewModalContent" data-bs-toggle="modal" data-bs-target="#quickViewModal" title="Quick inspect {{ node.asset.asset_tag }}">
         {% icon 'info' 13 %}
       </button>
 
       <!-- Quick Actions Dropdown -->
       {% if can_manage and node.asset.status not in 'RETIRED,DISPOSED' %}
         <div class="dropdown fx-tree-actions">
-          <button class="btn btn-sm btn-outline-secondary py-0 px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions for {{ node.asset.asset_tag }}">
+          <button class="btn btn-sm btn-outline-secondary fx-tree-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions for {{ node.asset.asset_tag }}">
             •••
           </button>
           <ul class="dropdown-menu dropdown-menu-end shadow-sm small">
@@ -95,10 +100,22 @@
             {% if node.link %}
               <li><hr class="dropdown-divider"></li>
               <li>
+                <a class="dropdown-item text-primary" href="{% url 'assets:detail' node.asset.pk %}?tab=hierarchy#parent-section">
+                  {% icon 'git-branch' 13 %} Move / Re-parent
+                </a>
+              </li>
+              <li>
                 <a class="dropdown-item text-warning-emphasis" href="{% url 'assets:detail' node.asset.pk %}?tab=hierarchy#replace-section">
                   {% icon 'refresh-cw' 13 %} Replace Part / Swap
                 </a>
               </li>
+              {% if node.link.part_number %}
+                <li>
+                  <a class="dropdown-item" href="{% url 'inventory:parts' %}?q={{ node.link.part_number|urlencode }}">
+                    {% icon 'package' 13 %} View in Parts Catalog
+                  </a>
+                </li>
+              {% endif %}
               <li>
                 <form method="post" action="{% url 'assets:component_remove' node.link.pk %}" class="m-0">
                   {% csrf_token %}
