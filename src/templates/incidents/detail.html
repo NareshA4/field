@@ -18,6 +18,7 @@ FieldOps Nexus{% endblock %} {% block content %}
         >{{ sr.asset.asset_tag }}</a
       >
       · <a href="{% url 'sites:detail' sr.site_id %}">{{ sr.site.code }}</a>
+      {% if sr.asset %}{% hierarchy_trail sr.asset %}{% endif %}
     </div>
   </div>
   <div class="d-flex gap-2">
@@ -149,8 +150,8 @@ FieldOps Nexus{% endblock %} {% block content %}
         </dl>
         {% else %}
         <div class="text-body-secondary mb-2">No downtime recorded.</div>
-        {% endif %} {% if can.downtime and sr.status != "CLOSED" and sr.status
-        != "REJECTED" %}
+        {% endif %}
+        {% if can.downtime and sr.status != "CLOSED" and sr.status != "REJECTED" %}
         <form
           method="post"
           action="{% url 'incidents:downtime' sr.pk %}"
@@ -274,13 +275,10 @@ FieldOps Nexus{% endblock %} {% block content %}
       {% for h in history %}
       <li>
         <div class="fw-semibold">
-          {% if h.from_status %}{{ h.from_status|cut:"_"|title }} → {% endif
-          %}{% status_badge h.to_status %}
+          {% if h.from_status %}{{ h.from_status|cut:"_"|title }} → {% endif %}{% status_badge h.to_status %}
         </div>
         <div class="small text-body-secondary">
-          {{ h.created_at|date:"d M Y H:i" }} · {{
-          h.changed_by.email|default:"system" }} · {{ h.action }}{% if h.source
-          != "manual" %} ({{ h.source }}){% endif %}
+          {{ h.created_at|date:"d M Y H:i" }} · {{ h.changed_by.email|default:"system" }} · {{ h.action }}{% if h.source != "manual" %} ({{ h.source }}){% endif %}
         </div>
         {% if h.reason %}
         <div class="small">{{ h.reason }}</div>

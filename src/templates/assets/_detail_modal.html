@@ -78,7 +78,14 @@
             <span class="text-body-secondary">Quantity:</span> <span class="fw-semibold">{{ parent_link.quantity }}</span>
           </div>
           <div class="col-8">
-            <span class="text-body-secondary">Part #:</span> <span class="font-monospace fw-semibold">{{ parent_link.part_number|default:"None specified" }}</span>
+            <span class="text-body-secondary">Part #:</span>
+            {% if parent_link.part_number %}
+              <a href="{% url 'inventory:parts' %}?q={{ parent_link.part_number|urlencode }}" class="font-monospace fw-semibold text-decoration-none text-primary" title="Search in Parts Catalog">
+                {{ parent_link.part_number }} {% icon 'external-link' 11 %}
+              </a>
+            {% else %}
+              <span class="font-monospace text-muted">None specified</span>
+            {% endif %}
           </div>
           {% if parent_link.notes %}
             <div class="col-12 mt-1">
@@ -131,7 +138,9 @@
             </div>
             <div class="d-flex align-items-center gap-2">
               {% if child.link.part_number %}
-                <span class="badge text-bg-light border font-monospace small"># {{ child.link.part_number }}</span>
+                <a href="{% url 'inventory:parts' %}?q={{ child.link.part_number|urlencode }}" class="badge text-bg-light border font-monospace small text-decoration-none" title="Search in Parts Catalog">
+                  # {{ child.link.part_number }} {% icon 'external-link' 10 %}
+                </a>
               {% endif %}
               {% status_badge child.asset.status %}
             </div>

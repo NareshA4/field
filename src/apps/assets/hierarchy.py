@@ -62,23 +62,27 @@ def subtree_height(asset: Asset) -> int:
 def check_link(parent: Asset, child: Asset, *, moving: bool = False):
     """Raises a DomainError when ``child`` may not be placed under ``parent`` (also used for dry-run checks)."""
     if parent.pk == child.pk:
-        raise ValidationFailed("An asset cannot be its own parent.", code="self_parent")
+        raise ValidationFailed(f"Cannot attach {parent.asset_tag}: An asset cannot be its own parent.", code="self_parent")
     if parent.organization_id != child.organization_id:
-        raise ValidationFailed("Assets belong to different organizations.", code="cross_tenant")
+        raise ValidationFailed(f"Cannot link {child.asset_tag} to {parent.asset_tag}: Assets belong to different organizations.", code="cross_tenant")
     if parent.site_id != child.site_id:
-        raise ValidationFailed("Parent and child must be at the same site.", code="site_mismatch")
-    if parent.status in TERMINAL_STATES or child.status in TERMINAL_STATES:
-        raise Conflict("Retired or disposed assets cannot take part in the hierarchy.", code="asset_terminal")
+        parent_site = getattr(parent.site, "code", "Site A")
+        child_site = getattr(child.site, "code", "Site B")
+        raise ValidationFailed(f"Cannot link {child.asset_tag} to {parent.asset_tag}: Parent is at site '{parent_site}' while child is at site '{child_site}'.", code="site_mismatch")
+    if parent.status in TERMINAL_STATES:
+        raise Conflict(f"Cannot modify hierarchy: Parent {parent.asset_tag} is in terminal status ({parent.status}).", code="asset_terminal")
+    if child.status in TERMINAL_STATES:
+        raise Conflict(f"Cannot modify hierarchy: Child {child.asset_tag} is in terminal status ({child.status}).", code="asset_terminal")
     if not moving and AssetComponent.objects.filter(child=child).exists():
-        raise Conflict("This asset is already a component of another asset; move it instead.",
+        raise Conflict(f"Cannot attach: {child.asset_tag} is already a component of another asset. Use 'Move / Re-parent' instead.",
                        code="already_has_parent")
     above = ancestors(parent)
     if any(a.pk == child.pk for a in above):
-        raise ValidationFailed("This would create a cycle: the child is an ancestor of the parent.",
+        raise ValidationFailed(f"Circular dependency detected: {child.asset_tag} is already an ancestor of {parent.asset_tag}.",
                                code="hierarchy_cycle")
     levels = len(above) + 1 + 1 + subtree_height(child)  # ancestors + parent + child + below child
     if levels > MAX_DEPTH:
-        raise ValidationFailed(f"The hierarchy is limited to {MAX_DEPTH} levels.", code="hierarchy_too_deep")
+        raise ValidationFailed(f"Hierarchy depth limit exceeded: Linking {child.asset_tag} under {parent.asset_tag} would create a {levels}-level tree (maximum allowed is {MAX_DEPTH}).", code="hierarchy_too_deep")
 
 
 def _check_quantity(quantity):
