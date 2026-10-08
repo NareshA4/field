@@ -67,7 +67,11 @@ class SiteCreateView(SiteBase):
     required_permission = "site.create"
 
     def get(self, request):
-        return form_page(request, title="New site", form=SiteForm(initial={"timezone": request.organization.timezone}),
+        initial = {
+            "timezone": request.organization.timezone,
+            "country": getattr(request.organization, "country", "IN") or "IN",
+        }
+        return form_page(request, title="New site", form=SiteForm(initial=initial),
                          cancel_url="/app/sites/", crumbs=[("Sites", "/app/sites/"), ("New site", None)],
                          submit="Create site")
 
@@ -78,7 +82,10 @@ class SiteCreateView(SiteBase):
                 site = services.create_site(request.organization, actor=request.user, request=request,
                                             **form.cleaned_data)
             except DomainError as exc:
-                form.add_error(None, exc.message)
+                if getattr(exc, "code", "") == "duplicate_site_code":
+                    form.add_error("code", exc.message)
+                else:
+                    form.add_error(None, exc.message)
             else:
                 messages.success(request, f"Site {site.code} created.")
                 return redirect("sites:detail", pk=site.pk)
@@ -101,7 +108,10 @@ class SiteEditView(SiteBase):
             try:
                 services.update_site(site, actor=request.user, request=request, **form.cleaned_data)
             except DomainError as exc:
-                form.add_error(None, exc.message)
+                if getattr(exc, "code", "") == "duplicate_site_code":
+                    form.add_error("code", exc.message)
+                else:
+                    form.add_error(None, exc.message)
             else:
                 messages.success(request, "Site saved.")
                 return redirect("sites:detail", pk=site.pk)
