@@ -173,9 +173,14 @@
             <!-- Part Number -->
             <td>
               {% if comp.part_number %}
-                <button type="button" class="fx-part-pill btn p-1 text-decoration-none" data-copy="{{ comp.part_number }}" title="Click to copy part number">
-                  {% icon 'copy' 11 %} {{ comp.part_number }}
-                </button>
+                <div class="d-inline-flex align-items-center gap-1">
+                  <button type="button" class="fx-part-pill btn p-1 text-decoration-none" data-copy="{{ comp.part_number }}" title="Click to copy part number">
+                    {% icon 'copy' 11 %} {{ comp.part_number }}
+                  </button>
+                  <a href="{% url 'inventory:parts' %}?q={{ comp.part_number|urlencode }}" class="btn btn-sm btn-outline-secondary p-1 fx-tree-btn" title="View '{{ comp.part_number }}' in Parts Catalog">
+                    {% icon 'external-link' 11 %}
+                  </a>
+                </div>
               {% else %}
                 <span class="badge text-bg-warning-subtle text-warning border border-warning-subtle small">
                   Unassigned

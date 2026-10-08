@@ -18,6 +18,7 @@ FieldOps Nexus{% endblock %} {% block content %}
         >{{ wo.asset.asset_tag }}</a
       >
       · <a href="{% url 'sites:detail' wo.site_id %}">{{ wo.site.code }}</a>
+      {% if wo.asset %}{% hierarchy_trail wo.asset %}{% endif %}
     </div>
   </div>
   <div class="d-flex gap-2">
@@ -42,7 +43,7 @@ FieldOps Nexus{% endblock %} {% block content %}
     >{{ label }}</a
   >{% endfor %}
 </div>
-{% include "components/_wo_stepper.html" %} {% if actions %}
+{% if actions %}
 <div class="fx-card mb-3">
   <div class="fx-card-header">Next steps</div>
   <div
@@ -181,8 +182,11 @@ FieldOps Nexus{% endblock %} {% block content %}
     </form>
   </div>
 </div>
-{% endif %} {% if tab == "overview" %} {% include "sla/_panel.html" %} {% if
-blockers %}
+{% endif %}
+
+{% if tab == "overview" %}
+{% include "sla/_panel.html" %}
+{% if blockers %}
 <div class="alert alert-warning">
   <strong>Cannot be closed yet:</strong>
   <ul class="mb-0">
@@ -208,20 +212,24 @@ blockers %}
           <dd>{{ wo.description|default:"—"|linebreaksbr }}</dd>
           <dt>Asset</dt>
           <dd>
-            <a href="{% url 'assets:detail' wo.asset_id %}"
-              >{{ wo.asset.asset_tag }} · {{ wo.asset.name }}</a
-            >
+            <div>
+              <a href="{% url 'assets:detail' wo.asset_id %}"
+                >{{ wo.asset.asset_tag }} · {{ wo.asset.name }}</a
+              >
+            </div>
+            {% if wo.asset %}{% hierarchy_trail wo.asset %}{% endif %}
           </dd>
           {% if wo.source_type == "PREVENTIVE_MAINTENANCE" %}
           <dt>Source</dt>
           <dd id="wo-source">
-            {% if pm_cycle and can.view_pm %}<a
-              href="{% url 'maintenance:plan' pm_cycle.schedule.plan_id %}"
-              >Preventive maintenance: {{ pm_cycle.schedule.plan.name }}</a
-            >{% elif pm_cycle %}Preventive maintenance: {{
-            pm_cycle.schedule.plan.name }}{% else %}Preventive maintenance{%
-            endif %}{% if pm_cycle %} · cycle #{{ pm_cycle.sequence }}{% endif
-            %}
+            {% if pm_cycle and can.view_pm %}
+              <a href="{% url 'maintenance:plan' pm_cycle.schedule.plan_id %}">Preventive maintenance: {{ pm_cycle.schedule.plan.name }}</a>
+            {% elif pm_cycle %}
+              Preventive maintenance: {{ pm_cycle.schedule.plan.name }}
+            {% else %}
+              Preventive maintenance
+            {% endif %}
+            {% if pm_cycle %} · cycle #{{ pm_cycle.sequence }}{% endif %}
           </dd>
           {% endif %}
           <dt>Source request</dt>
@@ -366,9 +374,7 @@ blockers %}
             {% for mt in materials %}
             <tr>
               <td>
-                {{ mt.description }}{% if mt.part_line_id %}
-                <span class="badge fx-badge fx-badge-info">stock</span>{% endif
-                %}
+                {{ mt.description }}{% if mt.part_line_id %} <span class="badge fx-badge fx-badge-info">stock</span>{% endif %}
               </td>
               <td>{{ mt.part_number|default:"—" }}</td>
               <td>{{ mt.quantity|floatformat:"-3" }} {{ mt.unit }}</td>

@@ -34,12 +34,8 @@ Nexus{% endblock %} {% block content %}
       aria-label="Active"
     >
       <option value="">All</option>
-      <option value="1" {% if filters.active="" ="1" %}selected{% endif %}>
-        Active
-      </option>
-      <option value="0" {% if filters.active="" ="0" %}selected{% endif %}>
-        Inactive
-      </option>
+      <option value="1" {% if filters.active == "1" %}selected{% endif %}>Active</option>
+      <option value="0" {% if filters.active == "0" %}selected{% endif %}>Inactive</option>
     </select>
     <button class="btn btn-sm btn-outline-secondary">Filter</button>
   </form>
@@ -68,8 +64,7 @@ Nexus{% endblock %} {% block content %}
           <td>{{ p.max_stock|floatformat:"-3"|default:"—" }}</td>
           <td>{{ p.reorder_quantity|floatformat:"-3"|default:"—" }}</td>
           <td>
-            {% if p.is_active %}{% status_badge "ACTIVE" %}{% else %}{%
-            status_badge "INACTIVE" %}{% endif %}
+            {% if p.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}
           </td>
         </tr>
         {% empty %}
