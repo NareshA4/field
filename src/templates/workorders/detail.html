@@ -12,11 +12,8 @@ FieldOps Nexus{% endblock %} {% block content %}
     </nav>
     <h1>{{ wo.title }} {% status_badge wo.status %}</h1>
     <div class="text-body-secondary">
-      {{ wo.number }} · {{ wo.get_work_type_display }} · {% status_badge
-      wo.priority %} ·
-      <a href="{% url 'assets:detail' wo.asset_id %}"
-        >{{ wo.asset.asset_tag }}</a
-      >
+      {{ wo.number }} · {{ wo.get_work_type_display }} · {% status_badge wo.priority %} ·
+      <a href="{% url 'assets:detail' wo.asset_id %}">{{ wo.asset.asset_tag }}</a>
       · <a href="{% url 'sites:detail' wo.site_id %}">{{ wo.site.code }}</a>
       {% if wo.asset %}{% hierarchy_trail wo.asset %}{% endif %}
     </div>
@@ -43,6 +40,7 @@ FieldOps Nexus{% endblock %} {% block content %}
     >{{ label }}</a
   >{% endfor %}
 </div>
+{% include "components/_wo_stepper.html" %}
 {% if actions %}
 <div class="fx-card mb-3">
   <div class="fx-card-header">Next steps</div>
@@ -54,13 +52,7 @@ FieldOps Nexus{% endblock %} {% block content %}
     <form method="post" action="{{ a.url }}" class="m-0">
       {% csrf_token %}<button
         class="btn btn-{{ a.style }}"
-        {%
-        if
-        a.confirm
-        %}data-confirm="{{ a.confirm }}"
-        {%
-        endif
-        %}
+        {% if a.confirm %}data-confirm="{{ a.confirm }}"{% endif %}
       >
         {{ a.label }}
       </button>
@@ -80,13 +72,7 @@ FieldOps Nexus{% endblock %} {% block content %}
       />
       <button
         class="btn btn-sm btn-{{ a.style }}"
-        {%
-        if
-        a.confirm
-        %}data-confirm="{{ a.confirm }}"
-        {%
-        endif
-        %}
+        {% if a.confirm %}data-confirm="{{ a.confirm }}"{% endif %}
       >
         {{ a.label }}
       </button>

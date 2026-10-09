@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
 
             ALTER TABLE checklists_inspectionresponse
                 ADD COLUMN IF NOT EXISTS answered_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-                ADD COLUMN IF NOT EXISTS answered_by_id UUID REFERENCES tenancy_membership(id) ON DELETE PROTECT;
+                ADD COLUMN IF NOT EXISTS answered_by_id UUID REFERENCES tenancy_membership(id) ON DELETE RESTRICT;
 
             ALTER TABLE checklists_finding
                 ADD COLUMN IF NOT EXISTS resolution_notes TEXT DEFAULT '' NOT NULL,

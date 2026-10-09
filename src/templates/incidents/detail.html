@@ -12,11 +12,8 @@ FieldOps Nexus{% endblock %} {% block content %}
     </nav>
     <h1>{{ sr.title }} {% status_badge sr.status %}</h1>
     <div class="text-body-secondary">
-      {{ sr.number }} · {{ sr.get_kind_display }} · {% status_badge sr.severity
-      %} ·
-      <a href="{% url 'assets:detail' sr.asset_id %}"
-        >{{ sr.asset.asset_tag }}</a
-      >
+      {{ sr.number }} · {{ sr.get_kind_display }} · {% status_badge sr.severity %} ·
+      <a href="{% url 'assets:detail' sr.asset_id %}">{{ sr.asset.asset_tag }}</a>
       · <a href="{% url 'sites:detail' sr.site_id %}">{{ sr.site.code }}</a>
       {% if sr.asset %}{% hierarchy_trail sr.asset %}{% endif %}
     </div>
@@ -102,22 +99,21 @@ FieldOps Nexus{% endblock %} {% block content %}
         <table class="table fx-table">
           <thead>
             <tr>
-              <th>Number</th>
+              <th>Work order</th>
               <th>Status</th>
-              <th>Technician</th>
+              <th>Priority</th>
             </tr>
           </thead>
           <tbody>
             {% for wo in work_orders %}
             <tr>
               <td>
-                {% if can.view_wo %}<a
-                  href="{% url 'workorders:detail' wo.pk %}"
-                  >{{ wo.number }}</a
-                >{% else %}{{ wo.number }}{% endif %}
+                <a href="{% url 'workorders:detail' wo.pk %}"
+                  >{{ wo.number }} · {{ wo.title }}</a
+                >
               </td>
               <td>{% status_badge wo.status %}</td>
-              <td>{{ wo.assigned_to.user.display_name|default:"—" }}</td>
+              <td>{% status_badge wo.priority %}</td>
             </tr>
             {% empty %}
             <tr>
