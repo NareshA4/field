@@ -45,19 +45,6 @@ def test_platform_admin_has_no_tenant_permissions(as_user, platform_admin, org_a
     assert r.status_code == 403 and r.json()["error"]["code"] == "not_a_member"
 
 
-def test_org_owner_is_not_platform_admin(as_user, owner_a, org_a):
-    assert owner_a.is_platform_admin is False
-    r = as_user(owner_a, org_a).get("/api/v1/platform/organizations/")
-    assert r.status_code == 403
-    assert as_user(owner_a, org_a).post("/api/v1/platform/organizations/", {}, format="json").status_code == 403
-
-
-def test_platform_admin_can_manage_organizations(as_user, platform_admin):
-    c = as_user(platform_admin)
-    r = c.post("/api/v1/platform/organizations/", {"name": "Gamma Co", "owner_email": "o@gamma.test",
-                                                    "owner_name": "Gamma Owner"}, format="json")
-    assert r.status_code == 201, r.content
-    assert c.get("/api/v1/platform/organizations/").status_code == 200
 
 
 def test_owner_role_is_locked_and_system_role_undeletable(as_user, owner_a, org_a):

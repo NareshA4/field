@@ -1,166 +1,29 @@
-{% extends "shell.html" %} {% load ui_tags %} {% block title %}{{
-bal.part.part_number }} @ {{ bal.warehouse.code }} · FieldOps Nexus{% endblock
-%} {% block content %}
-<div class="fx-page-header">
-  <div>
-    <nav aria-label="breadcrumb">
-      <ol class="breadcrumb mb-1 small">
-        <li class="breadcrumb-item">
-          <a href="{% url 'inventory:stock' %}">Stock</a>
-        </li>
-        <li class="breadcrumb-item active">
-          {{ bal.part.part_number }} @ {{ bal.warehouse.code }}
-        </li>
-      </ol>
-    </nav>
-    <h1>{{ bal.part.name }}</h1>
-    <div class="text-body-secondary">
-      <a href="{% url 'inventory:part' bal.part_id %}"
-        >{{ bal.part.part_number }}</a
-      >
-      in
-      <a href="{% url 'inventory:warehouse' bal.warehouse_id %}"
-        >{{ bal.warehouse.code }}</a
-      >
-      ({{ bal.warehouse.site.code }})
-    </div>
-  </div>
-  <div class="d-flex gap-2">
-    {% if can_receive %}<a
-      class="btn btn-primary"
-      href="{% url 'inventory:receive' %}?warehouse={{ bal.warehouse_id }}&amp;part={{ bal.part_id }}"
-      >Receive</a
-    >{% endif %}{% if can_transfer %}<a
-      class="btn btn-outline-primary"
-      href="{% url 'inventory:transfer' %}"
-      >Transfer</a
-    >{% endif %}
-  </div>
-</div>
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}{{ bal.part.part_number }} @ {{ bal.warehouse.code }} Â· FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div>
+  <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'inventory:stock' %}">Stock</a></li><li class="breadcrumb-item active">{{ bal.part.part_number }} @ {{ bal.warehouse.code }}</li></ol></nav>
+  <h1>{{ bal.part.name }}</h1>
+  <div class="text-body-secondary"><a href="{% url 'inventory:part' bal.part_id %}">{{ bal.part.part_number }}</a> in <a href="{% url 'inventory:warehouse' bal.warehouse_id %}">{{ bal.warehouse.code }}</a> ({{ bal.warehouse.site.code }})</div></div>
+  <div class="d-flex gap-2">{% if can_receive %}<a class="btn btn-primary" href="{% url 'inventory:receive' %}?warehouse={{ bal.warehouse_id }}&amp;part={{ bal.part_id }}">Receive</a>{% endif %}{% if can_transfer %}<a class="btn btn-outline-primary" href="{% url 'inventory:transfer' %}">Transfer</a>{% endif %}</div></div>
 <div class="row g-3 mb-3">
-  <div class="col-sm-4">
-    <div class="fx-card fx-kpi-card h-100">
-      <div class="fx-card-body">
-        <div class="fx-kpi-label">On hand</div>
-        <div class="kpi-value" id="on-hand">
-          {{ bal.on_hand|floatformat:"-3" }}
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-sm-4">
-    <div class="fx-card fx-kpi-card h-100">
-      <div class="fx-card-body">
-        <div class="fx-kpi-label">Reserved</div>
-        <div class="kpi-value" id="reserved">
-          {{ bal.reserved|floatformat:"-3" }}
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-sm-4">
-    <div class="fx-card fx-kpi-card h-100">
-      <div class="fx-card-body">
-        <div class="fx-kpi-label">Available</div>
-        <div class="kpi-value" id="available">
-          {{ bal.available|floatformat:"-3" }}
-        </div>
-        {% if bal.is_low %}<span class="badge fx-badge fx-badge-warning"
-          >Low stock</span
-        >{% endif %}
-      </div>
-    </div>
-  </div>
-</div>
-{% if can_adjust %}
-<div class="row g-3 mb-3">
-  <div class="col-lg-6">
-    <div class="fx-card">
-      <div class="fx-card-header">Adjust stock (count correction)</div>
-      <div class="fx-card-body">
-        <form
-          method="post"
-          action="{% url 'inventory:stock_adjust' bal.pk %}"
-          class="row g-2 align-items-end"
-        >
-          {% csrf_token %}
-          <div class="col-sm-4">
-            <label class="form-label small" for="id_delta"
-              >Adjustment (+ / -)</label
-            >{{ adjust_form.delta }}
-          </div>
-          <div class="col-sm-5">
-            <label class="form-label small" for="id_reason">Reason</label>{{
-            adjust_form.reason }}
-          </div>
-          <div class="col-sm-3">
-            <button class="btn btn-outline-primary w-100">Adjust</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-6">
-    <div class="fx-card">
-      <div class="fx-card-header">Levels (this warehouse)</div>
-      <div class="fx-card-body">
-        <form
-          method="post"
-          action="{% url 'inventory:stock_levels' bal.pk %}"
-          class="row g-2 align-items-end"
-        >
-          {% csrf_token %}
-          <div class="col-sm-3">
-            <label class="form-label small" for="id_min_level">Min</label>{{
-            levels_form.min_level }}
-          </div>
-          <div class="col-sm-3">
-            <label class="form-label small" for="id_max_level">Max</label>{{
-            levels_form.max_level }}
-          </div>
-          <div class="col-sm-3">
-            <label class="form-label small" for="id_reorder_quantity"
-              >Reorder</label
-            >{{ levels_form.reorder_quantity }}
-          </div>
-          <div class="col-sm-3">
-            <button class="btn btn-outline-primary w-100">Save</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-{% endif %} {% if reservations %}
-<div class="fx-card mb-3">
-  <div class="fx-card-header">Active reservations</div>
-  <div class="table-responsive">
-    <table class="table fx-table">
-      <thead>
-        <tr>
-          <th>Work order</th>
-          <th>Held</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in reservations %}
-        <tr>
-          <td>
-            <a href="{% url 'inventory:wo_parts' r.work_order_id %}"
-              >{{ r.work_order.number }}</a
-            >
-          </td>
-          <td>{{ r.quantity|floatformat:"-3" }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
-<div class="fx-card">
-  <div class="fx-card-header">Movement history</div>
-  {% include "inventory/_movement_table.html" with rows=movements %}{% include
-  "components/_pagination.html" with page=movements %}
-</div>
+  <div class="col-sm-4"><div class="fx-card fx-kpi-card h-100"><div class="fx-card-body"><div class="fx-kpi-label">On hand</div><div class="kpi-value" id="on-hand">{{ bal.on_hand|floatformat:"-3" }}</div></div></div></div>
+  <div class="col-sm-4"><div class="fx-card fx-kpi-card h-100"><div class="fx-card-body"><div class="fx-kpi-label">Reserved</div><div class="kpi-value" id="reserved">{{ bal.reserved|floatformat:"-3" }}</div></div></div></div>
+  <div class="col-sm-4"><div class="fx-card fx-kpi-card h-100"><div class="fx-card-body"><div class="fx-kpi-label">Available</div><div class="kpi-value" id="available">{{ bal.available|floatformat:"-3" }}</div>{% if bal.is_low %}<span class="badge fx-badge fx-badge-warning">Low stock</span>{% endif %}</div></div></div></div>
+{% if can_adjust %}<div class="row g-3 mb-3">
+  <div class="col-lg-6"><div class="fx-card"><div class="fx-card-header">Adjust stock (count correction)</div><div class="fx-card-body">
+    <form method="post" action="{% url 'inventory:stock_adjust' bal.pk %}" class="row g-2 align-items-end">{% csrf_token %}
+      <div class="col-sm-4"><label class="form-label small" for="id_delta">Adjustment (+ / -)</label>{{ adjust_form.delta }}</div>
+      <div class="col-sm-5"><label class="form-label small" for="id_reason">Reason</label>{{ adjust_form.reason }}</div>
+      <div class="col-sm-3"><button class="btn btn-outline-primary w-100">Adjust</button></div></form></div></div></div>
+  <div class="col-lg-6"><div class="fx-card"><div class="fx-card-header">Levels (this warehouse)</div><div class="fx-card-body">
+    <form method="post" action="{% url 'inventory:stock_levels' bal.pk %}" class="row g-2 align-items-end">{% csrf_token %}
+      <div class="col-sm-3"><label class="form-label small" for="id_min_level">Min</label>{{ levels_form.min_level }}</div>
+      <div class="col-sm-3"><label class="form-label small" for="id_max_level">Max</label>{{ levels_form.max_level }}</div>
+      <div class="col-sm-3"><label class="form-label small" for="id_reorder_quantity">Reorder</label>{{ levels_form.reorder_quantity }}</div>
+      <div class="col-sm-3"><button class="btn btn-outline-primary w-100">Save</button></div></form></div></div></div></div>{% endif %}
+{% if reservations %}<div class="fx-card mb-3"><div class="fx-card-header">Active reservations</div><div class="table-responsive"><table class="table fx-table"><thead><tr><th>Work order</th><th>Held</th></tr></thead><tbody>
+  {% for r in reservations %}<tr><td><a href="{% url 'inventory:wo_parts' r.work_order_id %}">{{ r.work_order.number }}</a></td><td>{{ r.quantity|floatformat:"-3" }}</td></tr>{% endfor %}</tbody></table></div></div>{% endif %}
+<div class="fx-card"><div class="fx-card-header">Movement history</div>{% include "inventory/_movement_table.html" with rows=movements %}{% include "components/_pagination.html" with page=movements %}</div>
 {% endblock %}
