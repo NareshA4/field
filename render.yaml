@@ -1,5 +1,5 @@
 # Render Blueprint: FieldOps Nexus on Render FREE (one web service running web + Celery worker + embedded beat).
-# See docs/DEPLOYMENT.md "Render Free architecture". No secrets here: `sync: false` values are set in the Render dashboard / API only.
+No secrets here: `sync: false` values are set in the Render dashboard / API only.
 # Redis: existing Key Value `fieldops-nexus-redis` (internal URL). Database: Supabase `fieldops` schema via the session pooler.
 services:
   - type: web
@@ -8,7 +8,6 @@ services:
     region: singapore
     plan: free
     healthCheckPath: /health/live/
-    dockerCommand: python scripts/render_start.py
     envVars:
       - {key: DJANGO_SETTINGS_MODULE, value: config.settings.prod}
       - {key: DJANGO_DEBUG, value: "false"}

@@ -1,0 +1,17 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block title %}{{ wo.order_number }} · Work Orders{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/workorder.css' %}">{% endblock %}
+{% block content %}
+<div class="wo-page wo-detail-page">
+  <nav aria-label="Breadcrumb" class="mb-3"><a href="{% url 'workorders:list' %}">Work Orders</a> <span class="text-secondary">/ {{ wo.order_number }}</span></nav>
+  {% include "workorder/_workflow_panel.html" %}
+<nav class="wo-detail-nav" aria-label="Work order details">
+    {% for key,label in detail_tabs %}<a class="{% if active_tab == key %}is-active{% endif %}" {% if active_tab == key %}aria-current="page"{% endif %} href="{% url 'workorders:detail' wo.pk %}?tab={{ key }}">{{ label }}</a>{% endfor %}
+  </nav>
+  <div id="wo-tab-panel" class="wo-tab-panel" aria-label="{{ active_tab|title }} details"
+       hx-get="{% url 'workorders:tab' wo.pk active_tab %}" hx-trigger="workOrderChanged from:body" hx-swap="innerHTML">
+    {% include tab_template %}
+  </div>
+</div>
+{% endblock %}

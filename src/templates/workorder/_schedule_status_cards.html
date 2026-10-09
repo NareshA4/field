@@ -1,0 +1,3 @@
+<section id="wo-schedule-status-cards" class="wo-status-grid wo-schedule-status-grid" {% if schedule_htmx_update %}hx-swap-oob="outerHTML"{% endif %} aria-label="Schedule status counts">
+  {% for item in status_cards %}<a class="wo-status-card status-{{ item.code|lower }}" href="?day={{ selected_day }}&amp;status={{ item.code }}{% for key,value in status_filter_values.items %}&amp;{{ key }}={{ value|urlencode }}{% endfor %}"><span class="wo-status-count">{{ item.count }}</span><span class="wo-status-label">{{ item.label }}</span><span class="wo-status-rule" aria-hidden="true"></span></a>{% endfor %}
+</section>

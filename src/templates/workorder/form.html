@@ -1,0 +1,39 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block title %}{{ title }} · Work Orders{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/workorder.css' %}">{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb" class="mb-3"><a href="{% url 'workorders:list' %}">Work Orders</a> <span class="text-secondary">/ {{ title }}</span></nav>
+<div class="wo-form-card">
+  <p class="wo-eyebrow">MODULE 6 · WORK ORDER</p><h1>{{ title }}</h1>
+  <form method="post" autocomplete="off" {% if title != "Create work order" %}data-workorder-date-validation{% endif %}>{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="wo-form-grid">
+      {% for field in form %}<div class="mb-3 {% if field.name == 'description' %}wo-field-wide{% endif %}" {% if field.name == 'source_request' %}id="source-record-row"{% endif %} {% if field.name == 'source_reference' and title == 'Create work order' %}id="source-reference-row" hidden{% endif %} {% if field.name == 'source_type' %}id="source-type-row"{% endif %}>
+        <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}{% if field.name == 'source_request' %}<span id="source-record-required" class="text-danger" hidden> *</span><span id="source-record-optional" class="text-secondary fw-normal"> (Optional)</span>{% elif field.field.required %}<span class="text-danger"> *</span>{% else %}<span class="text-secondary fw-normal"> (Optional)</span>{% endif %}</label>
+        {{ field }}
+        {% if field.name == 'asset' and title == 'Create work order' %}<div id="asset-site-empty" class="wo-inline-state is-warning mt-1" role="status" hidden><span id="asset-site-empty-message"></span> {% if can_create_asset %}<a id="asset-site-create-link" href="{% url 'assets:create' %}">Create asset</a>{% endif %}</div>{% endif %}
+        {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+      </div>{% endfor %}
+    </div>
+    {% if wo %}
+      <div class="wo-form-grid border-top pt-3 mt-2">
+        <div><span class="form-label small fw-semibold">Source type</span><div>{{ source_type_display }}</div></div>
+        {% if source_reference_display %}<div><span class="form-label small fw-semibold">Source record</span><div>{% if source_record %}<a href="{% url 'incidents:detail' source_record.pk %}">{{ source_reference_display }} · {{ source_record.title }}</a>{% else %}{{ source_reference_display }}{% endif %}</div></div>{% endif %}
+        {% if checklist_summary.required %}<div><span class="form-label small fw-semibold">Checklist template</span><div>{{ checklist_summary.template_ref }} · {{ checklist_summary.status|title }}</div></div>{% endif %}
+      </div>
+    {% endif %}
+    {% if title == "Create work order" %}
+      {% if not has_sites %}<div class="wo-inline-state is-warning mb-2">No permitted sites{% if can_create_site %} · <a href="{% url 'sites:create' %}">Create site</a>{% endif %}</div>{% endif %}
+      {% if has_sites and not has_assets %}<div class="wo-inline-state is-warning mb-2">No active assets{% if can_create_asset %} · <a href="{% url 'assets:create' %}">Create asset</a>{% endif %}</div>{% endif %}
+      <div id="source-record-empty" class="wo-inline-state is-info mb-2" role="status" hidden><span id="source-record-empty-message">No approved source records</span> {% if can_create_incident %}· <a href="{% url 'incidents:list' %}">View incidents and requests</a>{% endif %}</div>
+      {% if source_metadata %}{{ source_metadata|json_script:"workorder-source-metadata" }}{% endif %}
+    {% endif %}
+    <div class="d-flex flex-wrap gap-2 mt-2">
+      <button class="btn btn-primary" type="submit">{{ submit }}</button>
+      <a class="btn btn-outline-secondary" href="{% if wo %}{% url 'workorders:detail' wo.pk %}{% else %}{% url 'workorders:list' %}{% endif %}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}{{ block.super }}{% if title == "Create work order" %}<script src="{% static 'js/workorder-create.js' %}" defer></script>{% else %}<script src="{% static 'js/workorder-date-validation.js' %}" defer></script>{% endif %}{% endblock %}

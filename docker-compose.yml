@@ -1,4 +1,4 @@
-# Local / staging stack. Secrets come from .env (never committed): run `python scripts/bootstrap_env.py` first.
+# Local / staging stack. Secrets come from .env (never committed): copy .env.example to .env and set real values first.
 x-app: &app
   build: .
   env_file: .env
@@ -7,12 +7,12 @@ x-app: &app
     DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     REDIS_URL: redis://redis:6379/0
     CELERY_BROKER_URL: redis://redis:6379/1
-    # The local stack is plain HTTP behind Nginx on :8080. Production keeps these secure defaults (see prod.py).
+    # The local stack is plain HTTP on :8080. Production keeps these secure defaults (see prod.py).
     DJANGO_SECURE_SSL_REDIRECT: "false"
     DJANGO_SECURE_COOKIES: "false"
-    TRUSTED_PROXY_COUNT: "1"             # Nginx is the only proxy in front of Gunicorn
-    SITE_BASE_URL: http://localhost:${NGINX_PORT:-8080}
-    DJANGO_CSRF_TRUSTED_ORIGINS: http://localhost:${NGINX_PORT:-8080},http://127.0.0.1:${NGINX_PORT:-8080}
+    TRUSTED_PROXY_COUNT: "0"             # no proxy in front of Gunicorn locally
+    SITE_BASE_URL: http://localhost:${WEB_PORT:-8080}
+    DJANGO_CSRF_TRUSTED_ORIGINS: http://localhost:${WEB_PORT:-8080},http://127.0.0.1:${WEB_PORT:-8080}
     DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,web
   depends_on:
     db: {condition: service_healthy}
@@ -29,8 +29,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      # pg_isready reports server availability even when the configured role/database is missing.
+      # Authenticate a real query so app services wait for usable credentials and database state.
+      test: ["CMD-SHELL", "PGPASSWORD=\"$$POSTGRES_PASSWORD\" psql -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\" -c 'SELECT 1' >/dev/null"]
       interval: 5s
+      timeout: 5s
       retries: 10
   redis:
     image: redis:7-alpine
@@ -41,6 +44,7 @@ services:
     restart: "no"
   web:
     <<: *app
+    ports: ["${WEB_PORT:-8080}:8000"]
     depends_on:
       migrate: {condition: service_completed_successfully}
       db: {condition: service_healthy}
@@ -62,10 +66,6 @@ services:
       migrate: {condition: service_completed_successfully}
       redis: {condition: service_healthy}
       db: {condition: service_healthy}
-  nginx:
-    build: ./deploy/nginx
-    ports: ["${NGINX_PORT:-8080}:80"]
-    depends_on: [web]
 
 volumes:
   pgdata:

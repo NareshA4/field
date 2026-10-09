@@ -1,0 +1,11 @@
+{% load ui_tags %}
+<div class="fx-card mb-3" id="wo-coverage">
+  <div class="fx-card-header"><span>Coverage &amp; eligibility <span class="small text-body-secondary">(judged on {{ on|date:"d M Y" }})</span></span>
+    {% if res.eligible %}{% status_badge "COVERING" %}{% elif res.covered %}{% status_badge "EXCLUDED" %}{% else %}<span class="badge fx-badge fx-badge-secondary">Not covered</span>{% endif %}</div>
+  <div class="fx-card-body"><p class="mb-2"><strong>{% if res.eligible %}Eligible.{% else %}Not eligible.{% endif %}</strong> {{ res.reason }}
+    {% if res.best %}<a class="ms-1" href="{% url 'contracts:agreement' res.best.agreement.pk %}">{{ res.best.agreement.reference }}</a>{% endif %}</p>
+  {% if can_check %}<button class="btn btn-sm btn-outline-primary" hx-post="{% url 'contracts:wo_panel' wo.pk %}" hx-target="#wo-coverage-host" hx-swap="innerHTML">Record this check</button>{% endif %}
+  {% if checks %}<div class="table-responsive mt-3"><table class="table fx-table mb-0" id="coverage-checks"><thead><tr><th>Checked</th><th>Result</th><th>Agreement</th><th>By</th></tr></thead><tbody>
+  {% for c in checks %}<tr><td class="small">{{ c.created_at|date:"d M Y H:i" }}</td><td>{% if c.eligible %}Eligible{% else %}Not eligible{% endif %}<div class="small text-body-secondary">{{ c.reason }}</div></td>
+    <td>{{ c.agreement.reference|default:"—" }}</td><td class="small">{{ c.checked_by.email|default:"system" }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}</div>
+</div>

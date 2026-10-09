@@ -1,0 +1,28 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block title %}{{ operation }} · {{ wo.order_number }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/workorder.css' %}">{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb" class="mb-3"><a href="{% url 'workorders:list' %}">Work Orders</a> <span class="text-secondary">/</span> <a href="{% url 'workorders:detail' wo.pk %}">{{ wo.order_number }}</a> <span class="text-secondary">/ {{ operation }}</span></nav>
+<div class="wo-form-card">
+  <p class="wo-eyebrow">{{ wo.order_number }} · {{ wo.get_status_display }}</p>
+  <h1>{% if operation == 'Labor' %}Record labor{% elif operation == 'Materials' %}Record part or material{% else %}{{ operation }}{% endif %}</h1>
+  {% if operation == 'Complete' %}
+    <div class="wo-action-flags" role="status"><span class="wo-inline-state is-info">Checklist {{ checklist_summary.status|title }}</span>
+    {% if wo.work_type == 'CORRECTIVE' or wo.work_type == 'INSTALLATION' %}{% if not evidence_count %}<a class="wo-inline-state is-warning" href="{% url 'workorders:action' wo.pk 'evidence' %}?return_to=complete">Evidence required · Attach</a>{% endif %}{% endif %}</div>
+  {% elif operation == 'Assign' %}{% if not form.fields.assigned_to.queryset.exists %}<div class="wo-action-flags" role="status"><span class="wo-inline-state is-warning">No eligible technicians</span></div>{% endif %}{% endif %}
+  <form method="post" enctype="multipart/form-data" data-workorder-date-validation>{% csrf_token %}
+    {% if return_to_complete %}<input type="hidden" name="return_to" value="complete">{% endif %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}{% if field.is_hidden %}{{ field }}{% else %}
+      <div class="mb-3">
+        <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span class="text-danger"> *</span>{% else %}<span class="text-secondary fw-normal"> (Optional)</span>{% endif %}</label>{{ field }}
+        {% if field.name == 'planned_end' %}<div id="planned-end-rule-error" class="text-danger small" role="alert" hidden></div>{% endif %}{% if field.name == 'due_at' %}<div id="due-at-rule-error" class="text-danger small" role="alert" hidden></div>{% endif %}{% if field.name == 'estimated_hours' %}<div id="estimated-hours-rule-error" class="text-danger small" role="alert" hidden></div>{% endif %}{% for error in field.errors %}<div class="text-danger small" role="alert">{{ error }}</div>{% endfor %}
+      </div>
+    {% endif %}{% endfor %}
+    {% if 'expected_version' not in form.fields %}<input type="hidden" name="expected_version" value="{{ expected_version }}">{% endif %}
+    <div class="d-flex flex-wrap gap-2 mt-4"><button class="btn btn-primary" type="submit" {% if operation == 'Assign' and not form.fields.assigned_to.queryset.exists %}disabled{% endif %} {% if is_close_action %}data-confirm="Approve and close this work order? This cannot be undone."{% endif %}>{% if operation == 'Complete' %}Complete work{% elif operation == 'Labor' %}Save labor entry{% elif operation == 'Materials' %}Record material{% else %}Confirm {{ operation|lower }}{% endif %}</button><a class="btn btn-outline-secondary" href="{% url 'workorders:detail' wo.pk %}">Back to work order</a></div>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}{{ block.super }}<script src="{% static 'js/workorder-date-validation.js' %}" defer></script>{% endblock %}

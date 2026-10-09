@@ -1,0 +1,3 @@
+<section class="wo-detail-card"><div class="d-flex justify-content-between align-items-center"><h2>Work notes</h2>{% if can_record_work %}<a class="wo-view-button" href="{% url 'workorders:action' wo.pk 'work_update' %}">Add note</a>{% endif %}</div>
+  <ol class="wo-event-list">{% for event in work_updates %}<li><strong>{{ event.actor.full_name|default:"System" }}</strong> · {{ event.created_at|date:"M j, Y · H:i" }}<p>{{ event.reason }}</p></li>{% empty %}<li>No work notes recorded.</li>{% endfor %}</ol>
+</section>

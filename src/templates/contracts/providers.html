@@ -1,0 +1,17 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Providers · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>Service providers</h1><div class="text-body-secondary">Manufacturers, dealers and contractors that issue warranties and contracts.</div></div>
+  <div class="d-flex gap-2">{% if can_create %}<a class="btn btn-primary" href="{% url 'contracts:provider_new' %}">{% icon 'plus' 16 %} New provider</a>{% endif %}</div></div>
+<div class="fx-card">
+  <form method="get" class="d-flex gap-2 p-3 border-bottom"><input class="form-control form-control-sm" style="max-width:260px" type="search" name="q" value="{{ filters.q }}" placeholder="Provider name" aria-label="Search providers"><button class="btn btn-sm btn-outline-secondary">Search</button></form>
+  <div class="table-responsive"><table class="table fx-table" id="providers-table"><thead><tr><th>Name</th><th>Contact</th><th>Email</th><th>Phone</th><th>Status</th><th></th></tr></thead><tbody>
+  {% for p in page %}<tr><td>{{ p.name }}</td><td>{{ p.contact_name|default:"—" }}</td><td>{{ p.email|default:"—" }}</td><td>{{ p.phone|default:"—" }}</td>
+    <td>{% if p.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}</td>
+    <td>{% if can_update %}<div class="d-flex gap-1"><a class="btn btn-sm btn-outline-primary" href="{% url 'contracts:provider_edit' p.pk %}">Edit</a>
+      <form method="post" action="{% url 'contracts:provider_active' p.pk %}" class="m-0">{% csrf_token %}<input type="hidden" name="active" value="{% if p.is_active %}0{% else %}1{% endif %}"><button class="btn btn-sm btn-outline-secondary">{% if p.is_active %}Deactivate{% else %}Activate{% endif %}</button></form></div>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="6">{% include "components/_empty_state.html" with title="No providers" text="Create a provider before adding an agreement." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "components/_pagination.html" %}
+</div>
+{% endblock %}

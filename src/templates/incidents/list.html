@@ -1,0 +1,31 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Incidents &amp; Requests · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>Incidents &amp; Requests</h1><div class="text-body-secondary">Failures and service requests: report, triage, approve, and track downtime and service impact.</div></div>
+  <div class="d-flex gap-2">{% if can_create %}<a class="btn btn-primary" href="{% url 'incidents:create' %}">{% icon 'plus' 16 %} Report incident</a>{% endif %}</div></div>
+<div class="fx-card">
+  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
+    <input class="form-control form-control-sm" style="max-width:240px" type="search" name="q" value="{{ filters.q }}" placeholder="Number, title, asset" aria-label="Search requests">
+    <select class="form-select form-select-sm" style="max-width:160px" name="site" aria-label="Site"><option value="">All sites</option>
+      {% for s in sites %}<option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>{% endfor %}</select>
+    <select class="form-select form-select-sm" style="max-width:200px" name="status" aria-label="Status"><option value="">All statuses</option>
+      {% for v, l in statuses %}<option value="{{ v }}" {% if filters.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+    <select class="form-select form-select-sm" style="max-width:150px" name="severity" aria-label="Severity"><option value="">All severities</option>
+      {% for v, l in severities %}<option value="{{ v }}" {% if filters.severity == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+    <select class="form-select form-select-sm" style="max-width:190px" name="kind" aria-label="Type"><option value="">All types</option>
+      {% for v, l in kinds %}<option value="{{ v }}" {% if filters.kind == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+    <button class="btn btn-sm btn-outline-secondary">Filter</button>
+  </form>
+  <div class="table-responsive"><table class="table fx-table">
+    <thead><tr><th>Number</th><th>Title</th><th>Asset</th><th>Severity</th><th>Status</th><th>Reported</th></tr></thead>
+    <tbody>{% for r in page %}
+      <tr><td><a class="fx-id" href="{% url 'incidents:detail' r.pk %}">{{ r.number }}</a></td><td><div class="fw-medium">{{ r.title }}</div><div class="fx-sub">{{ r.get_kind_display }}</div></td>
+        <td><a class="fw-medium" href="{% url 'assets:detail' r.asset_id %}">{{ r.asset.asset_tag }}</a><div class="fx-sub">{{ r.site.code }}</div></td>
+        <td>{% status_badge r.severity %}</td><td>{% status_badge r.status %}</td>
+        <td class="small">{{ r.created_at|date:"d M Y H:i" }}<br>{{ r.reported_by.user.display_name }}</td></tr>
+    {% empty %}<tr><td colspan="6">{% include "components/_empty_state.html" with title="No requests match" text="Adjust the filters or report an incident." %}</td></tr>{% endfor %}
+    </tbody></table></div>
+  {% include "components/_pagination.html" %}
+</div>
+{% endblock %}

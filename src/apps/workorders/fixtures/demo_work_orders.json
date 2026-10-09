@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "description": "Representative Module 6 demo work orders. Runtime dates, demo organization, site, and users are supplied by the seed_workorders management command.",
+  "records": [
+    {
+      "status": "DRAFT",
+      "title": "Inspect chiller cooling circuit",
+      "source_type": "MANUAL",
+      "source_reference": "",
+      "asset_reference": "CHLR-01",
+      "work_type": "CORRECTIVE",
+      "priority": "HIGH",
+      "description": "Investigate reduced cooling output and record initial inspection findings.",
+      "provisional_notes": ["Review site safety requirements", "Inspect cooling circuit"],
+      "material": {"item_name": "Air filter", "part_reference": "FLT-CH-01", "quantity": "1", "unit": "each"}
+    },
+    {
+      "status": "PLANNED",
+      "title": "Preventive pump lubrication",
+      "source_type": "REQUEST",
+      "source_reference": "SR-DEMO-{serial:04d}",
+      "asset_reference": "PUMP-02",
+      "work_type": "PREVENTIVE",
+      "priority": "MEDIUM",
+      "description": "Perform scheduled lubrication and inspect pump operating condition.",
+      "provisional_notes": ["Confirm isolation procedure", "Lubricate bearings"],
+      "material": {"item_name": "Pump lubricant", "part_reference": "LUB-P-02", "quantity": "0.5", "unit": "litre"}
+    },
+    {
+      "status": "ASSIGNED",
+      "title": "Emergency generator inspection",
+      "source_type": "INCIDENT",
+      "source_reference": "INC-DEMO-{serial:04d}",
+      "asset_reference": "GEN-03",
+      "work_type": "EMERGENCY",
+      "priority": "CRITICAL",
+      "description": "Inspect generator following an unexpected shutdown alert.",
+      "provisional_notes": ["Check alarm history", "Inspect fuel and battery systems"],
+      "material": {"item_name": "Battery connector", "part_reference": "BAT-G-03", "quantity": "1", "unit": "each"}
+    },
+    {
+      "status": "DISPATCHED",
+      "title": "Air handling unit condition check",
+      "source_type": "MANUAL",
+      "source_reference": "PM-DEMO-{serial:04d}",
+      "asset_reference": "AHU-04",
+      "work_type": "INSPECTION",
+      "priority": "LOW",
+      "description": "Inspect filters, fan belts, and operating readings during the PM visit.",
+      "provisional_notes": ["Inspect filters", "Record operating readings"],
+      "material": {"item_name": "Fan belt", "part_reference": "BELT-A-04", "quantity": "1", "unit": "each"}
+    },
+    {
+      "status": "IN_PROGRESS",
+      "title": "Compressor performance review",
+      "source_type": "REQUEST",
+      "source_reference": "SR-DEMO-{serial:04d}",
+      "asset_reference": "COMP-05",
+      "work_type": "CORRECTIVE",
+      "priority": "HIGH",
+      "description": "Review compressor performance and investigate reported vibration.",
+      "provisional_notes": ["Measure vibration", "Check mounting fasteners"],
+      "material": {"item_name": "Mounting isolator", "part_reference": "ISO-C-05", "quantity": "2", "unit": "each"}
+    },
+    {
+      "status": "ON_HOLD",
+      "title": "Boiler safety control installation",
+      "source_type": "MANUAL",
+      "source_reference": "",
+      "asset_reference": "BOILER-06",
+      "work_type": "INSTALLATION",
+      "priority": "MEDIUM",
+      "description": "Install replacement safety control after site access is confirmed.",
+      "provisional_notes": ["Verify equipment isolation", "Install and verify safety control"],
+      "material": {"item_name": "Safety control", "part_reference": "CTRL-B-06", "quantity": "1", "unit": "each"}
+    },
+    {
+      "status": "COMPLETED",
+      "title": "Cooling tower inspection completed",
+      "source_type": "MANUAL",
+      "source_reference": "PM-DEMO-{serial:04d}",
+      "asset_reference": "CTWR-07",
+      "work_type": "INSPECTION",
+      "priority": "LOW",
+      "description": "Complete a documented cooling tower inspection and capture readings.",
+      "provisional_notes": ["Inspect basin and fill", "Record vibration and temperature"],
+      "material": {"item_name": "Water treatment strip", "part_reference": "TEST-CT-07", "quantity": "1", "unit": "pack"}
+    },
+    {
+      "status": "SUPERVISOR_REVIEW",
+      "title": "Fire pump test awaiting review",
+      "source_type": "INCIDENT",
+      "source_reference": "INC-DEMO-{serial:04d}",
+      "asset_reference": "FPMP-08",
+      "work_type": "INSPECTION",
+      "priority": "CRITICAL",
+      "description": "Complete a fire pump operational test and submit readings for supervisor review.",
+      "provisional_notes": ["Verify test setup", "Record discharge pressure"],
+      "material": {"item_name": "Test seal", "part_reference": "SEAL-F-08", "quantity": "1", "unit": "each"}
+    },
+    {
+      "status": "CLOSED",
+      "title": "Electrical panel service approved",
+      "source_type": "REQUEST",
+      "source_reference": "SR-DEMO-{serial:04d}",
+      "asset_reference": "PANEL-09",
+      "work_type": "INSPECTION",
+      "priority": "HIGH",
+      "description": "Inspect electrical panel condition and document verified corrective checks.",
+      "provisional_notes": ["Inspect panel enclosure", "Verify and record test readings"],
+      "material": {"item_name": "Panel label set", "part_reference": "LBL-EP-09", "quantity": "1", "unit": "set"}
+    }
+  ]
+}
