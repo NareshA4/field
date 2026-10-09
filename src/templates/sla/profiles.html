@@ -1,61 +1,14 @@
-{% extends "shell.html" %} {% load ui_tags %} {% block title %}SLA profiles ·
-FieldOps Nexus{% endblock %} {% block content %}
-<div class="fx-page-header">
-  <div>
-    <h1>SLA profiles</h1>
-    <div class="text-body-secondary">
-      Targets per priority and the escalation rules that notify people.
-    </div>
-  </div>
-  <div>
-    <a class="btn btn-primary" href="{% url 'sla:profile_new' %}"
-      >{% icon 'plus' 16 %} New profile</a
-    >
-  </div>
-</div>
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}SLA profiles Â· FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>SLA profiles</h1><div class="text-body-secondary">Targets per priority and the escalation rules that notify people.</div></div>
+  <div><a class="btn btn-primary" href="{% url 'sla:profile_new' %}">{% icon 'plus' 16 %} New profile</a></div></div>
 {% include "components/_section_tabs.html" with section="Service levels" %}
-<div class="fx-card">
-  <div class="table-responsive">
-    <table class="table fx-table" id="profiles-table">
-      <thead>
-        <tr>
-          <th>Profile</th>
-          <th>Applies to</th>
-          <th>Scope</th>
-          <th>Targets</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in page %}
-        <tr>
-          <td><a href="{% url 'sla:profile' p.pk %}">{{ p.name }}</a></td>
-          <td>{{ p.get_applies_to_display|cut:" (M05)"|cut:" (M06)" }}</td>
-          <td>
-            {% if p.site %}{{ p.site.code }}{% else %}Organization{% endif %}{%
-            if p.work_type %} · {{ p.work_type|title }}{% endif %}{% if
-            p.coverage_only %} ·
-            <span class="badge fx-badge fx-badge-info">Coverage only</span>{%
-            endif %}
-          </td>
-          <td>{{ p.targets.all|length }}</td>
-          <td>
-            {% if p.is_active %}{% status_badge "ACTIVE" %}{% else %}{%
-            status_badge "INACTIVE" %}{% endif %}
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="5">
-            {% include "components/_empty_state.html" with title="No SLA
-            profiles" text="Create a profile to start tracking requests or work
-            orders." %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% include "components/_pagination.html" %}
-</div>
+<div class="fx-card"><div class="table-responsive"><table class="table fx-table" id="profiles-table"><thead><tr><th>Profile</th><th>Applies to</th><th>Scope</th><th>Targets</th><th>Status</th></tr></thead><tbody>
+  {% for p in page %}<tr><td><a href="{% url 'sla:profile' p.pk %}">{{ p.name }}</a></td><td>{{ p.get_applies_to_display|cut:" (M05)"|cut:" (M06)" }}</td>
+    <td>{% if p.site %}{{ p.site.code }}{% else %}Organization{% endif %}{% if p.work_type %} Â· {{ p.work_type|title }}{% endif %}{% if p.coverage_only %} Â· <span class="badge fx-badge fx-badge-info">Coverage only</span>{% endif %}</td><td>{{ p.targets.all|length }}</td>
+    <td>{% if p.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="5">{% include "components/_empty_state.html" with title="No SLA profiles" text="Create a profile to start tracking requests or work orders." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "components/_pagination.html" %}</div>
 {% endblock %}

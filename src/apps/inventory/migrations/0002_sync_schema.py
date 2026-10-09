@@ -5,7 +5,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('inventory', '0002_alter_stockmovement_quantity'),
+        ('inventory', '0001_initial'),
     ]
 
     operations = [

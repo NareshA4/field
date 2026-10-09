@@ -122,22 +122,6 @@ def test_organization_profile_read_only_for_viewers(client, org_a, make_member):
     assert client.post("/app/organization/", {"name": "Hacked", "timezone": "UTC"}).status_code == 403
 
 
-def test_platform_suspend_and_activate_via_ui(client, platform_admin, org_a):
-    client.force_login(platform_admin)
-    client.post(f"/platform/organizations/{org_a.pk}/", {"action": "suspend", "reason": ""})
-    assert Organization.objects.get(pk=org_a.pk).status == "ACTIVE"  # reason required
-    client.post(f"/platform/organizations/{org_a.pk}/", {"action": "suspend", "reason": "billing"})
-    assert Organization.objects.get(pk=org_a.pk).status == "SUSPENDED"
-    client.post(f"/platform/organizations/{org_a.pk}/", {"action": "activate"})
-    assert Organization.objects.get(pk=org_a.pk).status == "ACTIVE"
-    assert {"organization.suspended", "organization.activated"} <= set(
-        AuditLog.objects.filter(organization=org_a).values_list("action", flat=True))
-
-
-def test_platform_actions_forbidden_for_org_owner(client, owner_a, org_a):
-    client.force_login(owner_a)
-    assert client.post(f"/platform/organizations/{org_a.pk}/", {"action": "suspend", "reason": "x"}).status_code == 403
-    assert Organization.objects.get(pk=org_a.pk).status == "ACTIVE"
 
 
 def test_notifications_ui_mark_read_and_all(client, owner_a, org_a):

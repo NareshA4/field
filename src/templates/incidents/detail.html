@@ -1,293 +1,54 @@
-{% extends "shell.html" %} {% load ui_tags %} {% block title %}{{ sr.number }} ·
-FieldOps Nexus{% endblock %} {% block content %}
-<div class="fx-page-header">
-  <div>
-    <nav aria-label="breadcrumb">
-      <ol class="breadcrumb mb-1 small">
-        <li class="breadcrumb-item">
-          <a href="{% url 'incidents:list' %}">Incidents &amp; requests</a>
-        </li>
-        <li class="breadcrumb-item active">{{ sr.number }}</li>
-      </ol>
-    </nav>
-    <h1>{{ sr.title }} {% status_badge sr.status %}</h1>
-    <div class="text-body-secondary">
-      {{ sr.number }} · {{ sr.get_kind_display }} · {% status_badge sr.severity
-      %} ·
-      <a href="{% url 'assets:detail' sr.asset_id %}"
-        >{{ sr.asset.asset_tag }}</a
-      >
-      · <a href="{% url 'sites:detail' sr.site_id %}">{{ sr.site.code }}</a>
-    </div>
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}{{ sr.number }} Â· FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div>
+  <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'incidents:list' %}">Incidents &amp; requests</a></li>
+    <li class="breadcrumb-item active">{{ sr.number }}</li></ol></nav>
+  <h1>{{ sr.title }} {% status_badge sr.status %}</h1>
+  <div class="text-body-secondary">{{ sr.number }} Â· {{ sr.get_kind_display }} Â· {% status_badge sr.severity %} Â· <a href="{% url 'assets:detail' sr.asset_id %}">{{ sr.asset.asset_tag }}</a> Â· {% if can.view_site %}<a href="{% url 'sites:detail' sr.site_id %}">{{ sr.site.code }}</a>{% else %}{{ sr.site.code }}{% endif %}</div></div>
+  <div class="d-flex gap-2">{% if can.update and editable %}<a class="btn btn-outline-primary" href="{% url 'incidents:edit' sr.pk %}">Edit</a>{% endif %}</div></div>
+<div class="fx-tabs" role="tablist">{% for key, label in tabs %}<a role="tab" class="{% if tab == key %}active{% endif %}" href="?tab={{ key }}">{{ label }}</a>{% endfor %}</div>
+{% if transitions %}<div class="mb-3">{% include "components/_workflow_bar.html" %}</div>{% endif %}
+
+{% if tab == "overview" %}
+<div class="row g-3"><div class="col-lg-7">
+  <div class="fx-card mb-3"><div class="fx-card-header">What happened</div><div class="fx-card-body"><dl class="fx-kv">
+    <dt>Description</dt><dd>{{ sr.description|default:"â€”"|linebreaksbr }}</dd><dt>Occurred</dt><dd>{{ sr.occurred_at|date:"d M Y H:i" }}</dd>
+    <dt>Service impact</dt><dd>{{ sr.get_service_impact_display }}{% if sr.impact_notes %} Â· {{ sr.impact_notes }}{% endif %}</dd>
+    <dt>Reported by</dt><dd>{{ sr.reported_by.user.display_name }} on {{ sr.created_at|date:"d M Y H:i" }}</dd>
+    {% if sr.decision_reason %}<dt>Decision / reason</dt><dd>{{ sr.decision_reason }}</dd>{% endif %}</dl></div></div>
   </div>
-  <div class="d-flex gap-2">
-    {% if can.update and editable %}<a
-      class="btn btn-outline-primary"
-      href="{% url 'incidents:edit' sr.pk %}"
-      >Edit</a
-    >{% endif %}
-  </div>
-</div>
-<div class="fx-tabs" role="tablist">
-  {% for key, label in tabs %}<a
-    role="tab"
-    class="{% if tab == key %}active{% endif %}"
-    href="?tab={{ key }}"
-    >{{ label }}</a
-  >{% endfor %}
-</div>
-{% if transitions %}
-<div class="mb-3">{% include "components/_workflow_bar.html" %}</div>
-{% endif %} {% if sr.status == "APPROVED" and can.create_wo %}
-<div class="fx-card mb-3">
-  <div class="fx-card-header">Approved: create the work order</div>
-  <div class="fx-card-body">
-    <form
-      method="post"
-      action="{% url 'incidents:create_work_order' sr.pk %}"
-      class="row g-2 align-items-end"
-    >
-      {% csrf_token %}
-      <div class="col-md-5">
-        <label class="form-label small" for="id_title"
-          >{{ wo_form.title.label }}</label
-        >{{ wo_form.title }}
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small" for="id_priority">Priority</label>{{
-        wo_form.priority }}
-      </div>
-      <div class="col-md-4">
-        <button class="btn btn-primary w-100">Create work order</button>
-      </div>
-    </form>
-    <div class="form-text">
-      Creates a real draft work order for the same asset. Planning, assignment
-      and execution continue in Work Orders.
-    </div>
-  </div>
-</div>
-{% endif %} {% if tab == "overview" %} {% include "sla/_panel.html" %}
-<div class="row g-3">
-  <div class="col-lg-7">
-    <div class="fx-card mb-3">
-      <div class="fx-card-header">What happened</div>
-      <div class="fx-card-body">
-        <dl class="fx-kv">
-          <dt>Description</dt>
-          <dd>{{ sr.description|default:"—"|linebreaksbr }}</dd>
-          <dt>Occurred</dt>
-          <dd>{{ sr.occurred_at|date:"d M Y H:i" }}</dd>
-          <dt>Service impact</dt>
-          <dd>
-            {{ sr.get_service_impact_display }}{% if sr.impact_notes %} · {{
-            sr.impact_notes }}{% endif %}
-          </dd>
-          <dt>Reported by</dt>
-          <dd>
-            {{ sr.reported_by.user.display_name }} on {{ sr.created_at|date:"d M
-            Y H:i" }}
-          </dd>
-          {% if sr.decision_reason %}
-          <dt>Decision / reason</dt>
-          <dd>{{ sr.decision_reason }}</dd>
-          {% endif %}
-        </dl>
-      </div>
-    </div>
-    <div class="fx-card">
-      <div class="fx-card-header">Work orders</div>
-      <div class="table-responsive">
-        <table class="table fx-table">
-          <thead>
-            <tr>
-              <th>Number</th>
-              <th>Status</th>
-              <th>Technician</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for wo in work_orders %}
-            <tr>
-              <td>
-                {% if can.view_wo %}<a
-                  href="{% url 'workorders:detail' wo.pk %}"
-                  >{{ wo.number }}</a
-                >{% else %}{{ wo.number }}{% endif %}
-              </td>
-              <td>{% status_badge wo.status %}</td>
-              <td>{{ wo.assigned_to.user.display_name|default:"—" }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="3">
-                {% include "components/_empty_state.html" with title="No work
-                order yet" text="An approved request can create one." %}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-5">
-    <div class="fx-card mb-3">
-      <div class="fx-card-header">Downtime</div>
-      <div class="fx-card-body">
-        {% if downtime %}
-        <dl class="fx-kv">
-          <dt>Started</dt>
-          <dd>{{ downtime.started_at|date:"d M Y H:i" }}</dd>
-          <dt>Ended</dt>
-          <dd>
-            {% if downtime.ended_at %}{{ downtime.ended_at|date:"d M Y H:i" }}
-            ({{ downtime.duration }}){% else %}<span class="text-danger"
-              >still down</span
-            >{% endif %}
-          </dd>
-        </dl>
-        {% else %}
-        <div class="text-body-secondary mb-2">No downtime recorded.</div>
-        {% endif %} {% if can.downtime and sr.status != "CLOSED" and sr.status
-        != "REJECTED" %}
-        <form
-          method="post"
-          action="{% url 'incidents:downtime' sr.pk %}"
-          class="row g-2"
-        >
-          {% csrf_token %}
-          <div class="col-12">
-            <label class="form-label small" for="id_started_at">Started</label
-            >{{ downtime_form.started_at }}
-          </div>
-          <div class="col-12">
-            <label class="form-label small" for="id_ended_at"
-              >Ended (blank = still down)</label
-            >{{ downtime_form.ended_at }}
-          </div>
-          <div class="col-12">
-            <button class="btn btn-outline-primary btn-sm">
-              Save downtime
-            </button>
-          </div>
-        </form>
-        {% endif %}
-      </div>
-    </div>
-    <div class="fx-card">
-      <div class="fx-card-header">Timeline</div>
-      <div class="fx-card-body">
-        <dl class="fx-kv">
-          <dt>Triaged</dt>
-          <dd>{{ sr.triaged_at|date:"d M Y H:i"|default:"—" }}</dd>
-          <dt>Decided</dt>
-          <dd>{{ sr.decided_at|date:"d M Y H:i"|default:"—" }}</dd>
-          <dt>Resolved</dt>
-          <dd>{{ sr.resolved_at|date:"d M Y H:i"|default:"—" }}</dd>
-          <dt>Confirmed</dt>
-          <dd>{{ sr.confirmed_at|date:"d M Y H:i"|default:"—" }}</dd>
-          <dt>Closed</dt>
-          <dd>{{ sr.closed_at|date:"d M Y H:i"|default:"—" }}</dd>
-        </dl>
-      </div>
-    </div>
-  </div>
-</div>
+<div class="col-lg-5">
+  <div class="fx-card mb-3"><div class="fx-card-header">Downtime</div><div class="fx-card-body">
+    {% if downtime %}<dl class="fx-kv"><dt>Started</dt><dd>{{ downtime.started_at|date:"d M Y H:i" }}</dd>
+      <dt>Ended</dt><dd>{% if downtime.ended_at %}{{ downtime.ended_at|date:"d M Y H:i" }} ({{ downtime.duration }}){% else %}<span class="text-danger">still down</span>{% endif %}</dd></dl>
+    {% else %}<div class="text-body-secondary mb-2">No downtime recorded.</div>{% endif %}
+    {% if can.downtime and sr.status != "CLOSED" and sr.status != "REJECTED" %}<form method="post" action="{% url 'incidents:downtime' sr.pk %}" class="row g-2">{% csrf_token %}
+      <div class="col-12"><label class="form-label small" for="id_started_at">Started</label>{{ downtime_form.started_at }}</div>
+      <div class="col-12"><label class="form-label small" for="id_ended_at">Ended (blank = still down)</label>{{ downtime_form.ended_at }}</div>
+      <div class="col-12"><button class="btn btn-outline-primary btn-sm">Save downtime</button></div></form>{% endif %}</div></div>
+  <div class="fx-card"><div class="fx-card-header">Timeline</div><div class="fx-card-body"><dl class="fx-kv">
+    <dt>Triaged</dt><dd>{{ sr.triaged_at|date:"d M Y H:i"|default:"â€”" }}</dd><dt>Decided</dt><dd>{{ sr.decided_at|date:"d M Y H:i"|default:"â€”" }}</dd>
+    <dt>Resolved</dt><dd>{{ sr.resolved_at|date:"d M Y H:i"|default:"â€”" }}</dd><dt>Confirmed</dt><dd>{{ sr.confirmed_at|date:"d M Y H:i"|default:"â€”" }}</dd>
+    <dt>Closed</dt><dd>{{ sr.closed_at|date:"d M Y H:i"|default:"â€”" }}</dd></dl></div></div></div></div>
 
 {% elif tab == "evidence" %}
-<div class="fx-card">
-  <div class="fx-card-header">Evidence (photos / files)</div>
-  <div class="table-responsive">
-    <table class="table fx-table">
-      <thead>
-        <tr>
-          <th>File</th>
-          <th>Description</th>
-          <th>Size</th>
-          <th>Uploaded</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for a in evidence %}
-        <tr>
-          <td>{{ a.original_name }}</td>
-          <td>{{ a.description|default:"—" }}</td>
-          <td>{{ a.size|filesizeformat }}</td>
-          <td>
-            {{ a.created_at|date:"d M Y H:i" }} · {{ a.uploaded_by.email }}
-          </td>
-          <td class="text-end">
-            <a
-              class="btn btn-sm btn-outline-primary"
-              href="{% url 'files:download' a.pk %}"
-              >Download</a
-            >
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="5">
-            {% include "components/_empty_state.html" with title="No evidence"
-            text="Attach photos or documents that show the failure." %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% if can.attach and sr.status != "CLOSED" and sr.status != "REJECTED" %}
-  <div class="fx-card-body border-top">
-    <form
-      method="post"
-      action="{% url 'incidents:evidence' sr.pk %}"
-      enctype="multipart/form-data"
-      class="row g-2 align-items-end"
-    >
-      {% csrf_token %}
-      <div class="col-md-5">
-        <label class="form-label small" for="id_file">File</label>{{
-        evidence_form.file }}
-      </div>
-      <div class="col-md-5">
-        <label class="form-label small" for="id_description">Description</label
-        >{{ evidence_form.description }}
-      </div>
-      <div class="col-md-2">
-        <button class="btn btn-primary w-100">Upload</button>
-      </div>
-    </form>
-    <div class="form-text">
-      PDF, images, Office documents, text/CSV. Content type and size are
-      validated on the server.
-    </div>
-  </div>
-  {% endif %}
-</div>
+<div class="fx-card"><div class="fx-card-header">Evidence (photos / files)</div>
+  <div class="table-responsive"><table class="table fx-table"><thead><tr><th>File</th><th>Description</th><th>Size</th><th>Uploaded</th><th></th></tr></thead><tbody>
+  {% for a in evidence %}<tr><td>{{ a.original_name }}</td><td>{{ a.description|default:"â€”" }}</td><td>{{ a.size|filesizeformat }}</td><td>{{ a.created_at|date:"d M Y H:i" }} Â· {{ a.uploaded_by.email }}</td>
+    <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'files:download' a.pk %}">Download</a></td></tr>
+  {% empty %}<tr><td colspan="5">{% include "components/_empty_state.html" with title="No evidence" text="Attach photos or documents that show the failure." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% if can.attach and sr.status != "CLOSED" and sr.status != "REJECTED" %}<div class="fx-card-body border-top"><form method="post" action="{% url 'incidents:evidence' sr.pk %}" enctype="multipart/form-data" class="row g-2 align-items-end">{% csrf_token %}
+    <div class="col-md-5"><label class="form-label small" for="id_file">File</label>{{ evidence_form.file }}</div>
+    <div class="col-md-5"><label class="form-label small" for="id_description">Description</label>{{ evidence_form.description }}</div>
+    <div class="col-md-2"><button class="btn btn-primary w-100">Upload</button></div></form>
+    <div class="form-text">PDF, images, Office documents, text/CSV. Content type and size are validated on the server.</div></div>{% endif %}</div>
 
 {% elif tab == "history" %}
-<div class="fx-card">
-  <div class="fx-card-header">Status history</div>
-  <div class="fx-card-body">
-    <ul class="fx-timeline" id="request-history">
-      {% for h in history %}
-      <li>
-        <div class="fw-semibold">
-          {% if h.from_status %}{{ h.from_status|cut:"_"|title }} → {% endif
-          %}{% status_badge h.to_status %}
-        </div>
-        <div class="small text-body-secondary">
-          {{ h.created_at|date:"d M Y H:i" }} · {{
-          h.changed_by.email|default:"system" }} · {{ h.action }}{% if h.source
-          != "manual" %} ({{ h.source }}){% endif %}
-        </div>
-        {% if h.reason %}
-        <div class="small">{{ h.reason }}</div>
-        {% endif %}
-      </li>
-      {% endfor %}
-    </ul>
-  </div>
-</div>
-{% endif %} {% endblock %}
+<div class="fx-card"><div class="fx-card-header">Status history</div><div class="fx-card-body"><ul class="fx-timeline" id="request-history">
+  {% for h in history %}<li><div class="fw-semibold">{% if h.from_status %}{{ h.from_status|cut:"_"|title }} â†’ {% endif %}{% status_badge h.to_status %}</div>
+    <div class="small text-body-secondary">{{ h.created_at|date:"d M Y H:i" }} Â· {{ h.changed_by.email|default:"system" }} Â· {{ h.action }}{% if h.source != "manual" %} ({{ h.source }}){% endif %}</div>{% if h.reason %}<div class="small">{{ h.reason }}</div>{% endif %}</li>
+  {% endfor %}</ul></div></div>
+{% endif %}
+{% endblock %}
