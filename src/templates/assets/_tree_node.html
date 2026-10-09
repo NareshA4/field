@@ -78,7 +78,7 @@
       <!-- Quick Actions Dropdown -->
       {% if can_manage and node.asset.status not in 'RETIRED,DISPOSED' %}
         <div class="dropdown fx-tree-actions">
-          <button class="btn btn-sm btn-outline-secondary fx-tree-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions for {{ node.asset.asset_tag }}">
+          <button class="btn btn-sm btn-outline-secondary fx-tree-btn" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="Actions for {{ node.asset.asset_tag }}">
             •••
           </button>
           <ul class="dropdown-menu dropdown-menu-end shadow-sm small">
