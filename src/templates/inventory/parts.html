@@ -1,24 +1,78 @@
 {% extends "shell.html" %}
 {% load ui_tags %}
-{% block title %}Parts Â· FieldOps Nexus{% endblock %}
+{% block title %}Parts · FieldOps Nexus{% endblock %}
 {% block content %}
-<div class="fx-page-header"><div><h1>Spare parts</h1><div class="text-body-secondary">The part catalogue. Stock quantities live per warehouse.</div></div>
-  <div class="d-flex gap-2">{% if can_manage %}<a class="btn btn-primary" href="{% url 'inventory:part_new' %}">{% icon 'plus' 16 %} New part</a>{% endif %}</div></div>
+<div class="fx-page-header">
+  <div>
+    <h1>Spare parts</h1>
+    <div class="text-body-secondary">The part catalogue. Stock quantities live per warehouse.</div>
+  </div>
+  <div class="d-flex gap-2">
+    {% if can_manage %}<a class="btn btn-primary" href="{% url 'inventory:part_new' %}">{% icon 'plus' 16 %} New part</a>{% endif %}
+  </div>
+</div>
 {% include "components/_section_tabs.html" with section="Inventory" %}
 <div class="fx-card">
   <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
-    <input class="form-control form-control-sm" style="max-width:260px" type="search" name="q" value="{{ filters.q }}" placeholder="Part number or name" aria-label="Search parts">
-    <select class="form-select form-select-sm" style="max-width:160px" name="active" aria-label="Active"><option value="">All</option>
-      <option value="1" {% if filters.active == "1" %}selected{% endif %}>Active</option><option value="0" {% if filters.active == "0" %}selected{% endif %}>Inactive</option></select>
-    <button class="btn btn-sm btn-outline-secondary">Filter</button></form>
-  <div class="table-responsive"><table class="table fx-table" id="parts-table">
-    <thead><tr><th>Part no.</th><th>Name</th><th>Unit</th><th>Min</th><th>Max</th><th>Reorder qty</th><th>Status</th></tr></thead>
-    <tbody>{% for p in page %}
-      <tr><td><a href="{% url 'inventory:part' p.pk %}">{{ p.part_number }}</a></td><td>{{ p.name }}</td><td>{{ p.unit }}</td>
-        <td>{{ p.min_stock|floatformat:"-3"|default:"â€”" }}</td><td>{{ p.max_stock|floatformat:"-3"|default:"â€”" }}</td><td>{{ p.reorder_quantity|floatformat:"-3"|default:"â€”" }}</td>
-        <td>{% if p.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}</td></tr>
-    {% empty %}<tr><td colspan="7">{% include "components/_empty_state.html" with title="No parts match" text="Adjust the filters or create a part." %}</td></tr>{% endfor %}
-    </tbody></table></div>
+    <input
+      class="form-control form-control-sm"
+      style="max-width: 260px"
+      type="search"
+      name="q"
+      value="{{ filters.q }}"
+      placeholder="Part number or name"
+      aria-label="Search parts"
+    />
+    <select
+      class="form-select form-select-sm"
+      style="max-width: 160px"
+      name="active"
+      aria-label="Active"
+    >
+      <option value="">All</option>
+      <option value="1" {% if filters.active == "1" %}selected{% endif %}>Active</option>
+      <option value="0" {% if filters.active == "0" %}selected{% endif %}>Inactive</option>
+    </select>
+    <button class="btn btn-sm btn-outline-secondary">Filter</button>
+  </form>
+  <div class="table-responsive">
+    <table class="table fx-table" id="parts-table">
+      <thead>
+        <tr>
+          <th>Part no.</th>
+          <th>Name</th>
+          <th>Unit</th>
+          <th>Min</th>
+          <th>Max</th>
+          <th>Reorder qty</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in page %}
+        <tr>
+          <td>
+            <a href="{% url 'inventory:part' p.pk %}">{{ p.part_number }}</a>
+          </td>
+          <td>{{ p.name }}</td>
+          <td>{{ p.unit }}</td>
+          <td>{{ p.min_stock|floatformat:"-3"|default:"—" }}</td>
+          <td>{{ p.max_stock|floatformat:"-3"|default:"—" }}</td>
+          <td>{{ p.reorder_quantity|floatformat:"-3"|default:"—" }}</td>
+          <td>
+            {% if p.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7">
+            {% include "components/_empty_state.html" with title="No parts match" text="Adjust the filters or create a part." %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% include "components/_pagination.html" %}
 </div>
 {% endblock %}
