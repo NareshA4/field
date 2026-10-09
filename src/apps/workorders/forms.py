@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 from apps.assets.models import Asset, AssetComponent
 from apps.incidents.models import ServiceRequest
@@ -31,24 +32,25 @@ class DataAttributeSelect(forms.Select):
 
 
 class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
-    source_choices = [choice for choice in WorkOrder.SourceType.choices
-                      if choice[0] != WorkOrder.SourceType.PM]
-    source_type = forms.ChoiceField(choices=[("", "Select a source"), *source_choices],
+    source_choices = list(WorkOrder.SourceType.choices)
+    source_type = forms.ChoiceField(choices=[("", "Select a source") , *source_choices], initial="",
         error_messages={"required": "Choose a work-order source.",
-                        "invalid_choice": "Choose Request, Incident, or Manual; PM schedules are not configured."})
-    source_request = forms.ModelChoiceField(queryset=ServiceRequest.objects.none(), required=False,
+                        "invalid_choice": "Choose a valid work-order source."})
+    source_request = forms.ModelChoiceField(queryset=ServiceRequest.objects.none(), required=False, initial=None,
         label="Approved incident or service request", empty_label="Select an approved source record",
         error_messages={"invalid_choice": "Select an approved source record available to your organization."})
-    site = forms.ModelChoiceField(queryset=Site.objects.none(), empty_label="Select a site", error_messages={
+    source_reference = forms.CharField(max_length=150, required=False,
+        label="Preventive-maintenance reference", help_text="Enter the originating PM schedule or generated job reference.")
+    site = forms.ModelChoiceField(queryset=Site.objects.none(), initial=None, empty_label="Select a site", error_messages={
         "required": "Site is required.",
         "invalid_choice": "Choose an active site you are permitted to manage.",
     })
-    asset = forms.ModelChoiceField(queryset=Asset.objects.none(), label="Asset",
+    asset = forms.ModelChoiceField(queryset=Asset.objects.none(), initial=None, label="Asset",
         empty_label="Select a site first", error_messages={
         "required": "Asset is required.",
         "invalid_choice": "Invalid asset for the selected site.",
     })
-    component = forms.ModelChoiceField(queryset=AssetComponent.objects.none(), required=False, label="Component",
+    component = forms.ModelChoiceField(queryset=AssetComponent.objects.none(), required=False, initial=None, label="Component",
         empty_label="No component selected",
         error_messages={"invalid_choice": "Invalid component for the selected asset."})
     title = forms.CharField(min_length=3, max_length=200, error_messages={
@@ -59,37 +61,6 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
     description = forms.CharField(required=False, max_length=5000,
         error_messages={"max_length": "Description must be 5,000 characters or fewer."},
         widget=forms.Textarea(attrs={"rows": 3}))
-    work_type = forms.ChoiceField(choices=[("", "Select a work type"), *WorkOrder.WorkType.choices], error_messages={
-        "required": "Choose a work type.", "invalid_choice": "Choose a valid work type.",
-    })
-    priority = forms.ChoiceField(choices=[("", "Select a priority"), *WorkOrder.Priority.choices], error_messages={
-        "required": "Choose a priority.", "invalid_choice": "Choose a valid priority.",
-    })
-    planned_start = forms.DateTimeField(input_formats=["%Y-%m-%dT%H:%M"],
-        error_messages={"required": "Enter the planned start date and time.",
-                        "invalid": "Enter a valid planned start date and time."},
-        help_text="Required. Planned end must be later than this time.",
-        widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}))
-    planned_end = forms.DateTimeField(input_formats=["%Y-%m-%dT%H:%M"],
-        error_messages={"required": "Enter the planned end date and time.",
-                        "invalid": "Enter a valid planned end date and time."},
-        help_text="Required. Must be on or after Planned start.",
-        widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}))
-    due_at = forms.DateTimeField(input_formats=["%Y-%m-%dT%H:%M"],
-        error_messages={"required": "Enter the due date and time.",
-                        "invalid": "Enter a valid due date and time."},
-        help_text="Required. Must be on or after Planned start.",
-        widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}))
-    estimated_hours = forms.DecimalField(max_digits=6, decimal_places=2, min_value=0.01,
-        error_messages={"required": "Enter estimated hours.",
-                        "invalid": "Enter estimated hours as a number.",
-                        "min_value": "Estimated hours must be greater than zero.",
-                        "max_digits": "Use no more than 6 digits in estimated hours."},
-        help_text="Required. Must be greater than zero and no more than the planned start-to-end duration.")
-    checklist = forms.CharField(required=False, label="Provisional checklist items (one per line)",
-                                help_text="Temporary fallback: the Checklist Engine is not installed. These entries are not proof of completion.",
-                                widget=forms.Textarea(attrs={"rows": 3}))
-
     def __init__(self, *args, membership, **kwargs):
         super().__init__(*args, **kwargs)
         self.organization = membership.organization
@@ -160,16 +131,13 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
                     self.add_error("site", "Site must match the selected source record.")
                 if asset and source_request.asset_id != asset.pk:
                     self.add_error("asset", "Asset must match the selected source record.")
-                expected_priority = {
-                    "LOW": WorkOrder.Priority.LOW, "MEDIUM": WorkOrder.Priority.MEDIUM,
-                    "HIGH": WorkOrder.Priority.HIGH, "CRITICAL": WorkOrder.Priority.CRITICAL,
-                }[source_request.severity]
-                if cleaned.get("priority") and cleaned["priority"] != expected_priority:
-                    self.add_error("priority", f"Priority must match the approved source severity: {source_request.get_severity_display()}.")
         elif source_type == WorkOrder.SourceType.MANUAL and source_request:
             self.add_error("source_request", "Manual work orders cannot be linked to an incident or request.")
         elif source_type == WorkOrder.SourceType.PM:
-            self.add_error("source_type", "Preventive-maintenance schedules are not available in this project yet.")
+            if not cleaned.get("source_reference", "").strip():
+                self.add_error("source_reference", "Enter the originating preventive-maintenance schedule reference.")
+        elif source_type == WorkOrder.SourceType.MANUAL and cleaned.get("source_reference", "").strip():
+            self.add_error("source_reference", "Manual work orders cannot contain a source reference.")
         if site and asset and asset.site_id != site.pk:
             self.add_error("asset", "Invalid asset for the selected site.")
         if self.is_bound and not asset and self.data.get("asset"):
@@ -190,14 +158,6 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
         title = cleaned.get("title")
         if title and len(title.strip()) < 3:
             self.add_error("title", "Enter a clear title with at least 3 non-space characters.")
-        start, end, due = cleaned.get("planned_start"), cleaned.get("planned_end"), cleaned.get("due_at")
-        if start and end and end <= start:
-            self.add_error("planned_end", "Planned end must be later than planned start.")
-        if due and start and due < start:
-            self.add_error("due_at", "Due date must be on or after planned start.")
-        hours = cleaned.get("estimated_hours")
-        if start and end and hours is not None and hours > Decimal(str((end - start).total_seconds())) / Decimal("3600"):
-            self.add_error("estimated_hours", "Estimated hours cannot exceed the planned start-to-end window.")
         return cleaned
 
     def clean_title(self):
@@ -206,11 +166,6 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
             raise ValidationError("Title can contain letters and spaces only.")
         return title
 
-    def clean_checklist(self):
-        return [{"label": line.strip(), "required": True, "completed": False}
-                for line in self.cleaned_data["checklist"].splitlines() if line.strip()]
-
-
 class EditWorkOrderForm(BootstrapFormMixin, forms.Form):
     site = forms.ModelChoiceField(queryset=Site.objects.none())
     asset = forms.ModelChoiceField(queryset=Asset.objects.none(), label="Asset")
@@ -218,22 +173,19 @@ class EditWorkOrderForm(BootstrapFormMixin, forms.Form):
                                        empty_label="No component selected")
     title = forms.CharField(max_length=200)
     description = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
-    source_type = forms.ChoiceField(choices=WorkOrder.SourceType.choices)
-    source_reference = forms.CharField(max_length=150, required=False, label="Source reference")
-    work_type = forms.ChoiceField(choices=WorkOrder.WorkType.choices)
-    priority = forms.ChoiceField(choices=WorkOrder.Priority.choices)
+    work_type = forms.ChoiceField(choices=[("", "Not set"), *WorkOrder.WorkType.choices], required=False)
+    priority = forms.ChoiceField(choices=[("", "Not set"), *WorkOrder.Priority.choices], required=False)
     planned_start = forms.DateTimeField(required=False, input_formats=["%Y-%m-%dT%H:%M"],
                                         widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}))
     planned_end = forms.DateTimeField(required=False, input_formats=["%Y-%m-%dT%H:%M"],
                                       widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}))
     due_at = forms.DateTimeField(required=False, input_formats=["%Y-%m-%dT%H:%M"],
                                  widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}))
-    estimated_hours = forms.DecimalField(max_digits=6, decimal_places=2, min_value=0)
+    estimated_hours = forms.DecimalField(max_digits=6, decimal_places=2, min_value=0, required=False)
 
     def __init__(self, *args, membership, work_order, **kwargs):
         initial = {
             "site": work_order.site_id, "title": work_order.title, "description": work_order.description,
-            "source_type": work_order.source_type, "source_reference": work_order.source_reference,
             "asset": work_order.asset_id,
             "component": (AssetComponent.objects.filter(child_id=work_order.component_id).values_list("pk", flat=True).first()
                           if work_order.component_id else None),
@@ -244,6 +196,13 @@ class EditWorkOrderForm(BootstrapFormMixin, forms.Form):
         }
         initial.update(kwargs.pop("initial", {}))
         super().__init__(*args, initial=initial, **kwargs)
+        if work_order.source_request_id:
+            self.fields["priority"].disabled = True
+            self.fields["priority"].help_text = "Inherited from the linked approved source record."
+        if work_order.status == WorkOrder.Status.DRAFT and work_order.source_request_id:
+            self.fields["site"].disabled = True
+            self.fields["asset"].disabled = True
+            self.fields["component"].disabled = True
         self.fields["site"].queryset = Site.objects.for_organization(membership.organization).filter(
             status=Site.Status.ACTIVE)
         allowed = [s.pk for s in self.fields["site"].queryset
@@ -259,12 +218,13 @@ class EditWorkOrderForm(BootstrapFormMixin, forms.Form):
         self.fields["component"].queryset = AssetComponent.objects.filter(
             organization=membership.organization, parent__in=assets, child__status=Asset.Status.ACTIVE,
             relationship_type=AssetComponent.Relationship.COMPONENT).select_related("parent", "child")
-        self.fields["component"].label_from_instance = lambda link: f"{link.parent.asset_tag} → {link.child.asset_tag} · {link.child.name}"
-        self.fields["source_type"].disabled = True
-        self.fields["source_reference"].disabled = True
-        if work_order.status != WorkOrder.Status.DRAFT:
-            self.fields["site"].disabled = True
-
+        if work_order.status == WorkOrder.Status.PLANNED:
+            planning_fields = {"work_type", "priority", "planned_start", "planned_end", "due_at", "estimated_hours"}
+            for name in list(self.fields):
+                if name not in planning_fields:
+                    self.fields.pop(name)
+        if "component" in self.fields:
+            self.fields["component"].label_from_instance = lambda link: f"{link.parent.asset_tag} → {link.child.asset_tag} · {link.child.name}"
     def clean(self):
         cleaned = super().clean()
         site, asset, component = cleaned.get("site"), cleaned.get("asset"), cleaned.get("component")
@@ -272,25 +232,21 @@ class EditWorkOrderForm(BootstrapFormMixin, forms.Form):
             self.add_error("asset", "Invalid asset for the selected site.")
         if component and asset and component.parent_id != asset.pk:
             self.add_error("component", "Invalid component for the selected asset.")
-        if cleaned.get("source_type") == WorkOrder.SourceType.PM:
-            self.add_error("source_type", "Preventive-maintenance schedules are not available in this project yet.")
         start, end, due = cleaned.get("planned_start"), cleaned.get("planned_end"), cleaned.get("due_at")
         if start and end and end <= start:
             self.add_error("planned_end", "Planned end must be after planned start.")
-        if due and start and due < start:
-            self.add_error("due_at", "Due date must be on or after planned start.")
+        if due and end and due <= end:
+            self.add_error("due_at", "Due date must be later than planned end.")
         hours = cleaned.get("estimated_hours")
         if start and end and hours is not None and hours > Decimal(str((end - start).total_seconds())) / Decimal("3600"):
             self.add_error("estimated_hours", "Estimated hours cannot exceed the planned start-to-end window.")
-        if cleaned.get("source_type") != WorkOrder.SourceType.MANUAL and not cleaned.get("source_reference", "").strip():
-            self.add_error("source_reference", "A source reference is required.")
         return cleaned
 
 
 class PlanForm(BootstrapFormMixin, forms.Form):
-    work_type = forms.ChoiceField(choices=WorkOrder.WorkType.choices,
+    work_type = forms.ChoiceField(choices=[("", "Choose a work type"), *WorkOrder.WorkType.choices], initial="",
         error_messages={"required": "Choose a work type before planning this work order."})
-    priority = forms.ChoiceField(choices=WorkOrder.Priority.choices,
+    priority = forms.ChoiceField(choices=[("", "Choose a priority"), *WorkOrder.Priority.choices], initial="",
         error_messages={"required": "Choose a priority before planning this work order."})
     planned_start = forms.DateTimeField(label="Planned start", input_formats=["%Y-%m-%dT%H:%M"],
         error_messages={"required": "Enter the planned start date and time.",
@@ -309,13 +265,19 @@ class PlanForm(BootstrapFormMixin, forms.Form):
                         "min_value": "Estimated hours must be greater than zero."},
         help_text="Required. Must be greater than zero and fit within the planned start-to-end duration.")
 
+    def __init__(self, *args, work_order=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if work_order and work_order.source_request_id:
+            self.fields["priority"].disabled = True
+            self.fields["priority"].help_text = "Inherited from the linked approved source record."
+
     def clean(self):
         cleaned = super().clean()
         start, end, due = (cleaned.get("planned_start"), cleaned.get("planned_end"), cleaned.get("due_at"))
         if start and end and end <= start:
             self.add_error("planned_end", "Planned end must be later than planned start.")
-        if due and start and due < start:
-            self.add_error("due_at", "Due date must be on or after planned start.")
+        if due and end and due <= end:
+            self.add_error("due_at", "Due date must be later than planned end.")
         hours = cleaned.get("estimated_hours")
         if start and end and hours is not None and hours > Decimal(str((end - start).total_seconds())) / Decimal("3600"):
             self.add_error("estimated_hours", "Estimated hours cannot exceed the planned start-to-end window.")
@@ -323,17 +285,31 @@ class PlanForm(BootstrapFormMixin, forms.Form):
 
 
 class AssignForm(BootstrapFormMixin, forms.Form):
-    assigned_to = forms.ModelChoiceField(queryset=Membership.objects.none(), label="Technician")
+    assigned_to = forms.ModelChoiceField(queryset=Membership.objects.none(), label="Technician",
+                                         empty_label="Select an available technician")
+    scheduled_start = forms.DateTimeField(label="Scheduled start", input_formats=["%Y-%m-%dT%H:%M"],
+        widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}))
+    scheduled_end = forms.DateTimeField(label="Scheduled end", input_formats=["%Y-%m-%dT%H:%M"],
+        widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}))
     expected_version = forms.IntegerField(widget=forms.HiddenInput)
 
     def __init__(self, *args, membership, site, work_order=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if work_order is not None:
+            self.initial.setdefault("scheduled_start", work_order.planned_start)
+            self.initial.setdefault("scheduled_end", work_order.planned_end)
         self.fields["assigned_to"].queryset = (available_technicians(work_order)
             if work_order is not None else Membership.objects.none())
-        self.fields["assigned_to"].help_text = (
-            "Only active, site-authorized technicians without another active assigned job are listed. "
-            "A scheduled start and end are required. Shift calendars are not configured in this module."
-        )
+        self.fields["assigned_to"].label_from_instance = lambda member: (
+            f"{member.user.full_name} · {member.user.email}")
+        self.fields["assigned_to"].help_text = ""
+
+    def clean(self):
+        cleaned = super().clean()
+        start, end = cleaned.get("scheduled_start"), cleaned.get("scheduled_end")
+        if start and end and end <= start:
+            self.add_error("scheduled_end", "Scheduled end must be later than scheduled start.")
+        return cleaned
 
 
 class ReasonForm(BootstrapFormMixin, forms.Form):
@@ -347,37 +323,26 @@ class WorkUpdateForm(BootstrapFormMixin, forms.Form):
 
 
 class CompleteForm(BootstrapFormMixin, forms.Form):
-    resolution_notes = forms.CharField(min_length=10, widget=forms.Textarea(attrs={"rows": 4}))
-
-    def __init__(self, *args, work_order, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.checklist_items = [item for item in work_order.checklist_items if isinstance(item, dict)]
-        for index, item in enumerate(self.checklist_items):
-            self.fields[f"checklist_item_{index}"] = forms.BooleanField(
-                required=False,
-                initial=bool(item.get("completed")),
-                label=item.get("label", f"Checklist item {index + 1}"),
-                widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
-            )
-
-    def clean(self):
-        cleaned = super().clean()
-        cleaned["checklist_items"] = [
-            {**item, "completed": bool(cleaned.get(f"checklist_item_{index}", False))}
-            for index, item in enumerate(self.checklist_items)
-        ]
-        return cleaned
-
+    resolution_notes = forms.CharField(
+        min_length=10,
+        label="Resolution notes",
+        help_text="Summarize the repair and outcome. Saved when the work order is completed.",
+        error_messages={
+            "required": "Enter the work performed and its outcome.",
+            "min_length": "Enter at least 10 characters describing the work and outcome.",
+        },
+        widget=forms.Textarea(attrs={"rows": 4}),
+    )
 
 class ChecklistForm(BootstrapFormMixin, forms.Form):
-    items = forms.CharField(help_text='One required checklist item per line.',
+    items = forms.CharField(label="Provisional checklist notes", help_text="Not used to validate completion.",
                             widget=forms.Textarea(attrs={"rows": 5}))
 
     def clean_items(self):
         labels = [line.strip() for line in self.cleaned_data["items"].splitlines() if line.strip()]
         if not labels:
             raise forms.ValidationError("Add at least one checklist item.")
-        return [{"label": label, "required": True, "completed": False} for label in labels]
+        return [{"label": label} for label in labels]
 
 
 class ReviewForm(BootstrapFormMixin, forms.Form):
@@ -392,17 +357,30 @@ class ClosureCommentForm(BootstrapFormMixin, forms.Form):
 
 
 class LaborForm(BootstrapFormMixin, forms.Form):
-    work_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
-    hours = forms.DecimalField(max_digits=4, decimal_places=2, min_value=0)
-    description = forms.CharField(max_length=500)
+    work_date = forms.DateField(label="Work date", widget=forms.DateInput(attrs={"type": "date"}),
+                                help_text="Use today or an earlier date.")
+    hours = forms.DecimalField(label="Hours worked", max_digits=4, decimal_places=2,
+        min_value=Decimal("0.01"), max_value=Decimal("24"),
+        help_text="Enter more than 0 and no more than 24 hours for this entry.")
+    description = forms.CharField(label="Work performed", min_length=5, max_length=500,
+        widget=forms.Textarea(attrs={"rows": 3}), help_text="Summarize the labor performed.")
+
+    def clean_work_date(self):
+        work_date = self.cleaned_data["work_date"]
+        if work_date > timezone.localdate():
+            raise forms.ValidationError("Work date cannot be in the future.")
+        return work_date
 
 
 class MaterialForm(BootstrapFormMixin, forms.Form):
-    item_name = forms.CharField(max_length=150)
-    part_reference = forms.CharField(max_length=100, required=False)
-    quantity = forms.DecimalField(max_digits=10, decimal_places=2, min_value=0)
-    unit = forms.CharField(max_length=30, required=False)
-    notes = forms.CharField(max_length=500, required=False)
+    item_name = forms.CharField(label="Part or material", min_length=2, max_length=150)
+    part_reference = forms.CharField(label="Part reference", max_length=100, required=False)
+    quantity = forms.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0.01"),
+                                  label="Quantity used")
+    unit = forms.CharField(label="Unit", max_length=30, required=False,
+                           help_text="For example: each, metre, litre.")
+    notes = forms.CharField(label="Usage notes", max_length=500, required=False,
+                             widget=forms.Textarea(attrs={"rows": 3}))
 
 
 class EvidenceForm(BootstrapFormMixin, forms.Form):

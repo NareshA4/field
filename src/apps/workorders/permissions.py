@@ -2,7 +2,7 @@ from apps.rbac.catalog import register
 
 for action, description in (
     ("view", "View work orders"), ("view_assigned", "View assigned work orders"),
-    ("create", "Create work orders"), ("update", "Edit draft work order details and checklist requirements"),
+    ("create", "Create work orders"), ("update", "Edit work order details and provisional notes before dispatch"),
     ("plan", "Plan work order schedules"), ("assign", "Assign technicians"),
     ("dispatch", "Dispatch work orders"), ("start", "Start and resume assigned work"),
     ("hold", "Place assigned work on hold"), ("complete", "Submit assigned work for review"),

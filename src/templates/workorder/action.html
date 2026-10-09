@@ -5,22 +5,23 @@
 {% block content %}
 <nav aria-label="Breadcrumb" class="mb-3"><a href="{% url 'workorders:list' %}">Work Orders</a> <span class="text-secondary">/</span> <a href="{% url 'workorders:detail' wo.pk %}">{{ wo.order_number }}</a> <span class="text-secondary">/ {{ operation }}</span></nav>
 <div class="wo-form-card">
-  <p class="wo-eyebrow">{{ wo.order_number }} · {{ wo.get_status_display }}</p><h1>{{ operation }}</h1>
-  <p class="text-secondary small mb-4">{{ wo.title }} · {{ wo.site.name }}</p>
-  {% if operation == 'Plan' %}<div class="alert alert-info small">Enter dates in this order: planned start, planned end, then due date/time. Estimated hours are optional, but when entered they must fit within the planned start-to-end window.</div>{% endif %}
+  <p class="wo-eyebrow">{{ wo.order_number }} · {{ wo.get_status_display }}</p>
+  <h1>{% if operation == 'Labor' %}Record labor{% elif operation == 'Materials' %}Record part or material{% else %}{{ operation }}{% endif %}</h1>
   {% if operation == 'Complete' %}
-    <div class="alert alert-info small">Confirm each required checklist item is complete. Completion requires resolution notes, a complete checklist and at least one evidence file attached on the Evidence tab.</div>
-    {% if not wo.checklist_items %}<div class="wo-warning-banner">No checklist is configured. Completion is blocked until required checklist items are provided by a planner.</div>{% endif %}
-    <div class="small text-secondary mb-3">{{ labor_entries|length }} labor entries · {{ material_entries|length }} material records · {{ evidence_count }} evidence files</div>
-  {% elif operation == 'Assign' %}<div class="alert alert-info small">Only active members with the Technician role, authorized for this site and without another active assigned work order are listed. Scheduled window: {{ scheduled_start|date:"M j, Y · H:i" }} – {{ scheduled_end|date:"M j, Y · H:i" }}. The server checks the window and conflicts again when you submit.</div>
-  {% elif operation == 'Work Update' %}<div class="alert alert-info small">Post a short progress note, finding, blocker, or next step. Your update is added to the work order's audit timeline without changing its status.</div>
-  {% elif operation == 'Review' %}<div class="alert alert-info small">Approve to close this work order, or leave approval unchecked and add a comment to return it for rework.</div>{% endif %}
-  {% if operation == 'Close' %}<div class="alert alert-info small">Approval creates an immutable closure decision and closes this work order. Confirm before submitting.</div>{% elif operation == 'Return For Rework' %}<div class="alert alert-warning small">The work order will return to In Progress and the assigned technician will be notified.</div>{% endif %}
+    <div class="wo-action-flags" role="status"><span class="wo-inline-state is-info">Checklist {{ checklist_summary.status|title }}</span>
+    {% if wo.work_type == 'CORRECTIVE' or wo.work_type == 'INSTALLATION' %}{% if not evidence_count %}<a class="wo-inline-state is-warning" href="{% url 'workorders:action' wo.pk 'evidence' %}?return_to=complete">Evidence required · Attach</a>{% endif %}{% endif %}</div>
+  {% elif operation == 'Assign' %}{% if not form.fields.assigned_to.queryset.exists %}<div class="wo-action-flags" role="status"><span class="wo-inline-state is-warning">No eligible technicians</span></div>{% endif %}{% endif %}
   <form method="post" enctype="multipart/form-data" data-workorder-date-validation>{% csrf_token %}
+    {% if return_to_complete %}<input type="hidden" name="return_to" value="complete">{% endif %}
     {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
-    {% for field in form %}{% if field.is_hidden %}{{ field }}{% else %}<div class="mb-3"><label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span class="text-danger"> *</span>{% endif %}</label>{{ field }}{% if field.name == 'planned_end' %}<div id="planned-end-rule-error" class="text-danger small" role="alert" hidden></div>{% endif %}{% if field.name == 'due_at' %}<div id="due-at-rule-error" class="text-danger small" role="alert" hidden></div>{% endif %}{% if field.name == 'estimated_hours' %}<div id="estimated-hours-rule-error" class="text-danger small" role="alert" hidden></div>{% endif %}{% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}{% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>{% endif %}{% endfor %}
+    {% for field in form %}{% if field.is_hidden %}{{ field }}{% else %}
+      <div class="mb-3">
+        <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span class="text-danger"> *</span>{% else %}<span class="text-secondary fw-normal"> (Optional)</span>{% endif %}</label>{{ field }}
+        {% if field.name == 'planned_end' %}<div id="planned-end-rule-error" class="text-danger small" role="alert" hidden></div>{% endif %}{% if field.name == 'due_at' %}<div id="due-at-rule-error" class="text-danger small" role="alert" hidden></div>{% endif %}{% if field.name == 'estimated_hours' %}<div id="estimated-hours-rule-error" class="text-danger small" role="alert" hidden></div>{% endif %}{% for error in field.errors %}<div class="text-danger small" role="alert">{{ error }}</div>{% endfor %}
+      </div>
+    {% endif %}{% endfor %}
     {% if 'expected_version' not in form.fields %}<input type="hidden" name="expected_version" value="{{ expected_version }}">{% endif %}
-    <div class="d-flex flex-wrap gap-2 mt-4"><button class="btn btn-primary" type="submit" {% if is_close_action %}data-confirm="Approve and close this work order? This cannot be undone."{% endif %}>Confirm {{ operation|lower }}</button><a class="btn btn-outline-secondary" href="{% url 'workorders:detail' wo.pk %}">Back to work order</a></div>
+    <div class="d-flex flex-wrap gap-2 mt-4"><button class="btn btn-primary" type="submit" {% if operation == 'Assign' and not form.fields.assigned_to.queryset.exists %}disabled{% endif %} {% if is_close_action %}data-confirm="Approve and close this work order? This cannot be undone."{% endif %}>{% if operation == 'Complete' %}Complete work{% elif operation == 'Labor' %}Save labor entry{% elif operation == 'Materials' %}Record material{% else %}Confirm {{ operation|lower }}{% endif %}</button><a class="btn btn-outline-secondary" href="{% url 'workorders:detail' wo.pk %}">Back to work order</a></div>
   </form>
 </div>
 {% endblock %}

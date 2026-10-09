@@ -39,6 +39,13 @@ class WorkOrder(TenantOwnedModel):
         HIGH = "HIGH", "High"
         CRITICAL = "CRITICAL", "Critical"
 
+    class ChecklistStatus(models.TextChoices):
+        NOT_REQUIRED = "NOT_REQUIRED", "Not required"
+        PENDING = "PENDING", "Pending"
+        IN_PROGRESS = "IN_PROGRESS", "In progress"
+        COMPLETED = "COMPLETED", "Completed"
+        FAILED = "FAILED", "Failed"
+
     order_number = models.CharField(max_length=32)
     site = models.ForeignKey("sites.Site", on_delete=models.PROTECT, related_name="work_orders")
     # Nullable for historical compatibility. All new records require an active same-site asset
@@ -49,6 +56,8 @@ class WorkOrder(TenantOwnedModel):
                                   related_name="component_work_orders")
     source_request = models.OneToOneField("incidents.ServiceRequest", null=True, blank=True,
         on_delete=models.PROTECT, related_name="work_order")
+    # Stable upstream identifier for integrations (PM, requests, or other source systems).
+    source_id = models.UUIDField(null=True, blank=True)
     source_type = models.CharField(max_length=12, choices=SourceType.choices, default=SourceType.MANUAL, db_index=True)
     source_reference = models.CharField(max_length=150, blank=True)
     # Optional until the upstream Asset Registry app is available in this checkout.
@@ -57,14 +66,14 @@ class WorkOrder(TenantOwnedModel):
     service_request_reference = models.CharField(max_length=100, blank=True)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    work_type = models.CharField(max_length=20, choices=WorkType.choices, default=WorkType.CORRECTIVE)
-    priority = models.CharField(max_length=12, choices=Priority.choices, default=Priority.MEDIUM)
+    work_type = models.CharField(max_length=20, choices=WorkType.choices, null=True, blank=True, default=None)
+    priority = models.CharField(max_length=12, choices=Priority.choices, null=True, blank=True, default=None)
     status = models.CharField(max_length=24, choices=Status.choices, default=Status.DRAFT, db_index=True)
     version = models.PositiveIntegerField(default=1, editable=False)
     planned_start = models.DateTimeField(null=True, blank=True, db_index=True)
     planned_end = models.DateTimeField(null=True, blank=True)
     due_at = models.DateTimeField(null=True, blank=True, db_index=True)
-    estimated_hours = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    estimated_hours = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, default=None)
     assigned_to = models.ForeignKey("tenancy.Membership", null=True, blank=True, on_delete=models.PROTECT,
                                     related_name="assigned_work_orders")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_work_orders")
@@ -76,7 +85,19 @@ class WorkOrder(TenantOwnedModel):
                                   related_name="closed_work_orders")
     hold_reason = models.CharField(max_length=300, blank=True)
     resolution_notes = models.TextField(blank=True)
-    checklist_items = models.JSONField(default=list, blank=True)
+    # Temporary M06-only notes retained for development until M08 is connected.
+    # They are never completion evidence. Official checklist data lives in M08.
+    provisional_checklist = models.JSONField(default=list, blank=True)
+    checklist_required = models.BooleanField(default=False)
+    checklist_template_ref = models.CharField(max_length=150, blank=True)
+    checklist_instance_ref = models.CharField(max_length=150, blank=True)
+    checklist_status = models.CharField(max_length=20, choices=ChecklistStatus.choices,
+                                        default=ChecklistStatus.NOT_REQUIRED, db_index=True)
+    checklist_completed_at = models.DateTimeField(null=True, blank=True)
+    checklist_validated_at = models.DateTimeField(null=True, blank=True)
+    checklist_validation_state = models.CharField(max_length=20, choices=[
+        ("NOT_REQUIRED", "Not required"), ("PENDING", "Pending"), ("VALID", "Valid"),
+        ("INVALID", "Invalid")], default="NOT_REQUIRED", db_index=True)
     supervisor_notes = models.TextField(blank=True)
 
     class Meta:
@@ -89,7 +110,8 @@ class WorkOrder(TenantOwnedModel):
         ]
         indexes = [models.Index(fields=["organization", "status"]),
                    models.Index(fields=["site", "status"]),
-                   models.Index(fields=["assigned_to", "status"])]
+                   models.Index(fields=["assigned_to", "status"]),
+                   models.Index(fields=["organization", "checklist_status"], name="workorders_org_checklist_idx")]
 
     def clean(self):
         super().clean()
@@ -123,6 +145,8 @@ class WorkOrder(TenantOwnedModel):
                 raise ValidationError({"source_request": "A valid linked incident or request is required."})
             if self.source_type == self.SourceType.MANUAL and self.source_request_id:
                 raise ValidationError({"source_request": "Manual work orders cannot link to an incident or request."})
+            if self.source_type == self.SourceType.PM and not self.source_reference.strip():
+                raise ValidationError({"source_reference": "A preventive-maintenance schedule reference is required."})
         if self.assigned_to_id and self.assigned_to.organization_id != self.organization_id:
             raise ValidationError({"assigned_to": "Assignee must belong to this organization."})
 
@@ -236,6 +260,8 @@ class WorkOrderLabor(TenantOwnedModel):
 class WorkOrderMaterial(TenantOwnedModel):
     """Usage note only. M09 remains the authority for stock and stock movements."""
     work_order = models.ForeignKey(WorkOrder, on_delete=models.PROTECT, related_name="material_entries")
+    part_line = models.ForeignKey("inventory.WorkOrderPart", null=True, blank=True,
+                                  on_delete=models.PROTECT, related_name="material_rows")
     part_reference = models.CharField(max_length=100, blank=True)
     item_name = models.CharField(max_length=150)
     quantity = models.DecimalField(max_digits=10, decimal_places=2)

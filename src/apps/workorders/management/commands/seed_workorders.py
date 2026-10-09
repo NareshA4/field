@@ -66,6 +66,16 @@ class Command(BaseCommand):
         if not isinstance(records, list) or len(records) < 9:
             raise CommandError("Seed fixture must contain at least nine workflow examples.")
 
+        from apps.workorders.checklist_adapter import WORK_TYPE_REQUIREMENTS
+        checklist_blocked_examples = [row for row in records
+            if row.get("status") in (WorkOrder.Status.COMPLETED, WorkOrder.Status.SUPERVISOR_REVIEW,
+                                      WorkOrder.Status.CLOSED)
+            and WORK_TYPE_REQUIREMENTS.get(row.get("work_type"), (False, ""))[0]]
+        if checklist_blocked_examples:
+            raise CommandError("Work Order demo data includes completed statuses that require M08 checklist "
+                "validation. M08 is not connected, so seed_workorders will not fabricate checklist completion. "
+                "Seed draft through on-hold examples after updating the fixture, or connect an approved provider.")
+
         created = skipped = 0
         now = timezone.now()
         for index in range(count):
@@ -82,13 +92,11 @@ class Command(BaseCommand):
                 days=(index // 3) - 3, hours=8 + (index % 3) * 3)
             end = start + timedelta(hours=2)
             due_at = end + timedelta(hours=1)
-            checklist = [{"label": label, "required": True, "completed": False}
-                         for label in sample["checklist"]]
             asset = self._asset(organization, site, sample["asset_reference"], serial, owner.user)
             create_values = {"title": title, "description": sample["description"],
                 "work_type": sample["work_type"], "priority": sample["priority"],
                 "planned_start": start, "planned_end": end, "due_at": due_at,
-                "estimated_hours": Decimal("2.00"), "checklist_items": checklist}
+                "estimated_hours": Decimal("2.00")}
             source_type = sample["source_type"]
             if source_type in (WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT):
                 kind = (ServiceRequest.Kind.SERVICE_REQUEST if source_type == WorkOrder.SourceType.REQUEST
@@ -154,11 +162,8 @@ class Command(BaseCommand):
                     description="Development seed completion evidence", read_permission="work_order.view")
                 services.add_evidence(wo, membership=technician, actor=technician.user,
                                       attachment_id=attachment.pk)
-                completed_checklist = [{"label": item["label"], "required": True, "completed": True}
-                                       for item in checklist]
                 wo = services.complete_work_order(wo, membership=technician, actor=technician.user,
-                    resolution_notes="Inspection completed; equipment condition and readings were recorded.",
-                    checklist_items=completed_checklist)
+                    resolution_notes="Inspection completed; equipment condition and readings were recorded.")
                 if status_target in (WorkOrder.Status.SUPERVISOR_REVIEW, WorkOrder.Status.CLOSED):
                     wo = services.submit_for_review(wo, membership=technician, actor=technician.user)
                 if status_target == WorkOrder.Status.CLOSED:
@@ -168,8 +173,23 @@ class Command(BaseCommand):
 
         self._seed_create_form_options(organization, sites, owner, reporter, now)
 
+        # Keep deterministic, unassigned development technicians available for
+        # exercising the assignment flow after seeded active jobs consume the
+        # other demo technicians. These memberships are created only when this
+        # explicit development seed command is run.
+        for serial in range(900, 903):
+            self._technician(organization, serial)
+        self._technician(organization, 903, email="workorder.tech@demo.local",
+                         full_name="Work Order Review Technician",
+                         password=os.environ.get("FIELDOPS_REVIEW_TECH_PASSWORD", "WorkOrder-Review-2026!"))
+        # Keep explicit local seed data usable for assignment demonstrations.
+        # These deterministic memberships start without assigned work orders.
+        for serial in range(904, 907):
+            self._technician(organization, serial)
+
         self.stdout.write(self.style.SUCCESS(
-            f"Created {created} sample work orders; skipped {skipped} existing records."))
+            f"Created {created} sample work orders; skipped {skipped} existing records; "
+            "ensured unassigned development technicians 904–906, including workorder.tech@demo.local."))
         self.stdout.write("Created through workflow services with database status events and audit records.")
         self.stdout.write("Development/testing only. Page loads, API GETs, migrations, and startup never run this command.")
 
@@ -209,31 +229,43 @@ class Command(BaseCommand):
                     notes="Development-only component for Work Order form testing.")
 
         for kind in (ServiceRequest.Kind.SERVICE_REQUEST, ServiceRequest.Kind.INCIDENT):
-            title = f"Work Order create form source {kind.lower().replace('_', ' ')}"
-            source = ServiceRequest.objects.for_organization(organization).filter(title=title).first()
-            if source is None:
-                source = incident_services.create_request(organization,
-                    asset=source_assets[sites[0].pk], reporter=reporter, title=title,
-                    description="Approved development source for testing Work Order creation.",
-                    kind=kind, severity=ServiceRequest.Severity.HIGH,
-                    occurred_at=now - timedelta(hours=1), actor=owner.user)
-                source = incident_services.transition(source, action="triage", actor=owner.user)
-                incident_services.transition(source, action="approve", actor=owner.user)
+            base_title = f"Work Order create form source {kind.lower().replace('_', ' ')}"
+            eligible = ServiceRequest.objects.for_organization(organization).filter(
+                kind=kind, status=APPROVED, work_order__isnull=True)
+            serial = 1
+            # Keep two options of each source kind available even after earlier
+            # tests/demo flows consume a source by creating its one-to-one WO.
+            while eligible.count() < 2:
+                title = base_title if serial == 1 else f"{base_title} {serial:03d}"
+                source = ServiceRequest.objects.for_organization(organization).filter(title=title).first()
+                if source is None:
+                    source = incident_services.create_request(organization,
+                        asset=source_assets[sites[0].pk], reporter=reporter, title=title,
+                        description="Approved development source for testing Work Order creation.",
+                        kind=kind, severity=ServiceRequest.Severity.HIGH,
+                        occurred_at=now - timedelta(hours=1), actor=owner.user)
+                    source = incident_services.transition(source, action="triage", actor=owner.user)
+                    incident_services.transition(source, action="approve", actor=owner.user)
+                serial += 1
 
     @staticmethod
-    def _technician(organization, serial):
+    def _technician(organization, serial, *, email=None, full_name=None, password=None):
         """Give each active seeded order its own technician to respect the one-active-job rule."""
         User = get_user_model()
-        email = f"workorder-seed-tech-{serial:03d}@demo.local"
+        email = email or f"workorder-seed-tech-{serial:03d}@demo.local"
+        full_name = full_name or f"Work Order Demo Technician {serial:03d}"
         user, _ = User.objects.get_or_create(email=email, defaults={
-            "full_name": f"Work Order Demo Technician {serial:03d}",
+            "full_name": full_name,
             "is_active": True,
         })
+        if user.full_name != full_name:
+            user.full_name = full_name
+            user.save(update_fields=["full_name", "updated_at"])
         if not user.is_active:
             user.is_active = True
             user.save(update_fields=["is_active"])
         if not user.has_usable_password():
-            user.set_password(os.environ.get("FIELDOPS_DEMO_PASSWORD", "FieldOps-Dev-2026!"))
+            user.set_password(password or os.environ.get("FIELDOPS_DEMO_PASSWORD", "FieldOps-Dev-2026!"))
             user.save(update_fields=["password"])
         member = Membership.objects.for_organization(organization).filter(user=user).first()
         if member is None:

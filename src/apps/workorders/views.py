@@ -13,10 +13,11 @@ from apps.tenancy.api import TenantAPIMixin
 
 from . import services
 from .models import WorkOrder, WorkOrderEvent
-from .serializers import (AssignSerializer, ChecklistSerializer, CompleteSerializer, CreateWorkOrderSerializer,
+from .serializers import (AssignSerializer, ProvisionalChecklistSerializer, CompleteSerializer, CreateWorkOrderSerializer,
                          EvidenceSerializer, LaborInputSerializer, LaborSerializer, MaterialInputSerializer,
                          MaterialSerializer, PlanSerializer, WorkOrderReasonSerializer, ReviewSerializer,
                          ClosureCommentSerializer, WorkNoteSerializer, WorkOrderEventSerializer, WorkOrderSerializer)
+from .serializers import ChecklistReferenceSerializer
 from .serializers import ExpectedVersionSerializer
 from .serializers import UpdateWorkOrderSerializer
 
@@ -29,14 +30,15 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         "plan": "work_order.plan", "assign": "work_order.assign",
         "dispatch_order": "work_order.dispatch", "start": "work_order.start", "hold": "work_order.hold",
         "resume": "work_order.start", "complete": "work_order.complete",
+        "validate_checklist": "work_order.complete",
         "submit_for_review": "work_order.complete", "review": "work_order.review",
         "close": "work_order.close", "return_for_rework": "work_order.review",
-        "cancel": "work_order.cancel", "checklist": "work_order.update", "labor": "work_order.record",
+        "provisional_checklist": "work_order.update", "checklist_reference": "work_order.update", "labor": "work_order.record",
         "materials": "work_order.record", "evidence": "work_order.attach", "notes": "work_order.record",
     }
 
     def get_required_permission(self):
-        if getattr(self, "action", None) in ("list", "retrieve", "events"):
+        if getattr(self, "action", None) in ("list", "retrieve", "events", "checklist_status", "validate_checklist"):
             m = getattr(self.request, "membership", None)
             if m and rbac.has_permission_anywhere(m, "work_order.view"):
                 return "work_order.view"
@@ -66,7 +68,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
             return PlanSerializer
         if self.action == "assign":
             return AssignSerializer
-        if self.action in ("hold", "cancel"):
+        if self.action == "hold":
             return WorkOrderReasonSerializer
         if self.action in ("close", "return_for_rework"):
             return ClosureCommentSerializer
@@ -80,8 +82,8 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
             return LaborInputSerializer
         if self.action == "materials":
             return MaterialInputSerializer
-        if self.action == "checklist":
-            return ChecklistSerializer
+        if self.action == "provisional_checklist":
+            return ProvisionalChecklistSerializer
         if self.action == "evidence":
             return EvidenceSerializer
         return WorkOrderSerializer
@@ -208,7 +210,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
     def resume(self, request, pk=None):
         return self._action(pk, services.resume_work_order)
 
-    @extend_schema(description="IN_PROGRESS -> COMPLETED. Saves resolution notes and checklist results; completion evidence rules apply by work type.")
+    @extend_schema(description="IN_PROGRESS -> COMPLETED. Saves resolution notes after M08 checklist validation and work-type evidence requirements pass.")
     @action(detail=True, methods=["post"])
     def complete(self, request, pk=None):
         return self._action(pk, services.complete_work_order, CompleteSerializer)
@@ -247,15 +249,34 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         return self._action(pk, lambda wo, **kw: services.record_work_update(
             wo, update=kw.pop("text"), **kw), WorkNoteSerializer)
 
-    @extend_schema(description="Provisional: cancellation remains pending product-owner confirmation.")
-    @action(detail=True, methods=["post"])
-    def cancel(self, request, pk=None):
-        return self._action(pk, services.cancel_work_order, WorkOrderReasonSerializer)
-
-    @action(detail=True, methods=["post"])
-    def checklist(self, request, pk=None):
+    @extend_schema(description="Store M06 provisional development notes only; never used as M08 checklist answers or completion evidence.")
+    @action(detail=True, methods=["post"], url_path="provisional-checklist")
+    def provisional_checklist(self, request, pk=None):
         return self._action(pk, lambda wo, **kw: services.set_checklist(wo, items=kw.pop("items"), **kw),
-                            ChecklistSerializer)
+                            ProvisionalChecklistSerializer)
+
+    @extend_schema(responses=WorkOrderSerializer,
+                   description="Register opaque M08 template and instance references. This leaves checklist status pending; it does not mark checklist completion.")
+    @action(detail=True, methods=["post"], url_path="checklist-reference")
+    def checklist_reference(self, request, pk=None):
+        return self._action(pk, services.register_checklist_reference, ChecklistReferenceSerializer)
+
+    @extend_schema(responses={200: dict}, description="Return M08 checklist references and validation state. This endpoint is read-only.")
+    @action(detail=True, methods=["get"], url_path="checklist-status")
+    def checklist_status(self, request, pk=None):
+        wo = self.get_object()
+        from .checklist_adapter import get_checklist_summary
+        return Response(get_checklist_summary(wo))
+
+    @extend_schema(responses={200: dict, 409: dict},
+                   description="Evaluate the local adapter contract without contacting M08. Returns valid or pending metadata; it never creates checklist answers.")
+    @action(detail=True, methods=["post"], url_path="validate-checklist")
+    def validate_checklist(self, request, pk=None):
+        wo = self.get_object()
+        from .checklist_adapter import get_checklist_status, get_checklist_summary
+        result = get_checklist_status(wo)
+        return Response(get_checklist_summary(wo),
+            status=status.HTTP_200_OK if result.is_valid else status.HTTP_409_CONFLICT)
 
     @action(detail=True, methods=["post"])
     def labor(self, request, pk=None):

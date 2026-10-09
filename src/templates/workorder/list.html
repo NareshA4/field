@@ -1,14 +1,13 @@
 {% extends "shell.html" %}
 {% load static %}
 {% block title %}Work Order Visibility · FieldOps Nexus{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/workorder.css' %}?v=m06-flow-display-2">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/workorder.css' %}?v=m06-list-fit-2">{% endblock %}
 {% block content %}
 <div class="wo-page">
   <div class="wo-eyebrow-row">
     <div>
       <p class="wo-eyebrow">PLATFORM VISIBILITY / WORK ORDERS</p>
       <h1 class="wo-title">Work Order Visibility</h1>
-      <p class="wo-subtitle">A live, role-scoped view of work moving through the documented workflow.</p>
     </div>
     <span class="wo-scope"><span aria-hidden="true">●</span> Scope enforced</span>
   </div>
@@ -16,20 +15,18 @@
   <section id="wo-status-cards" class="wo-status-grid" aria-label="Work order counts by workflow status"
            hx-get="{{ request.get_full_path }}" hx-trigger="workOrderChanged from:body" hx-select="#wo-status-cards" hx-swap="outerHTML">
     {% for item in status_cards %}
-      <a class="wo-status-card status-{{ item.code|lower }} {% if item.selected %}is-selected{% endif %}"
-         href="{% url 'workorders:list' %}?status={{ item.code }}"
-         aria-label="Show {{ item.count }} {{ item.label }} work orders" {% if item.selected %}aria-current="page"{% endif %}>
+      <div class="wo-status-card status-{{ item.code|lower }} {% if item.selected %}is-selected{% endif %}"
+         aria-label="{{ item.count }} {{ item.label }} work orders">
         <span class="wo-status-count">{{ item.count }}</span>
         <span class="wo-status-label">{{ item.label }}</span>
         <span class="wo-status-rule" aria-hidden="true"></span>
-      </a>
+      </div>
     {% endfor %}
   </section>
 
   <section class="wo-panel" aria-labelledby="workflow-title">
     <div class="wo-panel-heading">
       <h2 id="workflow-title">Workflow protection</h2>
-      <p>Exact documented states shown in sequence</p>
     </div>
     <div class="wo-flow" aria-label="Work-order workflow">
       {% for code,label in workflow_steps %}
@@ -43,20 +40,14 @@
     <div class="wo-panel-heading wo-panel-heading-actions">
       <div>
         <h2 id="operations-title">Work order operations</h2>
-        <p>Actions are available according to your role and site permissions.</p>
       </div>
       {% if can_create %}<a class="wo-primary-button" href="{% url 'workorders:create' %}"><span aria-hidden="true">＋</span> Create work order</a>{% endif %}
-    </div>
-    <div class="wo-admin-grid">
-      <div><strong>Transitions are controlled</strong><span>Each status change uses the validated workflow.</span></div>
-      <div><strong>Assignments are checked</strong><span>Only active, site-authorized technicians without another active job can be assigned.</span></div>
-      <div><strong>Records stay in scope</strong><span>Work orders are filtered to your organization and sites.</span></div>
     </div>
   </section>
 
   <section class="wo-panel wo-records" aria-labelledby="records-title">
     <div class="wo-record-heading">
-      <div><h2 id="records-title">Work orders</h2><p>Search and filter your permitted records.</p></div>
+      <div><h2 id="records-title">Work orders</h2></div>
       <div class="wo-view-links"><a href="{% url 'workorders:schedule' %}">Schedule board</a><a href="{% url 'workorders:mine' %}">My jobs</a></div>
     </div>
     <form class="wo-filter-form" method="get" hx-get="{% url 'workorders:list' %}" hx-trigger="change delay:250ms, submit" hx-target="#workorder-results" hx-select="#workorder-results" hx-swap="outerHTML" hx-push-url="true">
@@ -73,7 +64,7 @@
     </form>
     <div id="workorder-results">
     <div class="table-responsive">
-      <table class="wo-table">
+      <table class="wo-table wo-list-table">
         <thead><tr><th>Work order</th><th>Asset</th><th>Site</th><th>Priority</th><th>Status</th><th>Assignee</th><th>Due / warning</th><th class="wo-actions-heading">Actions</th></tr></thead>
         <tbody>
         {% for wo in work_orders %}

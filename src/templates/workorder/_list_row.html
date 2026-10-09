@@ -1,11 +1,11 @@
 <tr id="workorder-{{ wo.pk }}" class="{% if wo.is_overdue %}is-overdue{% endif %}">
-  <td><a class="wo-number" href="{% url 'workorders:detail' wo.pk %}">{{ wo.order_number }}</a><span class="wo-row-title">{{ wo.title }}</span></td>
-  <td>{{ wo.asset_reference|default:"—" }}{% if wo.component_reference %}<span class="wo-row-title">Component {{ wo.component_reference }}</span>{% endif %}</td><td>{{ wo.site.code }} · {{ wo.site.name }}</td>
-  <td><span class="wo-priority priority-{{ wo.priority|lower }}">{{ wo.get_priority_display }}</span></td>
-  <td><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span></td>
-  <td>{{ wo.assigned_to.user.full_name|default:"Unassigned" }}</td>
-  <td>{% if wo.due_at %}{{ wo.due_at|date:"M j, Y · H:i" }}{% elif wo.planned_end %}{{ wo.planned_end|date:"M j, Y · H:i" }}{% else %}<span class="wo-muted">Not scheduled</span>{% endif %}{% if wo.is_overdue %}<span class="wo-overdue-badge">Past due</span>{% endif %}</td>
-  <td class="wo-actions-cell"><div class="wo-row-actions">
+  <td data-label="Work order"><a class="wo-number" href="{% url 'workorders:detail' wo.pk %}">{{ wo.order_number }}</a><span class="wo-row-title">{{ wo.title }}</span></td>
+  <td data-label="Asset">{{ wo.asset_reference|default:"—" }}{% if wo.component_reference %}<span class="wo-row-title">Component {{ wo.component_reference }}</span>{% endif %}</td><td data-label="Site">{{ wo.site.code }} · {{ wo.site.name }}</td>
+  <td data-label="Priority"><span class="wo-priority priority-{{ wo.priority|lower|default:'none' }}">{{ wo.get_priority_display|default:"Not set" }}</span></td>
+  <td data-label="Status"><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span></td>
+  <td data-label="Assignee">{{ wo.assigned_to.user.full_name|default:"Unassigned" }}</td>
+  <td data-label="Due / warning">{% if wo.due_at %}{{ wo.due_at|date:"M j, Y · H:i" }}{% elif wo.planned_end %}{{ wo.planned_end|date:"M j, Y · H:i" }}{% else %}<span class="wo-muted">Not scheduled</span>{% endif %}{% if wo.is_overdue %}<span class="wo-overdue-badge">Past due</span>{% endif %}</td>
+  <td data-label="Actions" class="wo-actions-cell"><div class="wo-row-actions">
     <a class="wo-view-button" href="{% url 'workorders:detail' wo.pk %}">View</a>
     {% for action in wo.allowed_actions %}
       {% if action.operation == 'edit' %}<a class="wo-edit-button" href="{% url 'workorders:edit' wo.pk %}">{{ action.label }}</a>

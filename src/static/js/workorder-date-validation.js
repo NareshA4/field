@@ -8,7 +8,7 @@
 
   const rules = [
     {field: end, error: document.getElementById("planned-end-rule-error"), message: "Planned end must be later than planned start."},
-    {field: due, error: document.getElementById("due-at-rule-error"), message: "Due date and time must be later than planned end."},
+      {field: due, error: document.getElementById("due-at-rule-error"), message: "Due date must be later than planned end."},
   ];
 
   function validateDates() {
