@@ -36,9 +36,29 @@
             <input type="hidden" name="parent" value="{{ parent.pk }}">
           {% endif %}
           
-          {% if form.non_field_errors %}
-            <div class="alert alert-danger">
-              {{ form.non_field_errors }}
+          {% if form.errors or rel_form.errors %}
+            <div class="alert alert-danger d-flex align-items-start gap-2 mb-3">
+              {% icon 'alert-circle' 18 %}
+              <div>
+                <strong class="d-block mb-1">Please correct the highlighted errors before saving:</strong>
+                <ul class="mb-0 ps-3 small">
+                  {% for field in form %}
+                    {% for error in field.errors %}
+                      <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                    {% endfor %}
+                  {% endfor %}
+                  {% if rel_form %}
+                    {% for field in rel_form %}
+                      {% for error in field.errors %}
+                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                      {% endfor %}
+                    {% endfor %}
+                  {% endif %}
+                  {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                  {% endfor %}
+                </ul>
+              </div>
             </div>
           {% endif %}
 
@@ -69,12 +89,17 @@
           {% if form.attribute_defs %}
             <h5 class="mb-3 border-bottom pb-2">Custom Category Attributes</h5>
             <div class="row g-3 mb-3">
-              {% for field_name in form.fields %}
-                {% if field_name|slice:":5" == "attr_" %}
-                  <div class="col-md-6">
-                    {{ form|get_item:field_name }}
-                  </div>
-                {% endif %}
+              {% for d in form.attribute_defs %}
+                {% with field_name="attr_"|add:d.key %}
+                  {% with bf=form|get_item:field_name %}
+                    <div class="col-md-6">
+                      {{ bf.label_tag }}
+                      {{ bf }}
+                      {{ bf.errors }}
+                      {% if d.help_text %}<div class="form-text">{{ d.help_text }}</div>{% endif %}
+                    </div>
+                  {% endwith %}
+                {% endwith %}
               {% endfor %}
             </div>
           {% endif %}

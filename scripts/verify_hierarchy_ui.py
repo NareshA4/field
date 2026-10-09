@@ -108,8 +108,8 @@ def run_ui_verification():
     user = User.objects.filter(email="asset.manager@apexindustrial.com").first() or User.objects.first()
     client.force_login(user)
     
-    # Get a root asset
-    root_asset = Asset.objects.filter(parent_link__isnull=True).first()
+    # Get a root asset with children if available
+    root_asset = Asset.objects.filter(parent_link__isnull=True, child_links__isnull=False).first() or Asset.objects.filter(parent_link__isnull=True).first()
     assert root_asset, "At least one root asset should exist"
     
     hub_url = f"/app/assets/hierarchy/?root={root_asset.pk}"
