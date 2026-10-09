@@ -95,7 +95,14 @@ def pretty_json(value):
 
 @register.filter
 def get_item(mapping, key):
-    return mapping.get(key, "") if hasattr(mapping, "get") else ""
+    if mapping is None:
+        return ""
+    if hasattr(mapping, "get"):
+        return mapping.get(key, "")
+    try:
+        return mapping[key]
+    except (KeyError, TypeError, IndexError):
+        return ""
 
 
 @register.simple_tag(takes_context=True)

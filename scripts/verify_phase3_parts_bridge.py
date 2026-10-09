@@ -25,6 +25,12 @@ SRC_DIR = BASE_DIR / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+if sys.stdout.encoding != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
 try:
     from dotenv import load_dotenv
     load_dotenv(BASE_DIR / ".env")
@@ -34,6 +40,9 @@ except ImportError:
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.prod")
 import django
 django.setup()
+
+from django.conf import settings
+settings.SECURE_SSL_REDIRECT = False
 
 from django.test import Client
 from apps.tenancy.models import Organization, Membership
