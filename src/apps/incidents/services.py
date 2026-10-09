@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from django.apps import apps
 from django.db import transaction
 from django.utils import timezone
 
@@ -42,21 +41,8 @@ _SEVERITY_TO_PRIORITY = {"LOW": "LOW", "MEDIUM": "MEDIUM", "HIGH": "HIGH", "CRIT
 _FUTURE_SLACK = timedelta(minutes=5)
 
 
-class _NoSla:
-    @staticmethod
-    def on_request_created(sr): ...
-
-    @staticmethod
-    def on_request_updated(sr): ...
-
-    @staticmethod
-    def on_request_status_changed(sr, previous, new): ...
-
-
 def _sla():
-    """M11 contract (lazy import: M11 depends on the M05 models). A no-op until the SLA module is installed."""
-    if not apps.is_installed("apps.sla"):
-        return _NoSla
+    """M11 contract (lazy import: M11 depends on the M05 models)."""
     from apps.sla import services as sla
 
     return sla
@@ -214,8 +200,6 @@ def create_work_order_for_request(sr: ServiceRequest, *, actor, membership, requ
     """M05 -> M06: an APPROVED request creates a real work order (DRAFT) and moves to WORK ORDER CREATED. The
     caller holds ``work_order.create`` for the request's site. ``plan`` may carry title / description / priority /
     planned_start / planned_end / estimated_hours. The work-order lifecycle is M06's."""
-    if not apps.is_installed("apps.workorders"):
-        raise Conflict("The Work Orders module is not enabled.", code="module_unavailable")
     from apps.workorders import services as work_orders
 
     sr = ServiceRequest.objects.select_related("asset", "site").select_for_update(of=("self",)).get(pk=sr.pk)
