@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
         ('core', '0001_initial'),
         ('identification', '0002_sync_schema'),
         ('incidents', '0002_sync_schema'),
-        ('workorders', '0011_sync_schema'),
+        ('workorders', '0004_sync_schema'),
         ('inventory', '0002_sync_schema'),
         ('sla', '0003_sync_schema'),
         ('contracts', '0003_sync_schema'),

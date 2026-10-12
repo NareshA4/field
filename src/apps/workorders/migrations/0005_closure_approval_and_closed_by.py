@@ -13,16 +13,36 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name="workorder",
-            name="closed_by",
-            field=models.ForeignKey(
-                blank=True,
-                null=True,
-                on_delete=django.db.models.deletion.PROTECT,
-                related_name="closed_work_orders",
-                to=settings.AUTH_USER_MODEL,
-            ),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AddField(
+                    model_name="workorder",
+                    name="closed_by",
+                    field=models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="closed_work_orders",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+            ],
+            database_operations=[
+                migrations.RunSQL(
+                    sql="""
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns
+                            WHERE table_name = 'workorders_workorder' AND column_name = 'closed_by_id'
+                        ) THEN
+                            ALTER TABLE workorders_workorder ADD COLUMN closed_by_id UUID REFERENCES accounts_user(id) ON DELETE SET NULL;
+                        END IF;
+                    END $$;
+                    """,
+                    reverse_sql="",
+                )
+            ]
         ),
         migrations.CreateModel(
             name="ClosureApproval",
