@@ -91,6 +91,7 @@ api_v1 = [
     path("organization/", OrganizationViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
          name="organization"),
     path("", include(router.urls)),
+    path("", include("apps.workspace.api_urls")),
     path("sla-metrics/", SLAMetricsView.as_view(), name="sla-metrics"),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
@@ -115,6 +116,7 @@ urlpatterns = [
     path("app/", include("apps.sla.urls")),
     path("app/", include("apps.contracts.urls")),
     path("app/", include("apps.checklists.urls")),
+    path("app/", include("apps.workspace.urls")),
     path("", include("apps.ui.urls")),
 ]
 
