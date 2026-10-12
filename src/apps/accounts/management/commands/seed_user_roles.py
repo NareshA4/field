@@ -1,11 +1,11 @@
-from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from apps.tenancy.models import Organization, Membership
-from apps.rbac.models import Role, MembershipRole
-from apps.rbac.services import seed_system_roles
 from apps.portal.models import PortalAccount
+from apps.rbac.models import MembershipRole, Role
+from apps.rbac.services import seed_system_roles
+from apps.tenancy.models import Membership, Organization
 
 
 class Command(BaseCommand):

@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import ClosureApproval, WorkOrder, WorkOrderEvent, WorkOrderEvidence, WorkOrderLabor, WorkOrderMaterial
+from .models import (
+    ClosureApproval,
+    WorkOrder,
+    WorkOrderEvent,
+    WorkOrderEvidence,
+    WorkOrderLabor,
+    WorkOrderMaterial,
+)
 
 
 class EventInline(admin.TabularInline):

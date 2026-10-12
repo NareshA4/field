@@ -18,9 +18,9 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
-from apps.files import services as file_services
 from apps.assets import services as asset_services
 from apps.assets.models import Asset, AssetCategory
+from apps.files import services as file_services
 from apps.incidents import services as incident_services
 from apps.incidents.models import ServiceRequest
 from apps.incidents.workflow import APPROVED, TRIAGED
@@ -28,7 +28,7 @@ from apps.rbac import services as rbac
 from apps.sites.models import Site
 from apps.tenancy.models import Membership, Organization
 from apps.workorders import services
-from apps.workorders.models import WorkOrder, WorkOrderEvent
+from apps.workorders.models import WorkOrder
 
 
 class Command(BaseCommand):

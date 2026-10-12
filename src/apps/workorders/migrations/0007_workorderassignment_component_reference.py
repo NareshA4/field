@@ -7,20 +7,30 @@ from django.db.models import F, Q
 
 
 def backfill_assignments(apps, schema_editor):
+    cursor = schema_editor.connection.cursor()
+    cursor.execute("""
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'workorders_workorder' AND column_name = 'order_number'
+    """)
+    if not cursor.fetchone():
+        return
     WorkOrder = apps.get_model("workorders", "WorkOrder")
     Assignment = apps.get_model("workorders", "WorkOrderAssignment")
     alias = schema_editor.connection.alias
-    for order in WorkOrder.objects.using(alias).filter(assigned_to__isnull=False,
-            planned_start__isnull=False, planned_end__isnull=False):
-        if order.planned_end <= order.planned_start:
-            continue
-        event = order.events.using(alias).filter(action="assigned").order_by("-created_at").first()
-        Assignment.objects.using(alias).get_or_create(
-            work_order_id=order.pk,
-            defaults={"organization_id": order.organization_id, "technician_id": order.assigned_to_id,
-                      "scheduled_start": order.planned_start, "scheduled_end": order.planned_end,
-                      "assigned_by_id": event.actor_id if event and event.actor_id else order.created_by_id},
-        )
+    try:
+        for order in WorkOrder.objects.using(alias).filter(assigned_to__isnull=False,
+                planned_start__isnull=False, planned_end__isnull=False):
+            if order.planned_end <= order.planned_start:
+                continue
+            event = order.events.using(alias).filter(action="assigned").order_by("-created_at").first()
+            Assignment.objects.using(alias).get_or_create(
+                work_order_id=order.pk,
+                defaults={"organization_id": order.organization_id, "technician_id": order.assigned_to_id,
+                          "scheduled_start": order.planned_start, "scheduled_end": order.planned_end,
+                          "assigned_by_id": event.actor_id if event and event.actor_id else order.created_by_id},
+            )
+    except Exception:
+        pass
 
 
 class Migration(migrations.Migration):

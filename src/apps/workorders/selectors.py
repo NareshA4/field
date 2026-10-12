@@ -1,6 +1,6 @@
 from apps.core.exceptions import NotFound
-from apps.rbac import services as rbac
 from apps.files.models import Attachment
+from apps.rbac import services as rbac
 
 from .models import WorkOrder
 

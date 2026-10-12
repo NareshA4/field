@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.core import mail
 
 from apps.tenancy import services
-from apps.tenancy.models import Membership, Organization
+from apps.tenancy.models import Membership
 from tests.conftest import PASSWORD
 
 pytestmark = pytest.mark.django_db

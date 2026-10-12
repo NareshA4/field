@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             DO $$
             BEGIN
                 IF EXISTS (
-                    SELECT 1 FROM information_schema.columns 
+                    SELECT 1 FROM information_schema.columns
                     WHERE table_name='contracts_serviceprovider' AND column_name='contact_person'
                 ) THEN
                     ALTER TABLE contracts_serviceprovider RENAME COLUMN contact_person TO contact_name;
@@ -29,7 +29,7 @@ class Migration(migrations.Migration):
             DO $$
             BEGIN
                 IF EXISTS (
-                    SELECT 1 FROM information_schema.columns 
+                    SELECT 1 FROM information_schema.columns
                     WHERE table_name='contracts_coverageagreement' AND column_name='agreement_number'
                 ) THEN
                     ALTER TABLE contracts_coverageagreement RENAME COLUMN agreement_number TO reference;
@@ -41,7 +41,7 @@ class Migration(migrations.Migration):
             DO $$
             BEGIN
                 IF EXISTS (
-                    SELECT 1 FROM information_schema.columns 
+                    SELECT 1 FROM information_schema.columns
                     WHERE table_name='contracts_coverageagreement' AND column_name='agreement_type'
                 ) THEN
                     ALTER TABLE contracts_coverageagreement RENAME COLUMN agreement_type TO kind;
@@ -60,7 +60,7 @@ class Migration(migrations.Migration):
             DO $$
             BEGIN
                 IF EXISTS (
-                    SELECT 1 FROM information_schema.columns 
+                    SELECT 1 FROM information_schema.columns
                     WHERE table_name='contracts_coveragecheck' AND column_name='is_eligible'
                 ) THEN
                     ALTER TABLE contracts_coveragecheck RENAME COLUMN is_eligible TO eligible;

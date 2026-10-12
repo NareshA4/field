@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import F, Q
+from django.db.models import F
 from django.utils import timezone
 
 from apps.audit import services as audit
@@ -13,9 +13,16 @@ from apps.rbac import services as rbac
 from apps.sites.models import Site
 from apps.tenancy.models import Membership
 
-from .models import (ClosureApproval, WorkOrder, WorkOrderAssignment, WorkOrderEvent,
-                     WorkOrderEvidence, WorkOrderLabor, WorkOrderMaterial)
 from .assignment_rules import ACTIVE_ASSIGNMENT_STATES, validate_assignment
+from .models import (
+    ClosureApproval,
+    WorkOrder,
+    WorkOrderAssignment,
+    WorkOrderEvent,
+    WorkOrderEvidence,
+    WorkOrderLabor,
+    WorkOrderMaterial,
+)
 
 TRANSITIONS = {
     WorkOrder.Status.DRAFT: {WorkOrder.Status.PLANNED},
