@@ -2,10 +2,9 @@
 UI Test Suite for FieldOps Nexus Asset Hierarchy Hub, Tree Rendering, and Design Layer.
 """
 import pytest
-from django.template import Context, Template
+
 from apps.assets import hierarchy, services
-from apps.assets.models import Asset, AssetComponent
-from apps.ui.templatetags.ui_tags import icon, _ICONS
+from apps.ui.templatetags.ui_tags import _ICONS, icon
 
 pytestmark = pytest.mark.django_db
 
@@ -62,7 +61,7 @@ def hierarchy_fixture(org_a, site_a1, make_category, owner_a):
         asset_tag="AST-BRG-001", name="Active Magnetic Bearing Set",
         manufacturer="SKF", model="MB-6000", serial_number="SN-SKF-8812"
     )
-    
+
     # Level 1: Root -> Compressor (Assembly)
     link1 = hierarchy.add_component(
         parent=root, child=compressor, relationship_type="ASSEMBLY",
@@ -80,7 +79,7 @@ def test_hierarchy_hub_page_renders_with_kpis_and_toolbar(client, owner_a, hiera
     """Verify Hierarchy Hub UI renders KPIs, navigation, search, and filter toolbar."""
     client.force_login(owner_a)
     root = hierarchy_fixture["root"]
-    
+
     response = client.get(f"/app/assets/hierarchy/?root={root.pk}")
     assert response.status_code == 200
     html = response.content.decode()
@@ -116,7 +115,7 @@ def test_hierarchy_tree_nodes_render_role_badges_and_actions(client, owner_a, hi
     """Verify tree nodes render correct role styling, copyable part pills, and action menus."""
     client.force_login(owner_a)
     root = hierarchy_fixture["root"]
-    
+
     response = client.get(f"/app/assets/hierarchy/?root={root.pk}")
     assert response.status_code == 200
     html = response.content.decode()
@@ -169,7 +168,7 @@ def test_login_screen_ui_structure(client):
     response = client.get("/accounts/login/")
     assert response.status_code == 200
     html = response.content.decode()
-    
+
     assert "fx-auth-wrap" in html
     assert "fx-auth-card" in html
     assert "FieldOps Nexus" in html
@@ -182,7 +181,7 @@ def test_asset_detail_hierarchy_tab_anchors(client, owner_a, hierarchy_fixture):
     """Verify asset detail page hierarchy tab contains anchors for move and replace sections."""
     client.force_login(owner_a)
     compressor = hierarchy_fixture["compressor"]
-    
+
     response = client.get(f"/app/assets/{compressor.pk}/?tab=hierarchy")
     assert response.status_code == 200
     html = response.content.decode()

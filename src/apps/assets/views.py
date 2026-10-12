@@ -34,12 +34,6 @@ from .forms import (
 )
 from .models import Asset, AssetComponent
 from .workflow import ASSET_STATUS, BUTTON_STYLES, TERMINAL_STATES
-from .api_views import (
-    AssetCategoryViewSet,
-    AssetViewSet,
-    ComponentViewSet as AssetComponentViewSet,
-    MeterViewSet as AssetMeterViewSet,
-)
 
 TABS = [("overview", "Overview"), ("documents", "Documents"), ("meters", "Meters"), ("history", "History"),
         ("hierarchy", "Hierarchy"), ("coverage", "Coverage"), ("labels", "Labels")]
@@ -92,7 +86,7 @@ class AssetHierarchyHubView(AssetBase):
     def get(self, request):
         m, org = request.membership, request.organization
         assets_qs = selectors.assets_for(m, org)
-        
+
         # Metrics & KPI Calculations
         total_assets = assets_qs.count()
         roots_with_children = assets_qs.filter(parent_link__isnull=True, child_links__isnull=False).distinct()
@@ -100,7 +94,7 @@ class AssetHierarchyHubView(AssetBase):
         total_components = AssetComponent.objects.for_organization(org).count()
         replaceable_parts = AssetComponent.objects.for_organization(org).filter(relationship_type="REPLACEABLE_PART").count()
         parts_without_num = AssetComponent.objects.for_organization(org).filter(relationship_type="REPLACEABLE_PART", part_number="").count()
-        
+
         # Selected Root Asset for Tree View
         root_id = request.GET.get("root")
         selected_root = None
@@ -108,10 +102,10 @@ class AssetHierarchyHubView(AssetBase):
             selected_root = assets_qs.filter(pk=selectors._uuid_or_none(root_id)).first()
         if not selected_root:
             selected_root = roots_with_children.first()
-            
+
         tree = hierarchy.build_tree(selected_root) if selected_root else None
         can_manage = rbac.has_permission(m, "asset.hierarchy.manage", selected_root.site_id) if selected_root else False
-        
+
         return render(request, "assets/hierarchy_hub.html", {
             "total_assets": total_assets,
             "total_assemblies": total_assemblies,
@@ -401,7 +395,7 @@ class AssetDetailView(AssetBase):
                     "part_number": link.part_number, "notes": link.notes})
                 below = {n["asset"].pk for n in hierarchy.flatten(hierarchy.build_tree(asset))}
                 ctx["move_form"] = ComponentMoveForm(candidates=base.exclude(pk__in=below))
-                
+
                 parent_ancestors = {a.pk for a in hierarchy.ancestors(link.parent)} | {link.parent_id, asset.pk} | below
                 replace_candidates = base.filter(parent_link__isnull=True).exclude(pk__in=parent_ancestors)
                 ctx["replace_form"] = ComponentReplaceForm(candidates=replace_candidates)

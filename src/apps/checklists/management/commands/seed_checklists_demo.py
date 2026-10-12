@@ -11,19 +11,20 @@ Seeds:
   4. Resolved findings with full audit notes
 """
 from datetime import timedelta
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from apps.core.tenant import tenant_context
-from apps.tenancy.models import Organization, Membership
-from apps.sites.models import Site, Zone
-from apps.sites import services as site_services
-from apps.assets.models import Asset, AssetCategory
 from apps.assets import services as asset_services
-from apps.workorders.models import WorkOrder
-from apps.workorders import services as wo_services
-from apps.checklists.models import ChecklistTemplate, ChecklistItem, Inspection, Finding, InspectionResponse
+from apps.assets.models import Asset, AssetCategory
 from apps.checklists import services as cl
+from apps.checklists.models import ChecklistItem, ChecklistTemplate, Finding, Inspection, InspectionResponse
+from apps.core.tenant import tenant_context
+from apps.sites import services as site_services
+from apps.sites.models import Site, Zone
+from apps.tenancy.models import Membership, Organization
+from apps.workorders import services as wo_services
+from apps.workorders.models import WorkOrder
 
 
 class Command(BaseCommand):
@@ -243,7 +244,7 @@ class Command(BaseCommand):
 
                 # Record finding for the exception
                 q2_item = t_pump.items.filter(prompt="Discharge pressure").first()
-                f1 = cl.add_finding(
+                cl.add_finding(
                     insp_pump,
                     description="Discharge pressure exceeded safe operational threshold (6.8 bar recorded vs max limit 6.5 bar). Mechanical seal is subject to over-pressure risk.",
                     severity=Finding.Severity.HIGH,

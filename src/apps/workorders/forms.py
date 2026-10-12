@@ -12,8 +12,8 @@ from apps.sites.models import Site
 from apps.tenancy.models import Membership
 from apps.ui.forms import BootstrapFormMixin
 
-from .models import WorkOrder
 from .assignment_rules import available_technicians
+from .models import WorkOrder
 
 
 class DataAttributeSelect(forms.Select):

@@ -6,8 +6,8 @@ data is surfaced as a warning rather than silently treated as verified.
 """
 from zoneinfo import ZoneInfo
 
-from django.utils import timezone
 from django.db.models.functions import Coalesce
+from django.utils import timezone
 
 from apps.core.exceptions import Conflict, ValidationFailed
 from apps.rbac import services as rbac

@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
         ('core', '0001_initial'),
         ('identification', '0002_sync_schema'),
         ('incidents', '0002_sync_schema'),
-        ('workorders', '0004_sync_schema'),
+        ('workorders', '0011_sync_schema'),
         ('inventory', '0002_sync_schema'),
         ('sla', '0003_sync_schema'),
         ('contracts', '0003_sync_schema'),
@@ -80,7 +80,7 @@ class Migration(migrations.Migration):
                     tbl := columns_to_drop_not_null[i][1];
                     col := columns_to_drop_not_null[i][2];
                     IF EXISTS (
-                        SELECT 1 FROM information_schema.columns 
+                        SELECT 1 FROM information_schema.columns
                         WHERE table_schema = 'public' AND table_name = tbl AND column_name = col
                     ) THEN
                         EXECUTE format('ALTER TABLE %I ALTER COLUMN %I DROP NOT NULL', tbl, col);

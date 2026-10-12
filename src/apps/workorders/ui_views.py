@@ -1,18 +1,16 @@
-from django.contrib import messages
+import json
+from datetime import time, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from django.conf import settings
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce
-import json
-from datetime import time, timedelta
-from django.urls import reverse
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-
-from django.http import Http404, HttpResponse
-from django.http import QueryDict
+from django.http import Http404, HttpResponse, QueryDict
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 
@@ -24,10 +22,23 @@ from apps.ui.mixins import TenantPermissionMixin
 
 from . import services
 from .assignment_rules import available_technicians, schedule_warnings
-from .forms import (AssignForm, ChecklistForm, ClosureCommentForm, CompleteForm, CreateWorkOrderForm, EditWorkOrderForm, EvidenceForm, LaborForm,
-                    MaterialForm, PlanForm, ReasonForm, ReviewForm, WorkUpdateForm)
-from .models import WorkOrder, WorkOrderAssignment
 from .checklist_adapter import get_checklist_summary
+from .forms import (
+    AssignForm,
+    ChecklistForm,
+    ClosureCommentForm,
+    CompleteForm,
+    CreateWorkOrderForm,
+    EditWorkOrderForm,
+    EvidenceForm,
+    LaborForm,
+    MaterialForm,
+    PlanForm,
+    ReasonForm,
+    ReviewForm,
+    WorkUpdateForm,
+)
+from .models import WorkOrder, WorkOrderAssignment
 
 
 def _site_zone(site):

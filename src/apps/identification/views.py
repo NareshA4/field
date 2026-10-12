@@ -13,7 +13,6 @@ from apps.sites.views import need, or404
 from apps.ui.mixins import TenantPermissionMixin
 
 from . import selectors, services
-from .models import AssetIdentifier
 
 
 class LabelBase(TenantPermissionMixin, View):

@@ -1,16 +1,12 @@
 """M02 QR & Barcode Integration tests (identification, labels, scan, RBAC, tenant isolation)."""
-from datetime import date
 import pytest
 from rest_framework import status
 
 from apps.assets import services as asset_services
-from apps.assets.models import Asset
-from apps.assets.workflow import ACTIVE, RETIRED
-from apps.audit.models import AuditLog
-from apps.core.exceptions import Conflict, NotFound, PermissionDenied, ValidationFailed
+from apps.assets.workflow import RETIRED
+from apps.core.exceptions import Conflict, NotFound, PermissionDenied
 from apps.identification import selectors as id_selectors
 from apps.identification import services as id_services
-from apps.identification.models import AssetIdentifier, ScanEvent
 from apps.tenancy.models import Membership
 
 pytestmark = pytest.mark.django_db
