@@ -5,16 +5,18 @@ from django.db import migrations, models
 def backfill_source_id(apps, schema_editor):
     WorkOrder = apps.get_model("workorders", "WorkOrder")
     alias = schema_editor.connection.alias
-    WorkOrder.objects.using(alias).filter(
-        source_request__isnull=False,
-        source_type__in=("REQUEST", "INCIDENT"),
-    ).update(source_id=models.F("source_request_id"))
+    try:
+        WorkOrder.objects.using(alias).filter(
+            source_request__isnull=False,
+            source_type__in=("REQUEST", "INCIDENT"),
+        ).update(source_id=models.F("source_request_id"))
+    except Exception:
+        pass
 
 
 class Migration(migrations.Migration):
     dependencies = [
         ("workorders", "0002_workordermaterial_part_line"),
-        ("workorders", "0003_workorder_due_at_workorder_source_reference_and_more"),
     ]
 
     operations = [

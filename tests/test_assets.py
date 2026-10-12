@@ -3,32 +3,23 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
-from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework import status
 
-from apps.audit.models import AuditLog
-from apps.core.exceptions import Conflict, InvalidTransition, NotFound, ValidationFailed
 from apps.assets import selectors, services
 from apps.assets.models import (
     Asset,
-    AssetCategory,
-    AssetDocument,
-    AssetLocationHistory,
-    AssetMeter,
-    AssetMeterReading,
     AssetStatusHistory,
 )
 from apps.assets.workflow import (
     ACTIVE,
-    ASSET_STATUS,
     DISPOSED,
     OUT_OF_SERVICE,
     RETIRED,
-    STATES,
-    TERMINAL_STATES,
     UNDER_MAINTENANCE,
 )
+from apps.audit.models import AuditLog
+from apps.core.exceptions import Conflict, InvalidTransition, NotFound, ValidationFailed
 
 pytestmark = pytest.mark.django_db
 
@@ -438,8 +429,8 @@ def test_api_asset_list_and_filters(as_user, org_a, site_a1, make_site, make_ass
     cat = make_category(org_a, "Pumps")
     site_a2 = make_site(org_a, "A2")
 
-    a1 = make_asset(org_a, site_a1, "API-PUMP-1", category=cat)
-    a2 = make_asset(org_a, site_a2, "API-FAN-2")
+    make_asset(org_a, site_a1, "API-PUMP-1", category=cat)
+    make_asset(org_a, site_a2, "API-FAN-2")
 
     # List all
     res = client.get("/api/v1/assets/")

@@ -4,8 +4,8 @@ References are opaque M08 identifiers (UUIDs or stable external codes); M06 does
 not own checklist templates, questions, answers, versions, or scoring.
 """
 from dataclasses import dataclass
-from django.utils import timezone
 
+from django.utils import timezone
 
 NOT_REQUIRED = "NOT_REQUIRED"
 PENDING = "PENDING"

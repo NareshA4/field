@@ -31,21 +31,17 @@ WHAT THIS INTEGRATION TEST SUITE COVERS:
      immutable audit log entry in the system ledger.
 ================================================================================
 """
-from datetime import timedelta
 import pytest
 from django.utils import timezone
 
 from apps.audit.models import AuditLog
 from apps.checklists import services as cl
-from apps.checklists.models import ChecklistItem, ChecklistTemplate, Finding, Inspection, InspectionResponse
-from apps.core.exceptions import Conflict, ValidationFailed
+from apps.checklists.models import Finding, Inspection
+from apps.core.exceptions import Conflict
 from apps.workorders import services as wos
 from tests.phase3_support import (
-    finish_work,
     good_answers,
     make_template,
-    new_wo,
-    step,
     wo_in_progress,
 )
 
@@ -68,7 +64,7 @@ def test_full_inspection_to_work_order_closure_lifecycle(p3, as_user):
     org = p3["org"]
     tech = p3["tech"]
     sup = p3["sup"]
-    planner = p3["planner"]
+    p3["planner"]
     asset = p3["asset"]
 
     # Step 1: Create active mandatory checklist template

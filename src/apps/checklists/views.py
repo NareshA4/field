@@ -303,7 +303,7 @@ class InspectionRunView(_View):
         } for it in items]
 
         answered_count = len([r for r in rows if r["response"] is not None])
-        progress_pct = int((answered_count / len(rows) * 100)) if rows else 100
+        progress_pct = int(answered_count / len(rows) * 100) if rows else 100
         exception_count = sum(1 for r in rows if r["response"] and r["response"].is_exception)
         issues = services.completion_issues(insp)
 
@@ -420,7 +420,7 @@ class InspectionModalView(_View):
 
         responses = selectors.responses_for(request.organization, insp)
         answered_count = len([it for it in items if it.pk in responses])
-        progress_pct = int((answered_count / len(items) * 100)) if items else 100
+        progress_pct = int(answered_count / len(items) * 100) if items else 100
         issues = services.completion_issues(insp) if insp.status == "IN_PROGRESS" else []
         has_photo_required = any(it.evidence_required for it in items)
 

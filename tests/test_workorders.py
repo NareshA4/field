@@ -1,22 +1,21 @@
-﻿from datetime import timedelta
-
-from concurrent.futures import ThreadPoolExecutor
+﻿from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from decimal import Decimal
-from uuid import uuid4
 from threading import Barrier
+from uuid import uuid4
 
 import pytest
-from django.urls import reverse
 from django.test import Client
+from django.urls import reverse
 from django.utils import timezone
 
-from apps.core.exceptions import Conflict, InvalidTransition, NotFound, PermissionDenied, ValidationFailed
 from apps.audit.models import AuditLog
+from apps.core.exceptions import Conflict, InvalidTransition, NotFound, PermissionDenied, ValidationFailed
 from apps.notifications.models import Notification
+from apps.tenancy.models import Membership, Organization
 from apps.workorders import services
 from apps.workorders.forms import CreateWorkOrderForm, PlanForm
 from apps.workorders.models import ClosureApproval, WorkOrder, WorkOrderAssignment, WorkOrderEvent
-from apps.tenancy.models import Membership, Organization
 
 pytestmark = pytest.mark.django_db
 
@@ -63,6 +62,7 @@ def mark_m08_checklist_valid(work_order):
 
 def attach_test_evidence(wo, organization, membership, *, filename="work-proof.txt"):
     from django.core.files.uploadedfile import SimpleUploadedFile
+
     from apps.files import services as file_services
 
     attachment = file_services.attach(SimpleUploadedFile(filename, b"work completed and checked"), target=wo,
@@ -334,7 +334,7 @@ def test_my_jobs_is_limited_to_the_logged_in_technician(org_a, site_a1, owner_a,
 
 def test_status_cards_only_filter_scoped_work_order_list(org_a, site_a1, make_member):
     planner = make_member(org_a, "status-filter-planner@alpha.test", "maintenance_planner")
-    draft = make_order(org_a, site_a1, planner, title="Status filter draft")
+    make_order(org_a, site_a1, planner, title="Status filter draft")
     planned = make_order(org_a, site_a1, planner, title="Status filter planned",
                          priority=WorkOrder.Priority.HIGH)
     start = timezone.now() + timedelta(days=4)
@@ -427,9 +427,7 @@ def test_seed_command_is_explicit_complete_and_idempotent(tmp_path, monkeypatch)
     from django.core.management import call_command
     from django.core.management.base import CommandError
     from django.test import override_settings
-    from apps.workorders.models import ClosureApproval, WorkOrderEvidence, WorkOrderLabor, WorkOrderMaterial
-    from apps.assets.models import Asset, AssetComponent
-    from apps.incidents.models import ServiceRequest
+
 
     monkeypatch.delenv("FIELDOPS_ALLOW_DEMO_SEED", raising=False)
     with override_settings(DEBUG=True, MEDIA_ROOT=tmp_path):
@@ -514,7 +512,6 @@ def _valid_create_payload(site, asset, *, source_type="MANUAL", source_request="
 
 def _approved_source(org, asset, membership, *, kind, title):
     from apps.incidents import services as incident_services
-    from apps.incidents.models import ServiceRequest
 
     source = incident_services.create_request(org, asset=asset, reporter=membership, title=title,
         description="Approved work request for create-form coverage.", kind=kind, severity="HIGH",
@@ -1473,6 +1470,7 @@ def test_api_full_workflow_and_close_is_idempotent(org_a, site_a1, owner_a, make
 
     wo = WorkOrder.objects.get(pk=wo_id)
     from django.core.files.uploadedfile import SimpleUploadedFile
+
     from apps.files import services as file_services
     attachment = file_services.attach(SimpleUploadedFile("inspection.txt", b"checked and safe"), target=wo,
         organization=org_a, user=tech.user, description="Inspection evidence", read_permission="work_order.view")

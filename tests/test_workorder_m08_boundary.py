@@ -13,6 +13,7 @@ pytestmark = pytest.mark.django_db
 
 def make_order(org, site, membership, **kwargs):
     from uuid import uuid4
+
     from apps.assets import services as asset_services
     from apps.assets.models import AssetCategory
     title = kwargs.pop("title", "M08 checklist adapter")
@@ -121,7 +122,7 @@ def test_invalid_provider_checklist_blocks_completion(org_a, site_a1, make_membe
 
 
 def test_valid_provider_result_allows_completion_and_closure_revalidates(org_a, site_a1, make_member):
-    planner = make_member(org_a, "m08-close-planner@example.test", "maintenance_planner")
+    make_member(org_a, "m08-close-planner@example.test", "maintenance_planner")
     supervisor = make_member(org_a, "m08-close-supervisor@example.test", "supervisor")
     order, _, technician = start_preventive_order(org_a, site_a1, make_member)
     set_provider_result(order)
