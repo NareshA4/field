@@ -201,6 +201,9 @@ class RequestWorkOrderView(_Post):
         return redirect("workorders:detail", pk=wo.pk)
 
 
+RequestCreateWorkOrderView = RequestWorkOrderView
+
+
 class RequestDowntimeView(_Post):
     def post(self, request, pk):
         sr = _req(request, pk, "incident.downtime.manage")
