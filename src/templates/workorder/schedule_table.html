@@ -1,0 +1,55 @@
+{% if schedule_error %}<div class="wo-error-banner" role="alert">{{ schedule_error }}</div>{% endif %}
+{% if schedule_success %}<div class="wo-success-banner" role="status">{{ schedule_success }}</div>{% endif %}
+
+<section class="wo-simple-schedule-section" aria-labelledby="unassigned-heading">
+  <header class="wo-simple-section-heading"><h2 id="unassigned-heading">Planned work · awaiting assignment</h2><span>{{ selected_day|date:"D, M j" }}</span></header>
+  <div class="wo-simple-job-list">
+    {% for wo in unassigned_orders %}
+    <article class="wo-simple-job-row {% if wo.overdue %}is-overdue{% endif %}">
+      <div class="wo-simple-job-summary">
+        <a class="wo-number" href="{% url 'workorders:detail' wo.pk %}">{{ wo.order_number }}</a>
+        <h3 title="{{ wo.title }}">{{ wo.title }}</h3>
+        <p><span>{{ wo.site.code }} · {{ wo.site.name }}</span><span>{{ wo.asset_reference|default:"No asset" }}</span></p>
+      </div>
+      <div class="wo-simple-job-window"><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span><span class="wo-priority priority-{{ wo.priority|lower|default:'none' }}">{{ wo.get_priority_display|default:"Not set" }}</span><strong>{{ wo.schedule_start_display }} – {{ wo.schedule_end_display }}</strong><small>Due {{ wo.due_display }}{% if wo.overdue %} · Overdue{% endif %}</small></div>
+      <div class="wo-simple-job-notes">{% for warning in wo.schedule_warnings %}<span class="wo-warning" title="{{ warning }}">{{ warning }}</span>{% empty %}<span class="wo-simple-muted">No scheduling warnings</span>{% endfor %}</div>
+      <div class="wo-simple-job-actions"><a class="wo-view-button" href="{% url 'workorders:detail' wo.pk %}">View</a>{% if wo.can_assign %}<button class="wo-status-button" type="button" data-open-dialog="assign-{{ wo.pk }}">Assign</button>{% endif %}</div>
+      {% if wo.can_assign %}
+      <dialog id="assign-{{ wo.pk }}" class="wo-assignment-dialog" aria-labelledby="assign-title-{{ wo.pk }}">
+        <form method="post" action="{% url 'workorders:schedule_assign' wo.pk %}" class="wo-assignment-modal-form">
+          {% csrf_token %}<input type="hidden" name="expected_version" value="{{ wo.version }}"><input type="hidden" name="day" value="{{ selected_day }}">
+          {% for key,value in filter_values.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+          <header><div><p class="wo-eyebrow">{{ wo.order_number }}</p><h3 id="assign-title-{{ wo.pk }}">Assign technician</h3></div><button type="button" class="wo-dialog-close" data-close-dialog aria-label="Close">×</button></header>
+          <dl class="wo-assignment-summary"><dt>Work order</dt><dd>{{ wo.title }}</dd><dt>Site</dt><dd>{{ wo.site.code }} · {{ wo.site.name }}</dd><dt>Asset</dt><dd>{{ wo.asset_reference|default:"—" }}</dd></dl>
+          <label for="technician-{{ wo.pk }}">Technician</label><select id="technician-{{ wo.pk }}" name="assigned_to" required {% if not wo.assignable_technicians %}disabled{% endif %}>
+            <option value="">Select a technician</option>{% for member in wo.assignable_technicians %}<option value="{{ member.pk }}" data-active-jobs="{{ member.active_job_count|default:0 }}" data-workload-hours="{{ member.workload_hours|default:0|floatformat:1 }}">{{ member.user.full_name|default:member.user.email }} · {{ member.active_job_count|default:0 }} active jobs</option>{% endfor %}
+          </select>
+          <p class="wo-modal-meta" data-technician-availability="{{ wo.pk }}">Select a technician to check workload.</p>
+          <label for="start-{{ wo.pk }}">Scheduled start</label><input id="start-{{ wo.pk }}" type="datetime-local" name="scheduled_start" value="{{ wo.schedule_start_input }}" required>
+          <label for="end-{{ wo.pk }}">Scheduled end</label><input id="end-{{ wo.pk }}" type="datetime-local" name="scheduled_end" value="{{ wo.schedule_end_input }}" required>
+          {% if not wo.assignable_technicians %}<p class="wo-warning">No eligible technician is available.</p>{% endif %}
+          <div class="wo-assignment-modal-actions"><button class="wo-primary-button btn" type="submit" {% if not wo.assignable_technicians %}disabled{% endif %}>Confirm assignment</button><button class="wo-view-button" type="button" data-close-dialog>Cancel</button></div>
+        </form>
+      </dialog>
+      {% endif %}
+    </article>
+    {% empty %}<p class="wo-simple-empty">No unassigned planned work orders for this date.</p>{% endfor %}
+  </div>
+</section>
+
+<section class="wo-simple-schedule-section" aria-labelledby="technician-schedule-heading">
+  <header class="wo-simple-section-heading"><h2 id="technician-schedule-heading">Technician schedule</h2><span>{{ selected_day|date:"D, M j" }}</span></header>
+  {% for group in schedule_days %}
+  <section class="wo-simple-technician-group" aria-label="Schedule for {{ group.technician.user.full_name|default:group.technician.user.email }}">
+    <header class="wo-simple-technician-heading">
+      <div><h3>{{ group.technician.user.full_name|default:group.technician.user.email }}</h3><p>{{ group.day|date:"l, M j, Y" }} · {% if group.technician.is_active %}Active{% else %}Inactive{% endif %}</p></div>
+      <div class="wo-simple-technician-summary"><span>{{ group.job_count }} job{{ group.job_count|pluralize }}</span><span>{{ group.workload_hours|floatformat:1 }} scheduled hours</span><span>{{ group.availability }}</span></div>
+    </header>
+    {% if group.operating_calendars %}<p class="wo-simple-technician-hours">{% for calendar in group.operating_calendars %}{{ calendar.site.code }} operating hours: {{ calendar.start_time|time:"H:i" }}–{{ calendar.end_time|time:"H:i" }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% elif group.operating_note %}<p class="wo-simple-technician-hours">{{ group.operating_note }}</p>{% endif %}
+    <div class="wo-simple-job-list">
+      {% for wo in group.orders %}{% include "workorder/_schedule_job_row.html" with wo=wo %}
+      {% empty %}<p class="wo-simple-empty">No scheduled work for this technician on this date.</p>{% endfor %}
+    </div>
+  </section>
+  {% empty %}<p class="wo-simple-empty">No technician schedules for this date.</p>{% endfor %}
+</section>

@@ -57,6 +57,24 @@ document.addEventListener("change", function (e) {
   window.location.search = params.toString();
 });
 
+/* Work-order HTMX actions report success/error through server-triggered events. */
+document.body.addEventListener("workOrderChanged", function (event) {
+  showWorkOrderMessage(event.detail && event.detail.message || "Work order updated.", false);
+});
+document.body.addEventListener("workOrderActionError", function (event) {
+  showWorkOrderMessage(event.detail && event.detail.message || "The work-order action failed. Refresh and retry.", true);
+});
+function showWorkOrderMessage(message, isError) {
+  var host = document.getElementById("main");
+  if (!host) return;
+  var notice = document.createElement("div");
+  notice.className = isError ? "wo-live-message is-error" : "wo-live-message";
+  notice.setAttribute("role", isError ? "alert" : "status");
+  notice.textContent = message;
+  host.prepend(notice);
+  window.setTimeout(function () { notice.remove(); }, 6000);
+}
+
 /* Interactive Hierarchy Hub & Tree Controls */
 document.addEventListener("DOMContentLoaded", function () {
   // Tree Node Expand / Collapse Toggle

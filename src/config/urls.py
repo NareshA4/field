@@ -110,7 +110,7 @@ urlpatterns = [
     path("app/", include("apps.assets.urls")),
     path("app/", include("apps.identification.urls")),
     path("app/", include("apps.incidents.urls")),
-    path("app/", include("apps.workorders.urls")),
+    path("app/", include("apps.workorders.urls_ui")),
     path("app/", include("apps.inventory.urls")),
     path("app/", include("apps.sla.urls")),
     path("app/", include("apps.contracts.urls")),

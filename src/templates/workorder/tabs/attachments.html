@@ -1,0 +1,3 @@
+<section class="wo-detail-card"><div class="d-flex justify-content-between align-items-center"><h2>Attachments and evidence</h2>{% if can_attach_evidence %}<a class="wo-view-button" href="{% url 'workorders:action' wo.pk 'evidence' %}">Attach evidence</a>{% endif %}</div>
+  <ul class="wo-event-list">{% for evidence_link in evidence %}<li><a href="{% url 'files:download' evidence_link.attachment.pk %}">{{ evidence_link.attachment.original_name }}</a>{% if evidence_link.attachment.description %} · {{ evidence_link.attachment.description }}{% endif %} <span class="text-secondary">· {{ evidence_link.attachment.size|filesizeformat }}</span></li>{% empty %}<li>No evidence attached.</li>{% endfor %}</ul>
+</section>

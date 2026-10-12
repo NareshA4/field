@@ -6,7 +6,7 @@ import secrets
 
 POLICY = (
     "default-src 'self'; script-src 'self' 'nonce-{nonce}'; style-src 'self' 'unsafe-inline'; "
-    "img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; "
+    "img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; "
     "form-action 'self'; frame-ancestors 'none'"
 )
 
@@ -16,7 +16,7 @@ POLICY = (
 DOCS_POLICY = (
     "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https://cdn.jsdelivr.net; "
-    "font-src 'self' https://cdn.jsdelivr.net; connect-src 'self'; object-src 'none'; base-uri 'self'; "
+    "font-src 'self' data: https://cdn.jsdelivr.net; connect-src 'self'; object-src 'none'; base-uri 'self'; "
     "form-action 'self'; frame-ancestors 'none'"
 )
 

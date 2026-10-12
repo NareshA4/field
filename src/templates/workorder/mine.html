@@ -1,0 +1,21 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block title %}My Jobs | Work Orders{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/workorder.css' %}">{% endblock %}
+{% block content %}
+<div class="wo-page"><nav class="mb-3"><a href="{% url 'workorders:list' %}">Work Orders</a> <span class="text-secondary">/ My jobs</span></nav>
+  <header class="wo-detail-header"><div><p class="wo-eyebrow">WORK ORDERS</p><h1>My jobs</h1></div><a class="wo-view-button" href="{% url 'workorders:schedule' %}">Schedule board</a></header>
+  <form method="get" class="wo-filter-form mb-3"><label><span class="visually-hidden">Status</span><select name="status"><option value="">All statuses</option>{% for key,label in statuses %}<option value="{{ key }}" {% if selected_status == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><button class="wo-filter-button" type="submit">Filter</button><a class="wo-reset" href="{% url 'workorders:mine' %}">Reset</a></form>
+  <section class="wo-panel"><div class="table-responsive"><table class="wo-table"><thead><tr><th>Work order</th><th>Site / asset</th><th>Priority</th><th>Status</th><th>Schedule / due</th><th>Checklist</th><th>Actions</th></tr></thead><tbody>
+    {% for wo in work_orders %}<tr class="{% if wo.overdue %}is-overdue{% endif %}">
+      <td><a href="{% url 'workorders:detail' wo.pk %}" class="wo-number">{{ wo.order_number }}</a><span class="wo-row-title">{{ wo.title }}</span></td>
+      <td>{{ wo.site.name }}{% if wo.asset_reference %}<span class="wo-row-title">{{ wo.asset_reference }}</span>{% endif %}</td>
+      <td><span class="wo-priority priority-{{ wo.priority|lower|default:'none' }}">{{ wo.get_priority_display|default:"Not set" }}</span></td>
+      <td><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span></td>
+      <td>{% if wo.planned_start %}{{ wo.planned_start|date:"M j, Y H:i" }}{% else %}Not planned{% endif %}{% if wo.due_at %}<span class="wo-row-title">Due {{ wo.due_at|date:"M j, H:i" }}{% if wo.overdue %} | OVERDUE{% endif %}</span>{% endif %}</td>
+      <td>{{ wo.checklist_summary.status }}{% if wo.checklist_summary.required %}<span class="wo-row-title">M08 validation</span>{% endif %}{% if wo.evidence_count %}<span class="wo-row-title">{{ wo.evidence_count }} evidence file{{ wo.evidence_count|pluralize }}</span>{% endif %}</td>
+      <td><div class="wo-row-actions"><a class="wo-view-button" href="{% url 'workorders:detail' wo.pk %}">View</a>{% for action in wo.allowed_actions %}{% if action.kind == 'post' %}<form method="post" action="{% url 'workorders:action' wo.pk action.operation %}">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ wo.version }}"><button class="wo-status-button" type="submit" {% if action.confirm %}data-confirm="{{ action.confirm }}"{% endif %}>{{ action.label }}</button></form>{% elif action.operation != 'edit' %}<a class="wo-status-button" href="{% url 'workorders:action' wo.pk action.operation %}">{{ action.label }}</a>{% endif %}{% endfor %}{% if wo.can_record_work %}<a class="wo-view-button" href="{% url 'workorders:action' wo.pk 'labor' %}">Log labor</a>{% endif %}</div></td>
+    </tr>{% empty %}<tr><td colspan="7" class="wo-empty">No active work orders assigned to you.</td></tr>{% endfor %}
+  </tbody></table></div></section>
+</div>
+{% endblock %}

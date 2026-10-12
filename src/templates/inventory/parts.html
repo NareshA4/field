@@ -1,14 +1,18 @@
-{% extends "shell.html" %}
-{% load ui_tags %}
-{% block title %}Parts · FieldOps Nexus{% endblock %}
-{% block content %}
+{% extends "shell.html" %} {% load ui_tags %} {% block title %}Parts · FieldOps
+Nexus{% endblock %} {% block content %}
 <div class="fx-page-header">
   <div>
     <h1>Spare parts</h1>
-    <div class="text-body-secondary">The part catalogue. Stock quantities live per warehouse.</div>
+    <div class="text-body-secondary">
+      The part catalogue. Stock quantities live per warehouse.
+    </div>
   </div>
   <div class="d-flex gap-2">
-    {% if can_manage %}<a class="btn btn-primary" href="{% url 'inventory:part_new' %}">{% icon 'plus' 16 %} New part</a>{% endif %}
+    {% if can_manage %}<a
+      class="btn btn-primary"
+      href="{% url 'inventory:part_new' %}"
+      >{% icon 'plus' 16 %} New part</a
+    >{% endif %}
   </div>
 </div>
 {% include "components/_section_tabs.html" with section="Inventory" %}
@@ -66,7 +70,8 @@
         {% empty %}
         <tr>
           <td colspan="7">
-            {% include "components/_empty_state.html" with title="No parts match" text="Adjust the filters or create a part." %}
+            {% include "components/_empty_state.html" with title="No parts
+            match" text="Adjust the filters or create a part." %}
           </td>
         </tr>
         {% endfor %}

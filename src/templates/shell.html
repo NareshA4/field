@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load ui_tags %}
-{% block body_class %}fx-app{% endblock %}
+{% block body_class %}fx-app{% if '/work-orders' in request.path %} fx-workorder-app{% endif %}{% endblock %}
 {% block body %}
 <div class="fx-layout" id="fx-layout">
   <aside class="fx-sidebar" id="fx-sidebar" aria-label="Primary navigation">

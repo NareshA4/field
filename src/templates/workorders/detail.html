@@ -1,515 +1,108 @@
-{% extends "shell.html" %} {% load ui_tags %} {% block title %}{{ wo.number }} ·
-FieldOps Nexus{% endblock %} {% block content %}
-<div class="fx-page-header">
-  <div>
-    <nav aria-label="breadcrumb">
-      <ol class="breadcrumb mb-1 small">
-        <li class="breadcrumb-item">
-          <a href="{% url 'workorders:list' %}">Work orders</a>
-        </li>
-        <li class="breadcrumb-item active">{{ wo.number }}</li>
-      </ol>
-    </nav>
-    <h1>{{ wo.title }} {% status_badge wo.status %}</h1>
-    <div class="text-body-secondary">
-      {{ wo.number }} · {{ wo.get_work_type_display }} · {% status_badge wo.priority %} ·
-      <a href="{% url 'assets:detail' wo.asset_id %}">{{ wo.asset.asset_tag }}</a>
-      · <a href="{% url 'sites:detail' wo.site_id %}">{{ wo.site.code }}</a>
-      {% if wo.asset %}{% hierarchy_trail wo.asset %}{% endif %}
-    </div>
-  </div>
-  <div class="d-flex gap-2">
-    {% if can.update and editable %}<a
-      class="btn btn-outline-primary"
-      href="{% url 'workorders:edit' wo.pk %}"
-      >Edit</a
-    >{% endif %} {% if can.export_evidence %}<a
-      class="btn btn-outline-secondary"
-      id="evidence-package"
-      href="{% url 'audit:evidence_package' wo.pk %}"
-      >Evidence package (ZIP)</a
-    >{% endif %}
-  </div>
-</div>
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}{{ wo.number }} Â· FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div>
+  <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'workorders:list' %}">Work orders</a></li>
+    <li class="breadcrumb-item active">{{ wo.number }}</li></ol></nav>
+  <h1>{{ wo.title }} {% status_badge wo.status %}</h1>
+  <div class="text-body-secondary">{{ wo.number }} Â· {{ wo.get_work_type_display }} Â· {% status_badge wo.priority %} Â· <a href="{% url 'assets:detail' wo.asset_id %}">{{ wo.asset.asset_tag }}</a> Â· <a href="{% url 'sites:detail' wo.site_id %}">{{ wo.site.code }}</a></div></div>
+  <div class="d-flex gap-2">{% if can.update and editable %}<a class="btn btn-outline-primary" href="{% url 'workorders:edit' wo.pk %}">Edit</a>{% endif %}
+  {% if can.export_evidence %}<a class="btn btn-outline-secondary" id="evidence-package" href="{% url 'audit:evidence_package' wo.pk %}">Evidence package (ZIP)</a>{% endif %}</div></div>
 
-<div class="fx-tabs" role="tablist">
-  {% for key, label in tabs %}<a
-    role="tab"
-    class="{% if tab == key %}active{% endif %}"
-    href="?tab={{ key }}"
-    >{{ label }}</a
-  >{% endfor %}
-</div>
+<div class="fx-tabs" role="tablist">{% for key, label in tabs %}<a role="tab" class="{% if tab == key %}active{% endif %}" href="?tab={{ key }}">{{ label }}</a>{% endfor %}</div>
 {% include "components/_wo_stepper.html" %}
 {% if actions %}
-<div class="fx-card mb-3">
-  <div class="fx-card-header">Next steps</div>
-  <div
-    class="fx-card-body d-flex flex-wrap gap-3 align-items-start"
-    id="wo-actions"
-  >
-    {% for a in actions %} {% if a.kind == "simple" %}
-    <form method="post" action="{{ a.url }}" class="m-0">
-      {% csrf_token %}<button
-        class="btn btn-{{ a.style }}"
-        {% if a.confirm %}data-confirm="{{ a.confirm }}"{% endif %}
-      >
-        {{ a.label }}
-      </button>
-    </form>
-    {% elif a.kind == "reason" %}
-    <form method="post" action="{{ a.url }}" class="m-0 d-flex gap-1">
-      {% csrf_token %}
-      <input
-        class="form-control form-control-sm"
-        style="width: 13rem"
-        name="reason"
-        required
-        minlength="3"
-        maxlength="500"
-        placeholder="Reason (required)"
-        aria-label="Reason for {{ a.label }}"
-      />
-      <button
-        class="btn btn-sm btn-{{ a.style }}"
-        {% if a.confirm %}data-confirm="{{ a.confirm }}"{% endif %}
-      >
-        {{ a.label }}
-      </button>
-    </form>
-    {% elif a.kind == "plan" %}
-    <form
-      method="post"
-      action="{{ a.url }}"
-      class="row g-2 align-items-end m-0"
-      style="min-width: min(100%, 640px)"
-    >
-      {% csrf_token %}
-      <div class="col-sm-6">
-        <label class="form-label small" for="id_planned_start"
-          >Planned start</label
-        >{{ a.form.planned_start }}
-      </div>
-      <div class="col-sm-6">
-        <label class="form-label small" for="id_planned_end">Planned end</label
-        >{{ a.form.planned_end }}
-      </div>
-      <div class="col-sm-4">
-        <label class="form-label small" for="id_estimated_hours"
-          >Estimated hours</label
-        >{{ a.form.estimated_hours }}
-      </div>
-      <div class="col-sm-4">
-        <label class="form-label small" for="id_priority">Priority</label>{{
-        a.form.priority }}
-      </div>
-      <div class="col-sm-4">
-        <button class="btn btn-primary w-100">{{ a.label }}</button>
-      </div>
-    </form>
-    {% elif a.kind == "assign" %}
-    <form
-      method="post"
-      action="{{ a.url }}"
-      class="d-flex gap-1 align-items-end m-0"
-    >
-      {% csrf_token %}
-      <div>
-        <label class="form-label small" for="id_technician">Technician</label>{{
-        a.form.technician }}
-      </div>
-      <button class="btn btn-primary">{{ a.label }}</button>
-    </form>
-    {% elif a.kind == "complete" %}
-    <form
-      method="post"
-      action="{{ a.url }}"
-      class="m-0"
-      style="min-width: min(100%, 520px)"
-    >
-      {% csrf_token %}
-      <label class="form-label small" for="id_resolution_notes"
-        >Resolution notes</label
-      >{{ a.form.resolution_notes }}
-      <div class="form-text mb-2">
-        Corrective / installation work also needs at least one evidence file
-        (Evidence tab).
-      </div>
-      <button class="btn btn-success">{{ a.label }}</button>
-    </form>
-    {% endif %}{% endfor %}
-  </div>
-</div>
-{% elif terminal %}
-<div class="alert alert-secondary">
-  This work order is {{ wo.status|lower }} and read-only.
-</div>
-{% endif %} {% if reassign_form %}
-<div class="fx-card mb-3">
-  <div class="fx-card-body">
-    <form
-      method="post"
-      action="{% url 'workorders:reassign' wo.pk %}"
-      class="row g-2 align-items-end"
-    >
-      {% csrf_token %}
-      <div class="col-md-4">
-        <label class="form-label small" for="id_technician"
-          >Change technician</label
-        >{{ reassign_form.technician }}
-      </div>
-      <div class="col-md-5">
-        <label class="form-label small" for="id_reason">Reason</label>{{
-        reassign_form.reason }}
-      </div>
-      <div class="col-md-3">
-        <button class="btn btn-outline-primary w-100">Re-assign</button>
-      </div>
-    </form>
-  </div>
-</div>
-{% endif %}
+<div class="fx-card mb-3"><div class="fx-card-header">Next steps</div><div class="fx-card-body d-flex flex-wrap gap-3 align-items-start" id="wo-actions">
+  {% for a in actions %}
+  {% if a.kind == "simple" %}
+    <form method="post" action="{{ a.url }}" class="m-0">{% csrf_token %}<button class="btn btn-{{ a.style }}" {% if a.confirm %}data-confirm="{{ a.confirm }}"{% endif %}>{{ a.label }}</button></form>
+  {% elif a.kind == "reason" %}
+    <form method="post" action="{{ a.url }}" class="m-0 d-flex gap-1">{% csrf_token %}
+      <input class="form-control form-control-sm" style="width:13rem" name="reason" required minlength="3" maxlength="500" placeholder="Reason (required)" aria-label="Reason for {{ a.label }}">
+      <button class="btn btn-sm btn-{{ a.style }}" {% if a.confirm %}data-confirm="{{ a.confirm }}"{% endif %}>{{ a.label }}</button></form>
+  {% elif a.kind == "plan" %}
+    <form method="post" action="{{ a.url }}" class="row g-2 align-items-end m-0" style="min-width:min(100%,640px)">{% csrf_token %}
+      <div class="col-sm-6"><label class="form-label small" for="id_planned_start">Planned start</label>{{ a.form.planned_start }}</div>
+      <div class="col-sm-6"><label class="form-label small" for="id_planned_end">Planned end</label>{{ a.form.planned_end }}</div>
+      <div class="col-sm-4"><label class="form-label small" for="id_estimated_hours">Estimated hours</label>{{ a.form.estimated_hours }}</div>
+      <div class="col-sm-4"><label class="form-label small" for="id_priority">Priority</label>{{ a.form.priority }}</div>
+      <div class="col-sm-4"><button class="btn btn-primary w-100">{{ a.label }}</button></div></form>
+  {% elif a.kind == "assign" %}
+    <form method="post" action="{{ a.url }}" class="d-flex gap-1 align-items-end m-0">{% csrf_token %}
+      <div><label class="form-label small" for="id_technician">Technician</label>{{ a.form.technician }}</div>
+      <button class="btn btn-primary">{{ a.label }}</button></form>
+  {% elif a.kind == "complete" %}
+    <form method="post" action="{{ a.url }}" class="m-0" style="min-width:min(100%,520px)">{% csrf_token %}
+      <label class="form-label small" for="id_resolution_notes">Resolution notes</label>{{ a.form.resolution_notes }}
+      <div class="form-text mb-2">Corrective / installation work also needs at least one evidence file (Evidence tab).</div>
+      <button class="btn btn-success">{{ a.label }}</button></form>
+  {% endif %}{% endfor %}
+</div></div>
+{% elif terminal %}<div class="alert alert-secondary">This work order is {{ wo.status|lower }} and read-only.</div>{% endif %}
+{% if reassign_form %}
+<div class="fx-card mb-3"><div class="fx-card-body"><form method="post" action="{% url 'workorders:reassign' wo.pk %}" class="row g-2 align-items-end">{% csrf_token %}
+  <div class="col-md-4"><label class="form-label small" for="id_technician">Change technician</label>{{ reassign_form.technician }}</div>
+  <div class="col-md-5"><label class="form-label small" for="id_reason">Reason</label>{{ reassign_form.reason }}</div>
+  <div class="col-md-3"><button class="btn btn-outline-primary w-100">Re-assign</button></div></form></div></div>{% endif %}
+
 
 {% if tab == "overview" %}
 {% include "sla/_panel.html" %}
-{% if blockers %}
-<div class="alert alert-warning">
-  <strong>Cannot be closed yet:</strong>
-  <ul class="mb-0">
-    {% for b in blockers %}
-    <li>{{ b }}</li>
-    {% endfor %}
-  </ul>
-</div>
-{% endif %}
-<div
-  id="wo-coverage-host"
-  hx-get="{% url 'contracts:wo_panel' wo.pk %}"
-  hx-trigger="load"
-  hx-swap="innerHTML"
-></div>
-<div class="row g-3">
-  <div class="col-lg-7">
-    <div class="fx-card">
-      <div class="fx-card-header">Job</div>
-      <div class="fx-card-body">
-        <dl class="fx-kv">
-          <dt>Description</dt>
-          <dd>{{ wo.description|default:"—"|linebreaksbr }}</dd>
-          <dt>Asset</dt>
-          <dd>
-            <div>
-              <a href="{% url 'assets:detail' wo.asset_id %}"
-                >{{ wo.asset.asset_tag }} · {{ wo.asset.name }}</a
-              >
-            </div>
-            {% if wo.asset %}{% hierarchy_trail wo.asset %}{% endif %}
-          </dd>
-          {% if wo.source_type == "PREVENTIVE_MAINTENANCE" %}
-          <dt>Source</dt>
-          <dd id="wo-source">
-            {% if pm_cycle and can.view_pm %}
-              <a href="{% url 'maintenance:plan' pm_cycle.schedule.plan_id %}">Preventive maintenance: {{ pm_cycle.schedule.plan.name }}</a>
-            {% elif pm_cycle %}
-              Preventive maintenance: {{ pm_cycle.schedule.plan.name }}
-            {% else %}
-              Preventive maintenance
-            {% endif %}
-            {% if pm_cycle %} · cycle #{{ pm_cycle.sequence }}{% endif %}
-          </dd>
-          {% endif %}
-          <dt>Source request</dt>
-          <dd>
-            {% if wo.source_request %}{% if can.view_request %}<a
-              href="{% url 'incidents:detail' wo.source_request_id %}"
-              >{{ wo.source_request.number }}</a
-            >{% else %}{{ wo.source_request.number }}{% endif %} ({{
-            wo.source_request.get_status_display }}){% else %}—{% endif %}
-          </dd>
-          {% if wo.hold_reason %}
-          <dt>On hold because</dt>
-          <dd>{{ wo.hold_reason }}</dd>
-          {% endif %}
-          <dt>Resolution notes</dt>
-          <dd>{{ wo.resolution_notes|default:"—"|linebreaksbr }}</dd>
-        </dl>
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-5">
-    <div class="fx-card">
-      <div class="fx-card-header">Plan &amp; progress</div>
-      <div class="fx-card-body">
-        <dl class="fx-kv">
-          <dt>Technician</dt>
-          <dd>{{ wo.assigned_to.user.display_name|default:"—" }}</dd>
-          <dt>Planned</dt>
-          <dd>
-            {% if wo.planned_start %}{{ wo.planned_start|date:"d M Y H:i" }} →
-            {{ wo.planned_end|date:"d M Y H:i" }}{% else %}—{% endif %}
-          </dd>
-          <dt>Estimated hours</dt>
-          <dd>{{ wo.estimated_hours|default:"—" }}</dd>
-          <dt>Labor recorded</dt>
-          <dd>{{ total_hours }} h</dd>
-          <dt>Dispatched</dt>
-          <dd>{{ wo.dispatched_at|date:"d M Y H:i"|default:"—" }}</dd>
-          <dt>Started</dt>
-          <dd>{{ wo.started_at|date:"d M Y H:i"|default:"—" }}</dd>
-          <dt>Completed</dt>
-          <dd>{{ wo.completed_at|date:"d M Y H:i"|default:"—" }}</dd>
-          <dt>Closed</dt>
-          <dd>{{ wo.closed_at|date:"d M Y H:i"|default:"—" }}</dd>
-        </dl>
-      </div>
-    </div>
-  </div>
-</div>
+{% if blockers %}<div class="alert alert-warning"><strong>Cannot be closed yet:</strong><ul class="mb-0">{% for b in blockers %}<li>{{ b }}</li>{% endfor %}</ul></div>{% endif %}
+<div id="wo-coverage-host" hx-get="{% url 'contracts:wo_panel' wo.pk %}" hx-trigger="load" hx-swap="innerHTML"></div>
+<div class="row g-3"><div class="col-lg-7"><div class="fx-card"><div class="fx-card-header">Job</div><div class="fx-card-body"><dl class="fx-kv">
+  <dt>Description</dt><dd>{{ wo.description|default:"â€”"|linebreaksbr }}</dd><dt>Asset</dt><dd><a href="{% url 'assets:detail' wo.asset_id %}">{{ wo.asset.asset_tag }} Â· {{ wo.asset.name }}</a></dd>
+  {% if wo.source_type == "PREVENTIVE_MAINTENANCE" %}<dt>Source</dt><dd id="wo-source">{% if pm_cycle and can.view_pm %}<a href="{% url 'maintenance:plan' pm_cycle.schedule.plan_id %}">Preventive maintenance: {{ pm_cycle.schedule.plan.name }}</a>{% elif pm_cycle %}Preventive maintenance: {{ pm_cycle.schedule.plan.name }}{% else %}Preventive maintenance{% endif %}{% if pm_cycle %} Â· cycle #{{ pm_cycle.sequence }}{% endif %}</dd>{% endif %}
+  <dt>Source request</dt><dd>{% if wo.source_request %}{% if can.view_request %}<a href="{% url 'incidents:detail' wo.source_request_id %}">{{ wo.source_request.number }}</a>{% else %}{{ wo.source_request.number }}{% endif %} ({{ wo.source_request.get_status_display }}){% else %}â€”{% endif %}</dd>
+  {% if wo.hold_reason %}<dt>On hold because</dt><dd>{{ wo.hold_reason }}</dd>{% endif %}
+  <dt>Resolution notes</dt><dd>{{ wo.resolution_notes|default:"â€”"|linebreaksbr }}</dd></dl></div></div></div>
+<div class="col-lg-5"><div class="fx-card"><div class="fx-card-header">Plan &amp; progress</div><div class="fx-card-body"><dl class="fx-kv">
+  <dt>Technician</dt><dd>{{ wo.assigned_to.user.display_name|default:"â€”" }}</dd>
+  <dt>Planned</dt><dd>{% if wo.planned_start %}{{ wo.planned_start|date:"d M Y H:i" }} â†’ {{ wo.planned_end|date:"d M Y H:i" }}{% else %}â€”{% endif %}</dd>
+  <dt>Estimated hours</dt><dd>{{ wo.estimated_hours|default:"â€”" }}</dd><dt>Labor recorded</dt><dd>{{ total_hours }} h</dd>
+  <dt>Dispatched</dt><dd>{{ wo.dispatched_at|date:"d M Y H:i"|default:"â€”" }}</dd><dt>Started</dt><dd>{{ wo.started_at|date:"d M Y H:i"|default:"â€”" }}</dd>
+  <dt>Completed</dt><dd>{{ wo.completed_at|date:"d M Y H:i"|default:"â€”" }}</dd><dt>Closed</dt><dd>{{ wo.closed_at|date:"d M Y H:i"|default:"â€”" }}</dd></dl></div></div></div></div>
 
 {% elif tab == "work" %}
-<div class="row g-3">
-  <div class="col-lg-6">
-    <div class="fx-card">
-      <div class="fx-card-header">
-        <span>Labor / time</span
-        ><span class="small text-body-secondary"
-          >Total {{ total_hours }} h</span
-        >
-      </div>
-      <div class="table-responsive">
-        <table class="table fx-table" id="labor-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Technician</th>
-              <th>Hours</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for l in labor %}
-            <tr>
-              <td>{{ l.work_date|date:"d M Y" }}</td>
-              <td>{{ l.technician.user.display_name }}</td>
-              <td>{{ l.hours }}</td>
-              <td>{{ l.notes|default:"—" }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="4">
-                {% include "components/_empty_state.html" with title="No labor
-                recorded" text="Record the hours worked." %}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% if recordable %}
-      <div class="fx-card-body border-top">
-        <form
-          method="post"
-          action="{% url 'workorders:labor' wo.pk %}"
-          class="row g-2 align-items-end"
-        >
-          {% csrf_token %} {% if labor_form.technician %}
-          <div class="col-12">
-            <label class="form-label small" for="id_technician"
-              >Technician</label
-            >{{ labor_form.technician }}
-          </div>
-          {% endif %}
-          <div class="col-sm-4">
-            <label class="form-label small" for="id_work_date">Date</label>{{
-            labor_form.work_date }}
-          </div>
-          <div class="col-sm-3">
-            <label class="form-label small" for="id_hours">Hours</label>{{
-            labor_form.hours }}
-          </div>
-          <div class="col-sm-5">
-            <label class="form-label small" for="id_notes">Notes</label>{{
-            labor_form.notes }}
-          </div>
-          <div class="col-12">
-            <button class="btn btn-primary btn-sm">Record labor</button>
-          </div>
-        </form>
-      </div>
-      {% endif %}
-    </div>
-  </div>
-  <div class="col-lg-6">
-    <div class="fx-card">
-      <div class="fx-card-header">
-        <span>Material used</span
-        ><a class="small" href="{% url 'inventory:wo_parts' wo.pk %}"
-          >Spare parts &amp; stock</a
-        >
-      </div>
-      <div class="table-responsive">
-        <table class="table fx-table" id="material-table">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Part no.</th>
-              <th>Qty</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for mt in materials %}
-            <tr>
-              <td>
-                {{ mt.description }}{% if mt.part_line_id %} <span class="badge fx-badge fx-badge-info">stock</span>{% endif %}
-              </td>
-              <td>{{ mt.part_number|default:"—" }}</td>
-              <td>{{ mt.quantity|floatformat:"-3" }} {{ mt.unit }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="3">
-                {% include "components/_empty_state.html" with title="No
-                material recorded" text="List parts and consumables used." %}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% if recordable %}
-      <div class="fx-card-body border-top">
-        <form
-          method="post"
-          action="{% url 'workorders:materials' wo.pk %}"
-          class="row g-2 align-items-end"
-        >
-          {% csrf_token %}
-          <div class="col-sm-6">
-            <label class="form-label small" for="id_description">Item</label>{{
-            material_form.description }}
-          </div>
-          <div class="col-sm-6">
-            <label class="form-label small" for="id_part_number"
-              >Part number</label
-            >{{ material_form.part_number }}
-          </div>
-          <div class="col-sm-4">
-            <label class="form-label small" for="id_quantity">Quantity</label>{{
-            material_form.quantity }}
-          </div>
-          <div class="col-sm-4">
-            <label class="form-label small" for="id_unit">Unit</label>{{
-            material_form.unit }}
-          </div>
-          <div class="col-sm-4">
-            <button class="btn btn-primary btn-sm w-100">
-              Record material
-            </button>
-          </div>
-        </form>
-        <div class="form-text">
-          Records consumption only. Stock issue / return movements arrive with
-          the inventory module.
-        </div>
-      </div>
-      {% endif %}
-    </div>
-  </div>
-</div>
+<div class="row g-3"><div class="col-lg-6"><div class="fx-card"><div class="fx-card-header"><span>Labor / time</span><span class="small text-body-secondary">Total {{ total_hours }} h</span></div>
+  <div class="table-responsive"><table class="table fx-table" id="labor-table"><thead><tr><th>Date</th><th>Technician</th><th>Hours</th><th>Notes</th></tr></thead><tbody>
+  {% for l in labor %}<tr><td>{{ l.work_date|date:"d M Y" }}</td><td>{{ l.technician.user.display_name }}</td><td>{{ l.hours }}</td><td>{{ l.notes|default:"â€”" }}</td></tr>
+  {% empty %}<tr><td colspan="4">{% include "components/_empty_state.html" with title="No labor recorded" text="Record the hours worked." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% if recordable %}<div class="fx-card-body border-top"><form method="post" action="{% url 'workorders:labor' wo.pk %}" class="row g-2 align-items-end">{% csrf_token %}
+    {% if labor_form.technician %}<div class="col-12"><label class="form-label small" for="id_technician">Technician</label>{{ labor_form.technician }}</div>{% endif %}
+    <div class="col-sm-4"><label class="form-label small" for="id_work_date">Date</label>{{ labor_form.work_date }}</div>
+    <div class="col-sm-3"><label class="form-label small" for="id_hours">Hours</label>{{ labor_form.hours }}</div>
+    <div class="col-sm-5"><label class="form-label small" for="id_notes">Notes</label>{{ labor_form.notes }}</div>
+    <div class="col-12"><button class="btn btn-primary btn-sm">Record labor</button></div></form></div>{% endif %}</div></div>
+<div class="col-lg-6"><div class="fx-card"><div class="fx-card-header"><span>Material used</span><a class="small" href="{% url 'inventory:wo_parts' wo.pk %}">Spare parts &amp; stock</a></div>
+  <div class="table-responsive"><table class="table fx-table" id="material-table"><thead><tr><th>Item</th><th>Part no.</th><th>Qty</th></tr></thead><tbody>
+  {% for mt in materials %}<tr><td>{{ mt.description }}{% if mt.part_line_id %} <span class="badge fx-badge fx-badge-info">stock</span>{% endif %}</td><td>{{ mt.part_number|default:"â€”" }}</td><td>{{ mt.quantity|floatformat:"-3" }} {{ mt.unit }}</td></tr>
+  {% empty %}<tr><td colspan="3">{% include "components/_empty_state.html" with title="No material recorded" text="List parts and consumables used." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% if recordable %}<div class="fx-card-body border-top"><form method="post" action="{% url 'workorders:materials' wo.pk %}" class="row g-2 align-items-end">{% csrf_token %}
+    <div class="col-sm-6"><label class="form-label small" for="id_description">Item</label>{{ material_form.description }}</div>
+    <div class="col-sm-6"><label class="form-label small" for="id_part_number">Part number</label>{{ material_form.part_number }}</div>
+    <div class="col-sm-4"><label class="form-label small" for="id_quantity">Quantity</label>{{ material_form.quantity }}</div>
+    <div class="col-sm-4"><label class="form-label small" for="id_unit">Unit</label>{{ material_form.unit }}</div>
+    <div class="col-sm-4"><button class="btn btn-primary btn-sm w-100">Record material</button></div></form>
+    <div class="form-text">Records consumption only. Stock issue / return movements arrive with the inventory module.</div></div>{% endif %}</div></div></div>
 
 {% elif tab == "evidence" %}
-<div class="fx-card">
-  <div class="fx-card-header">Evidence (photos / files)</div>
-  <div class="table-responsive">
-    <table class="table fx-table">
-      <thead>
-        <tr>
-          <th>File</th>
-          <th>Description</th>
-          <th>Size</th>
-          <th>Uploaded</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for a in evidence %}
-        <tr>
-          <td>{{ a.original_name }}</td>
-          <td>{{ a.description|default:"—" }}</td>
-          <td>{{ a.size|filesizeformat }}</td>
-          <td>
-            {{ a.created_at|date:"d M Y H:i" }} · {{ a.uploaded_by.email }}
-          </td>
-          <td class="text-end">
-            <a
-              class="btn btn-sm btn-outline-primary"
-              href="{% url 'files:download' a.pk %}"
-              >Download</a
-            >
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="5">
-            {% include "components/_empty_state.html" with title="No evidence"
-            text="Attach before / after photos or reports." %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% if can.attach and not terminal %}
-  <div class="fx-card-body border-top">
-    <form
-      method="post"
-      action="{% url 'workorders:evidence' wo.pk %}"
-      enctype="multipart/form-data"
-      class="row g-2 align-items-end"
-    >
-      {% csrf_token %}
-      <div class="col-md-5">
-        <label class="form-label small" for="id_file">File</label>{{
-        evidence_form.file }}
-      </div>
-      <div class="col-md-5">
-        <label class="form-label small" for="id_description">Description</label
-        >{{ evidence_form.description }}
-      </div>
-      <div class="col-md-2">
-        <button class="btn btn-primary w-100">Upload</button>
-      </div>
-    </form>
-    <div class="form-text">
-      PDF, images, Office documents, text/CSV. Content type and size are
-      validated on the server.
-    </div>
-  </div>
-  {% endif %}
-</div>
+<div class="fx-card"><div class="fx-card-header">Evidence (photos / files)</div>
+  <div class="table-responsive"><table class="table fx-table"><thead><tr><th>File</th><th>Description</th><th>Size</th><th>Uploaded</th><th></th></tr></thead><tbody>
+  {% for a in evidence %}<tr><td>{{ a.original_name }}</td><td>{{ a.description|default:"â€”" }}</td><td>{{ a.size|filesizeformat }}</td><td>{{ a.created_at|date:"d M Y H:i" }} Â· {{ a.uploaded_by.email }}</td>
+    <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'files:download' a.pk %}">Download</a></td></tr>
+  {% empty %}<tr><td colspan="5">{% include "components/_empty_state.html" with title="No evidence" text="Attach before / after photos or reports." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% if can.attach and not terminal %}<div class="fx-card-body border-top"><form method="post" action="{% url 'workorders:evidence' wo.pk %}" enctype="multipart/form-data" class="row g-2 align-items-end">{% csrf_token %}
+    <div class="col-md-5"><label class="form-label small" for="id_file">File</label>{{ evidence_form.file }}</div>
+    <div class="col-md-5"><label class="form-label small" for="id_description">Description</label>{{ evidence_form.description }}</div>
+    <div class="col-md-2"><button class="btn btn-primary w-100">Upload</button></div></form>
+    <div class="form-text">PDF, images, Office documents, text/CSV. Content type and size are validated on the server.</div></div>{% endif %}</div>
 
 {% elif tab == "history" %}
-<div class="fx-card">
-  <div class="fx-card-header">Lifecycle history</div>
-  <div class="fx-card-body">
-    <ul class="fx-timeline" id="wo-history">
-      {% for e in events %}
-      <li>
-        <div class="fw-semibold">
-          {{ e.action }}{% if e.from_status %}: {{ e.from_status|cut:"_"|title
-          }} → {% else %}: {% endif %}{% status_badge e.to_status %}
-        </div>
-        <div class="small text-body-secondary">
-          {{ e.created_at|date:"d M Y H:i" }} · {{
-          e.actor.email|default:"system" }}{% if e.assigned_to %} · technician
-          {{ e.assigned_to.user.display_name }}{% endif %}
-        </div>
-        {% if e.reason %}
-        <div class="small">{{ e.reason }}</div>
-        {% endif %}
-      </li>
-      {% endfor %}
-    </ul>
-  </div>
-</div>
-{% endif %} {% endblock %}
+<div class="fx-card"><div class="fx-card-header">Lifecycle history</div><div class="fx-card-body"><ul class="fx-timeline" id="wo-history">
+  {% for e in events %}<li><div class="fw-semibold">{{ e.action }}{% if e.from_status %}: {{ e.from_status|cut:"_"|title }} â†’ {% else %}: {% endif %}{% status_badge e.to_status %}</div>
+    <div class="small text-body-secondary">{{ e.created_at|date:"d M Y H:i" }} Â· {{ e.actor.email|default:"system" }}{% if e.assigned_to %} Â· technician {{ e.assigned_to.user.display_name }}{% endif %}</div>{% if e.reason %}<div class="small">{{ e.reason }}</div>{% endif %}</li>
+  {% endfor %}</ul></div></div>
+{% endif %}
+{% endblock %}

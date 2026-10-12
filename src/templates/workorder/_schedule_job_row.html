@@ -1,0 +1,21 @@
+<article class="wo-simple-job-row {% if wo.overdue %}is-overdue{% endif %}">
+  <div class="wo-simple-job-summary">
+    <a class="wo-number" href="{% url 'workorders:detail' wo.pk %}">{{ wo.order_number }}</a>
+    <h3 title="{{ wo.title }}">{{ wo.title }}</h3>
+    <p><span>{{ wo.site.code }} · {{ wo.site.name }}</span><span>{{ wo.asset.asset_tag|default:wo.asset_reference|default:"No asset" }}</span><span>{{ wo.assigned_to.user.full_name|default:wo.assigned_to.user.email|default:"Unassigned" }}</span></p>
+  </div>
+  <div class="wo-simple-job-window"><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span><span class="wo-priority priority-{{ wo.priority|lower|default:'none' }}">{{ wo.get_priority_display|default:"Not set" }}</span><strong>{{ wo.schedule_start_display }} – {{ wo.schedule_end_display }}</strong><small>Due {{ wo.due_display }}{% if wo.overdue %} · Overdue{% endif %}</small></div>
+  <div class="wo-simple-job-notes">{% if wo.has_conflict %}<span class="wo-warning">Schedule conflict</span>{% endif %}{% for warning in wo.schedule_warnings %}<span class="wo-warning" title="{{ warning }}">{{ warning }}</span>{% endfor %}{% if wo.status == 'ON_HOLD' and wo.hold_reason %}<span class="wo-warning" title="{{ wo.hold_reason }}">Hold: {{ wo.hold_reason|truncatechars:70 }}</span>{% endif %}</div>
+  <div class="wo-simple-job-actions"><a class="wo-view-button" href="{% url 'workorders:detail' wo.pk %}">View</a>
+    {% if wo.can_reschedule %}<button class="wo-view-button" type="button" data-open-dialog="reschedule-{{ wo.pk }}">Reschedule</button>
+    <dialog id="reschedule-{{ wo.pk }}" class="wo-assignment-dialog" aria-labelledby="reschedule-title-{{ wo.pk }}"><form method="post" action="{% url 'workorders:schedule_reschedule' wo.pk %}" class="wo-assignment-modal-form">{% csrf_token %}
+      <input type="hidden" name="expected_version" value="{{ wo.version }}"><input type="hidden" name="day" value="{{ selected_day }}">{% for key,value in filter_values.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+      <header><div><p class="wo-eyebrow">{{ wo.order_number }}</p><h3 id="reschedule-title-{{ wo.pk }}">Reschedule assignment</h3></div><button type="button" class="wo-dialog-close" data-close-dialog aria-label="Close">×</button></header>
+      <label for="reschedule-tech-{{ wo.pk }}">Technician</label><select id="reschedule-tech-{{ wo.pk }}" name="assigned_to" required>{% for member in wo.assignable_technicians %}<option value="{{ member.pk }}" {% if member.pk == wo.assigned_to_id %}selected{% endif %}>{{ member.user.full_name|default:member.user.email }}</option>{% endfor %}</select>
+      <label for="reschedule-start-{{ wo.pk }}">Scheduled start</label><input id="reschedule-start-{{ wo.pk }}" type="datetime-local" name="scheduled_start" value="{{ wo.schedule_start_input }}" required>
+      <label for="reschedule-end-{{ wo.pk }}">Scheduled end</label><input id="reschedule-end-{{ wo.pk }}" type="datetime-local" name="scheduled_end" value="{{ wo.schedule_end_input }}" required>
+      <div class="wo-assignment-modal-actions"><button class="wo-primary-button btn" type="submit">Save schedule</button><button class="wo-view-button" type="button" data-close-dialog>Cancel</button></div>
+    </form></dialog>{% endif %}
+    {% if wo.can_dispatch and wo.has_active_assignment %}<form method="post" action="{% url 'workorders:schedule_dispatch' wo.pk %}" class="m-0">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ wo.version }}"><input type="hidden" name="day" value="{{ selected_day }}">{% for key,value in filter_values.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}<button class="wo-status-button" type="submit" data-confirm="Dispatch {{ wo.order_number }}?">Dispatch</button></form>{% endif %}
+  </div>
+</article>

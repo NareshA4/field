@@ -1,3 +1,4 @@
+from django.apps import apps
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status, viewsets
@@ -9,7 +10,6 @@ from apps.assets import selectors as asset_selectors
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
 from apps.sites.selectors import scoped_get
 from apps.tenancy.api import TenantAPIMixin
-from apps.workorders.models import WorkOrder
 
 from . import selectors, services
 from .models import Downtime, ServiceRequest
@@ -50,7 +50,16 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         return [t.action for t in REQUEST_STATUS.available(obj.status) if t.action not in SYSTEM_ACTIONS]
 
     def get_work_orders(self, obj) -> list[dict]:
-        return [{"id": str(w.pk), "number": w.number, "status": w.status} for w in obj.work_orders.all()]
+        if not apps.is_installed("apps.workorders"):
+            return []
+        from apps.workorders.models import WorkOrder
+
+        linked = WorkOrder.objects.for_organization(obj.organization).filter(
+            source_reference=obj.number,
+            source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
+        ).order_by("created_at")
+        return [{"id": str(work_order.pk), "number": work_order.order_number,
+                 "status": work_order.status} for work_order in linked]
 
     def get_downtime(self, obj) -> dict | None:
         dt = Downtime.objects.for_organization(obj.organization).filter(request=obj).first()
@@ -90,14 +99,6 @@ class RequestTransitionSerializer(serializers.Serializer):
     action = serializers.ChoiceField(choices=sorted(ACTION_PERMISSIONS))
     reason = serializers.CharField(max_length=500, required=False, allow_blank=True)
 
-
-class CreateWorkOrderSerializer(serializers.Serializer):
-    title = serializers.CharField(max_length=200, required=False)
-    description = serializers.CharField(required=False, allow_blank=True)
-    priority = serializers.ChoiceField(choices=WorkOrder.Priority.choices, required=False)
-    planned_start = serializers.DateTimeField(required=False, allow_null=True)
-    planned_end = serializers.DateTimeField(required=False, allow_null=True)
-    estimated_hours = serializers.DecimalField(max_digits=6, decimal_places=2, required=False, allow_null=True)
 
 
 class DowntimeWriteSerializer(serializers.Serializer):
@@ -143,20 +144,23 @@ def _validated(serializer_cls, request, partial=False):
     return ser.validated_data
 
 
+
 @extend_schema(parameters=[ID_PARAM])
 class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
     permission_map = {
-        "list": "incident.view", "retrieve": "incident.view", "create": "incident.create",
-        "partial_update": "incident.update", "transition": "incident.view", "create_work_order": "work_order.create",
-        "history": "incident.view", "downtime:get": "incident.view", "downtime:put": "incident.downtime.manage",
-        "evidence:get": "incident.view", "evidence:post": "incident.attach",
+        "list": "incident.view", "retrieve": "incident.view_assigned", "create": "incident.create",
+        "partial_update": "incident.update", "transition": "incident.view_assigned",
+        "history": "incident.view_assigned", "downtime:get": "incident.view_assigned",
+        "downtime:put": "incident.downtime.manage",
+        "evidence:get": "incident.view_assigned", "evidence:post": "incident.attach",
     }
 
-    def _qs(self, request):
-        return selectors.requests_for(request.membership, request.organization).prefetch_related("work_orders")
+    def _qs(self, request, scope="incident.view"):
+        qs = selectors.requests_for(request.membership, request.organization, scope)
+        return qs
 
     def _obj(self, request, pk, code=None) -> ServiceRequest:
-        sr = scoped_get(self._qs(request), pk, "Request")  # 404 outside tenant / site scope
+        sr = scoped_get(self._qs(request, "incident.view_assigned"), pk, "Request")  # 404 outside tenant / site scope
         if code:
             require_permission(request.membership, code, sr.site_id)
         return sr
@@ -178,7 +182,7 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
     @extend_schema(request=ServiceRequestWriteSerializer, responses={201: ServiceRequestSerializer})
     def create(self, request):
         d = dict(_validated(ServiceRequestWriteSerializer, request))
-        asset = asset_selectors.get_asset(request.membership, request.organization, d.pop("asset"))
+        asset = asset_selectors.get_asset(request.membership, request.organization, d.pop("asset"), "asset.view")
         require_permission(request.membership, "incident.create", asset.site_id)
         sr = services.create_request(request.organization, asset=asset, reporter=request.membership,
                                      actor=request.user, request=request, **d)
@@ -200,18 +204,6 @@ class ServiceRequestViewSet(TenantAPIMixin, viewsets.ViewSet):
         require_permission(request.membership, ACTION_PERMISSIONS[d["action"]], sr.site_id)
         services.transition(sr, action=d["action"], reason=d.get("reason", ""), actor=request.user, request=request)
         return Response(ServiceRequestSerializer(self._obj(request, pk)).data)
-
-    @extend_schema(request=CreateWorkOrderSerializer, responses={201: OpenApiTypes.OBJECT})
-    @action(detail=True, methods=["post"], url_path="create-work-order")
-    def create_work_order(self, request, pk=None):
-        """Approved request -> a real M06 work order (DRAFT); the request moves to WORK ORDER CREATED."""
-        sr = self._obj(request, pk, "work_order.create")
-        d = _validated(CreateWorkOrderSerializer, request)
-        wo = services.create_work_order_for_request(sr, actor=request.user, membership=request.membership,
-                                                    request=request, **d)
-        return Response({"id": str(wo.pk), "number": wo.number, "status": wo.status,
-                         "request": ServiceRequestSerializer(self._obj(request, pk)).data},
-                        status=status.HTTP_201_CREATED)
 
     @extend_schema(responses=HistorySerializer(many=True))
     @action(detail=True, methods=["get"])

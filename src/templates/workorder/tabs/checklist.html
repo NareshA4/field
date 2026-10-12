@@ -1,0 +1,15 @@
+<section class="wo-detail-card">
+  <h2>Checklist</h2>
+  <dl class="row mb-0">
+    <dt class="col-sm-4">Required</dt><dd class="col-sm-8">{{ checklist_summary.required|yesno:"Yes,No" }}</dd>
+    <dt class="col-sm-4">Template reference</dt><dd class="col-sm-8">{{ checklist_summary.template_ref|default:"—" }}</dd>
+    <dt class="col-sm-4">Instance reference</dt><dd class="col-sm-8">{{ checklist_summary.instance_ref|default:"—" }}</dd>
+    <dt class="col-sm-4">Execution status</dt><dd class="col-sm-8">{{ checklist_summary.status }}</dd>
+    <dt class="col-sm-4">Validation</dt><dd class="col-sm-8">{{ checklist_summary.validation_state|default:"PENDING" }}</dd>
+  </dl>
+  {% if wo.provisional_checklist %}
+    <div class="wo-inline-state is-warning mt-3">Provisional notes · not validated</div>
+    <ul class="mb-0 mt-2">{% for item in wo.provisional_checklist %}<li>{{ item.label }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if can_edit_checklist and provisional_checklist_enabled %}<a class="wo-view-button mt-3" href="{% url 'workorders:action' wo.pk 'checklist' %}">Edit provisional notes</a>{% endif %}
+</section>

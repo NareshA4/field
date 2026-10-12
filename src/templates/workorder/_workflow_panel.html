@@ -1,0 +1,19 @@
+<div id="wo-workflow-panel">
+  <header class="wo-detail-header"><div><p class="wo-eyebrow">WORK ORDER · {{ wo.order_number }}</p><h1>{{ wo.title }}</h1><p>{{ wo.site.code }} · {{ wo.site.name }}{% if wo.asset_reference %} · Asset {{ wo.asset_reference }}{% endif %}{% if wo.component_reference %} · Component {{ wo.component_reference }}{% endif %}</p></div><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span></header>
+  <section class="wo-detail-card wo-workflow-card" id="workflow-actions">
+    <div class="wo-workflow-intro"><div><p class="wo-eyebrow">STATUS</p><h2>Current status: {{ wo.get_status_display }}</h2></div><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span></div>
+    <div class="wo-status-track" aria-label="Documented work-order workflow">
+      {% for step in workflow_steps %}<span class="wo-track-step {% if step.current %}is-current{% elif step.completed %}is-complete{% endif %} {% if step.next %}is-next{% endif %}" {% if step.current %}aria-current="step"{% endif %}>
+        {{ step.label }}{% if step.next %}<small>Next valid step</small>{% endif %}
+      </span>{% if not forloop.last %}<span class="wo-track-arrow" aria-hidden="true">›</span>{% endif %}{% endfor %}
+    </div>
+    <div class="wo-workflow-actions"><h3>Actions</h3><div class="wo-action-row">
+      {% for action in allowed_actions %}
+        {% if action.kind == 'post' %}<form method="post" action="{% url 'workorders:action' wo.pk action.operation %}" class="m-0" hx-post="{% url 'workorders:action' wo.pk action.operation %}" hx-target="#wo-workflow-panel" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ wo.version }}"><button class="btn btn-sm btn-primary" type="submit" {% if action.confirm %}data-confirm="{{ action.confirm }}"{% endif %}>{{ action.label }}</button></form>
+        {% elif action.operation == 'edit' %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'workorders:edit' wo.pk %}">{{ action.label }}</a>
+        {% else %}<a class="btn btn-sm btn-primary" href="{% url 'workorders:action' wo.pk action.operation %}">{{ action.label }}</a>{% endif %}
+      {% empty %}<span class="text-secondary small">No workflow action is available for your role in this status.</span>{% endfor %}
+      {% if can_update_work %}<a class="wo-update-action" href="{% url 'workorders:action' wo.pk 'work_update' %}">Add work update</a>{% endif %}
+    </div></div>
+  </section>
+</div>

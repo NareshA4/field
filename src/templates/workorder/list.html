@@ -1,0 +1,90 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block title %}Work Order Visibility · FieldOps Nexus{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/workorder.css' %}?v=m06-list-fit-2">{% endblock %}
+{% block content %}
+<div class="wo-page">
+  <div class="wo-eyebrow-row">
+    <div>
+      <p class="wo-eyebrow">PLATFORM VISIBILITY / WORK ORDERS</p>
+      <h1 class="wo-title">Work Order Visibility</h1>
+    </div>
+    <span class="wo-scope"><span aria-hidden="true">●</span> Scope enforced</span>
+  </div>
+
+  <section id="wo-status-cards" class="wo-status-grid" aria-label="Work order counts by workflow status"
+           hx-get="{{ request.get_full_path }}" hx-trigger="workOrderChanged from:body" hx-select="#wo-status-cards" hx-swap="outerHTML">
+    {% for item in status_cards %}
+      <div class="wo-status-card status-{{ item.code|lower }} {% if item.selected %}is-selected{% endif %}"
+         aria-label="{{ item.count }} {{ item.label }} work orders">
+        <span class="wo-status-count">{{ item.count }}</span>
+        <span class="wo-status-label">{{ item.label }}</span>
+        <span class="wo-status-rule" aria-hidden="true"></span>
+      </div>
+    {% endfor %}
+  </section>
+
+  <section class="wo-panel" aria-labelledby="workflow-title">
+    <div class="wo-panel-heading">
+      <h2 id="workflow-title">Workflow protection</h2>
+    </div>
+    <div class="wo-flow" aria-label="Work-order workflow">
+      {% for code,label in workflow_steps %}
+        <span class="wo-flow-step">{{ label }}</span>
+        {% if not forloop.last %}<span class="wo-flow-arrow" aria-hidden="true">›</span>{% endif %}
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="wo-panel wo-operations" aria-labelledby="operations-title">
+    <div class="wo-panel-heading wo-panel-heading-actions">
+      <div>
+        <h2 id="operations-title">Work order operations</h2>
+      </div>
+      {% if can_create %}<a class="wo-primary-button" href="{% url 'workorders:create' %}"><span aria-hidden="true">＋</span> Create work order</a>{% endif %}
+    </div>
+  </section>
+
+  <section class="wo-panel wo-records" aria-labelledby="records-title">
+    <div class="wo-record-heading">
+      <div><h2 id="records-title">Work orders</h2></div>
+      <div class="wo-view-links"><a href="{% url 'workorders:schedule' %}">Schedule board</a><a href="{% url 'workorders:mine' %}">My jobs</a></div>
+    </div>
+    <form class="wo-filter-form" method="get" hx-get="{% url 'workorders:list' %}" hx-trigger="change delay:250ms, submit" hx-target="#workorder-results" hx-select="#workorder-results" hx-swap="outerHTML" hx-push-url="true">
+      <label class="wo-search"><span class="visually-hidden">Search work orders</span><input type="search" name="q" value="{{ q }}" placeholder="Search number or title"></label>
+      <label><span class="visually-hidden">Status</span><select name="status"><option value="">All statuses</option>{% for key,label in statuses %}<option value="{{ key }}" {% if selected_status == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label><span class="visually-hidden">Priority</span><select name="priority"><option value="">All priorities</option>{% for key,label in priorities %}<option value="{{ key }}" {% if selected_priority == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label><span class="visually-hidden">Work type</span><select name="work_type"><option value="">All work types</option>{% for key,label in work_types %}<option value="{{ key }}" {% if selected_work_type == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label><span class="visually-hidden">Source</span><select name="source"><option value="">All sources</option>{% for key,label in source_types %}<option value="{{ key }}" {% if selected_source == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label><span class="visually-hidden">Site</span><select name="site"><option value="">All sites</option>{% for site in sites %}<option value="{{ site.pk }}" {% if selected_site == site.pk|stringformat:'s' %}selected{% endif %}>{{ site.code }} · {{ site.name }}</option>{% endfor %}</select></label>
+      <label><span class="visually-hidden">Technician</span><select name="assignee"><option value="">All technicians</option>{% for member in assignees %}<option value="{{ member.pk }}" {% if selected_assignee == member.pk|stringformat:'s' %}selected{% endif %}>{{ member.user.full_name|default:member.user.email }}</option>{% endfor %}</select></label>
+      <label><span class="visually-hidden">Sort work orders</span><select name="ordering"><option value="-created_at" {% if selected_ordering == '-created_at' %}selected{% endif %}>Newest</option><option value="order_number" {% if selected_ordering == 'order_number' %}selected{% endif %}>Number A–Z</option><option value="due_at" {% if selected_ordering == 'due_at' %}selected{% endif %}>Due soonest</option><option value="-due_at" {% if selected_ordering == '-due_at' %}selected{% endif %}>Due latest</option><option value="priority" {% if selected_ordering == 'priority' %}selected{% endif %}>Priority</option><option value="planned_start" {% if selected_ordering == 'planned_start' %}selected{% endif %}>Planned start</option></select></label>
+      <label class="wo-overdue"><input type="checkbox" name="overdue" value="1" {% if overdue == '1' %}checked{% endif %}> Past due</label>
+      <button class="wo-filter-button" type="submit">Filter</button><a class="wo-reset" href="{% url 'workorders:list' %}">Reset</a>
+    </form>
+    <div id="workorder-results">
+    <div class="table-responsive">
+      <table class="wo-table wo-list-table">
+        <thead><tr><th>Work order</th><th>Asset</th><th>Site</th><th>Priority</th><th>Status</th><th>Assignee</th><th>Due / warning</th><th class="wo-actions-heading">Actions</th></tr></thead>
+        <tbody>
+        {% for wo in work_orders %}
+          {% include "workorder/_list_row.html" with wo=wo %}
+ {% empty %}<tr><td colspan="8" class="wo-empty">
+   {% if not has_visible_work_orders %}
+     <p>No work orders found. Create your first work order to get started.</p>
+     {% if can_create %}<a class="wo-primary-button" href="{% url 'workorders:create' %}">Create work order</a>{% endif %}
+   {% else %}No work orders match these filters.{% endif %}
+ </td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page_obj.paginator.num_pages > 1 %}
+    <nav class="wo-pagination" aria-label="Work orders pages">
+      <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} records</span>
+      <div>{% if page_obj.has_previous %}<a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}{% if page_obj.has_next %}<a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Next</a>{% endif %}</div>
+    </nav>
+    {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}
