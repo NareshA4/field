@@ -1,0 +1,599 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+
+{% block title %}{{ work_order.order_number }}: {{ work_order.title }} | Technician Workspace{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <!-- Top Navigation & Messages -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb small mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'workspace:my_jobs' %}" class="text-decoration-none">← My Jobs</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ work_order.order_number }}</li>
+      </ol>
+    </nav>
+  </div>
+
+  {% include "components/_messages.html" %}
+
+  <!-- Job Header Card -->
+  <div class="card mb-4 border-0 shadow-sm">
+    <div class="card-body p-4">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3">
+        <div class="flex-grow-1">
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <span class="badge {% if work_order.priority == 'CRITICAL' %}bg-danger{% elif work_order.priority == 'HIGH' %}bg-warning text-dark{% elif work_order.priority == 'MEDIUM' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+              {{ work_order.get_priority_display }}
+            </span>
+            <span class="badge bg-light text-dark border">
+              {{ work_order.get_work_type_display }}
+            </span>
+            <span class="badge {% if work_order.status == 'IN_PROGRESS' %}bg-success{% elif work_order.status == 'ON_HOLD' %}bg-warning text-dark{% elif work_order.status == 'DISPATCHED' %}bg-info text-dark{% elif work_order.status == 'COMPLETED' or work_order.status == 'CLOSED' %}bg-secondary{% else %}bg-primary{% endif %}">
+              {{ work_order.get_status_display }}
+            </span>
+            {% if work_order.checklist_required %}
+              <span class="badge {% if work_order.checklist_status == 'COMPLETED' %}bg-success{% else %}bg-warning text-dark{% endif %} border">
+                Checklist: {{ work_order.checklist_status }}
+              </span>
+            {% endif %}
+          </div>
+          <h1 class="h3 fw-bold mb-1">{{ work_order.order_number }}: {{ work_order.title }}</h1>
+          <p class="text-secondary small mb-2">Assigned Technician: <strong>{{ work_order.assigned_to.user.display_name }}</strong></p>
+
+          <!-- Schedule & Timing Strip -->
+          <div class="row g-2 text-secondary small bg-light p-2 rounded border mt-2">
+            <div class="col-6 col-md-3">
+              <span class="fw-semibold text-dark">Planned:</span><br>
+              {{ work_order.planned_start|date:"M j, H:i"|default:"Not scheduled" }}
+            </div>
+            <div class="col-6 col-md-3">
+              <span class="fw-semibold text-dark">Due At:</span><br>
+              {{ work_order.due_at|date:"M j, H:i"|default:"None" }}
+            </div>
+            <div class="col-6 col-md-3">
+              <span class="fw-semibold text-dark">Started:</span><br>
+              {{ work_order.started_at|date:"M j, H:i"|default:"Pending" }}
+            </div>
+            <div class="col-6 col-md-3">
+              <span class="fw-semibold text-dark">Completed:</span><br>
+              {{ work_order.completed_at|date:"M j, H:i"|default:"In Progress" }}
+            </div>
+          </div>
+
+          {% if work_order.description %}
+          <div class="mt-3">
+            <h6 class="small fw-bold text-uppercase text-secondary mb-1">Scope of Work / Instructions</h6>
+            <p class="small text-dark mb-0 bg-white p-2 rounded border" style="white-space: pre-line;">{{ work_order.description }}</p>
+          </div>
+          {% endif %}
+
+          {% if work_order.resolution_notes %}
+          <div class="mt-3">
+            <h6 class="small fw-bold text-uppercase text-success mb-1">Resolution Summary</h6>
+            <p class="small text-dark mb-0 bg-success-subtle p-2 rounded border border-success-subtle" style="white-space: pre-line;">{{ work_order.resolution_notes }}</p>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Quick Lifecycle Action Controls -->
+        <div class="d-flex flex-wrap gap-2 align-self-start">
+          {% if drawer.can_start %}
+          <form method="post" action="{% url 'workspace:start' work_order.pk %}">
+            {% csrf_token %}
+            <button class="btn btn-success">
+              {% icon 'play' 16 %} Start Work
+            </button>
+          </form>
+          {% endif %}
+
+          {% if drawer.can_pause %}
+          <button class="btn btn-warning text-dark" data-bs-toggle="modal" data-bs-target="#pauseJobModal">
+            {% icon 'pause' 16 %} Pause Job
+          </button>
+          {% endif %}
+
+          {% if drawer.can_resume %}
+          <form method="post" action="{% url 'workspace:resume' work_order.pk %}">
+            {% csrf_token %}
+            <button class="btn btn-info text-white">
+              {% icon 'play-circle' 16 %} Resume Job
+            </button>
+          </form>
+          {% endif %}
+
+          {% if drawer.can_complete %}
+          <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#completeJobModal">
+            {% icon 'clipboard-check' 16 %} Complete Job
+          </button>
+          {% endif %}
+
+          <button class="btn btn-outline-secondary"
+                  hx-get="{% url 'workspace:drawer' work_order.pk %}"
+                  hx-target="#drawer-content"
+                  data-bs-toggle="offcanvas"
+                  data-bs-target="#technicianExecutionDrawer">
+            {% icon 'sliders' 16 %} Execution Drawer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Left Column: Site & Route, Asset, Checklists, Photos & Evidence, Notes -->
+    <div class="col-12 col-lg-7">
+
+      <!-- Site & Route Guidance Card -->
+      <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+          <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
+            {% icon 'pin' 18 %} Site &amp; Route Guidance
+          </h5>
+          {% if route.maps_query %}
+          <a href="https://maps.google.com/?q={{ route.maps_query|urlencode }}"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="btn btn-sm btn-outline-primary">
+            {% icon 'navigation' 14 %} Open in Maps
+          </a>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <h6 class="fw-bold mb-1">{{ route.site_name }} <span class="badge bg-light text-dark border">{{ route.site_code }}</span></h6>
+            {% if route.site_address %}
+            <p class="small text-secondary mb-0" style="white-space: pre-line;">{{ route.site_address }}</p>
+            {% endif %}
+            {% if route.location_path %}
+            <div class="mt-2 small text-primary fw-medium">
+              <span class="text-secondary">Location:</span> {{ route.location_path }}
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Site Contacts -->
+          <div class="border-top pt-3">
+            <div class="small fw-bold text-uppercase text-secondary mb-2">Site Contacts (Escalation Order)</div>
+            {% if route.contacts %}
+            <div class="list-group list-group-flush">
+              {% for c in route.contacts %}
+              <div class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center bg-transparent">
+                <div>
+                  <div class="fw-medium small">{{ c.name }} <span class="text-muted">({{ c.role }})</span></div>
+                  <div class="small text-muted">{{ c.phone }}</div>
+                </div>
+                <div class="d-flex gap-2">
+                  {% if c.phone %}
+                  <a href="tel:{{ c.phone }}" class="btn btn-sm btn-outline-success">
+                    {% icon 'phone' 14 %} Call
+                  </a>
+                  {% endif %}
+                  {% if c.email %}
+                  <a href="mailto:{{ c.email }}" class="btn btn-sm btn-outline-secondary">
+                    {% icon 'mail' 14 %} Email
+                  </a>
+                  {% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="small text-muted mb-0">No site contacts listed.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Target Asset Context Card -->
+      {% if work_order.asset %}
+      <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+          <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
+            {% icon 'box' 18 %} Target Asset Context
+          </h5>
+          <a href="{% url 'assets:detail' work_order.asset.pk %}" class="btn btn-sm btn-outline-secondary">
+            View Asset Master
+          </a>
+        </div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <h6 class="fw-bold mb-1">{{ work_order.asset.name }}</h6>
+              <p class="small text-secondary mb-0">Asset Tag: <code>{{ work_order.asset.asset_tag }}</code></p>
+            </div>
+            <span class="badge bg-primary-subtle text-primary border">
+              {{ work_order.asset.get_status_display }}
+            </span>
+          </div>
+
+          <div class="row g-2 small border rounded p-2 bg-light">
+            <div class="col-6 col-md-4">
+              <span class="text-muted">Category:</span><br>
+              <strong>{{ work_order.asset.category.name|default:"Unassigned" }}</strong>
+            </div>
+            <div class="col-6 col-md-4">
+              <span class="text-muted">Manufacturer:</span><br>
+              <strong>{{ work_order.asset.manufacturer|default:"N/A" }}</strong>
+            </div>
+            <div class="col-6 col-md-4">
+              <span class="text-muted">Model:</span><br>
+              <strong>{{ work_order.asset.model|default:"N/A" }}</strong>
+            </div>
+            <div class="col-6 col-md-4">
+              <span class="text-muted">Serial Number:</span><br>
+              <code>{{ work_order.asset.serial_number|default:"N/A" }}</code>
+            </div>
+            <div class="col-6 col-md-4">
+              <span class="text-muted">Location Zone:</span><br>
+              <strong>{{ work_order.asset.zone.name|default:"General Area" }}</strong>
+            </div>
+            <div class="col-6 col-md-4">
+              <span class="text-muted">Warranty Ref:</span><br>
+              <strong>{{ work_order.asset.warranty_ref|default:"None" }}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- M08 Inspection / Checklist Integration -->
+      <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+          <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
+            {% icon 'clipboard-check' 18 %} Inspection Checklist
+          </h5>
+          <span class="badge {% if work_order.checklist_status == 'COMPLETED' %}bg-success{% elif work_order.checklist_status == 'IN_PROGRESS' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+            {{ work_order.checklist_status }}
+          </span>
+        </div>
+        <div class="card-body">
+          {% if work_order.checklist_required %}
+          <p class="small text-secondary mb-3">
+            This work order requires execution of checklist template: <code>{{ work_order.checklist_template_ref }}</code>.
+          </p>
+          {% if work_order.checklist_status != 'COMPLETED' %}
+          <div class="alert alert-warning small py-2 px-3 mb-3 d-flex align-items-center gap-2">
+            <span>⚠️</span>
+            <span>Checklist completion is required before this work order can be closed.</span>
+          </div>
+          {% endif %}
+          {% if work_order.checklist_instance_ref %}
+          <a href="/app/inspections/{{ work_order.checklist_instance_ref }}/run/" class="btn btn-primary btn-sm">
+            {% icon 'clipboard-check' 14 %} Open Inspection Runner
+          </a>
+          {% else %}
+          <span class="text-muted small">Inspection instance will initialize upon work start.</span>
+          {% endif %}
+          {% else %}
+          <p class="small text-muted mb-0">No mandatory inspection checklist configured for this work type.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Photos & Completion Evidence Card -->
+      <div class="card mb-4 border-0 shadow-sm" id="evidence-section">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+          <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
+            {% icon 'paperclip' 18 %} Photos &amp; Completion Evidence
+          </h5>
+          {% if work_order.work_type in 'CORRECTIVE,INSTALLATION' %}
+            {% if evidence %}
+              <span class="badge bg-success">Evidence Uploaded ({{ evidence|length }})</span>
+            {% else %}
+              <span class="badge bg-danger">Mandatory for Completion</span>
+            {% endif %}
+          {% else %}
+            <span class="badge bg-light text-dark border">{{ evidence|length }} Files</span>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          <!-- Upload Form -->
+          <form method="post" action="{% url 'workspace:evidence' work_order.pk %}" enctype="multipart/form-data" class="mb-4 p-3 bg-light rounded border">
+            {% csrf_token %}
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Select Photo or Evidence File *</label>
+              <input type="file" name="evidence_file" class="form-control form-control-sm" required accept="image/*,.pdf,.doc,.docx,.txt">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Description / Note</label>
+              <input type="text" name="description" class="form-control form-control-sm" placeholder="e.g. As-found condition, completed repair, sensor reading">
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary w-100">
+              {% icon 'upload' 14 %} Upload Evidence File
+            </button>
+          </form>
+
+          <!-- Evidence List -->
+          <div class="border-top pt-3">
+            <div class="small fw-bold text-uppercase text-secondary mb-2">Attached Evidence Items</div>
+            {% if evidence %}
+            <div class="list-group list-group-flush">
+              {% for ev in evidence %}
+              <div class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center bg-transparent small">
+                <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 75%;">
+                  {% icon 'file-text' 16 %}
+                  <div>
+                    <div class="fw-semibold text-truncate">{{ ev.attachment.original_name }}</div>
+                    <div class="text-muted" style="font-size: 0.75rem;">
+                      {{ ev.attachment.size|filesizeformat }} · {{ ev.created_at|date:"M j, H:i" }}
+                      {% if ev.attachment.description %} · <span class="fst-italic text-secondary">{{ ev.attachment.description }}</span>{% endif %}
+                    </div>
+                  </div>
+                </div>
+                <a href="{% url 'files:download' ev.attachment.pk %}" class="btn btn-sm btn-outline-secondary">
+                  {% icon 'download' 12 %} View
+                </a>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="small text-muted mb-0">No photos or completion evidence uploaded yet.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Work Notes Card (Append-Only) -->
+      <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+          <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
+            {% icon 'pencil' 18 %} Technician Work Notes
+          </h5>
+        </div>
+        <div class="card-body">
+          {% include "workspace/_notes_partial.html" %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Time Entry, Travel Logs, Materials -->
+    <div class="col-12 col-lg-5">
+      <!-- Travel Logging Card -->
+      <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+          <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
+            {% icon 'navigation' 18 %} Travel Logging
+          </h5>
+        </div>
+        <div class="card-body">
+          <form method="post" action="{% url 'workspace:travel' work_order.pk %}" class="mb-4">
+            {% csrf_token %}
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small fw-semibold">Duration (Hours) *</label>
+                <input type="number" step="0.25" min="0.1" max="24" name="duration_hours" class="form-control form-control-sm" required placeholder="e.g. 1.5">
+              </div>
+              <div class="col-6">
+                <label class="form-label small fw-semibold">Distance (km)</label>
+                <input type="number" step="0.1" min="0" name="distance_km" class="form-control form-control-sm" placeholder="e.g. 35">
+              </div>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Route / Highway</label>
+              <input type="text" name="route_details" class="form-control form-control-sm" placeholder="e.g. Service Van #04 via Expressway">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Transit Notes</label>
+              <input type="text" name="notes" class="form-control form-control-sm" placeholder="e.g. Rain delay, bridge transit">
+            </div>
+            <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+              {% icon 'plus' 14 %} Record Travel Time
+            </button>
+          </form>
+
+          <!-- Travel Logs List -->
+          <div class="border-top pt-3">
+            <div class="small fw-bold text-uppercase text-secondary mb-2">Logged Travel Entries</div>
+            {% if travel_logs %}
+            <div class="list-group list-group-flush">
+              {% for log in travel_logs %}
+              <div class="list-group-item px-0 py-2 bg-transparent small">
+                <div class="d-flex justify-content-between">
+                  <span class="fw-bold text-primary">{{ log.duration_hours }} hrs{% if log.distance_km %} ({{ log.distance_km }} km){% endif %}</span>
+                  <span class="text-muted">{{ log.created_at|date:"M j, H:i" }}</span>
+                </div>
+                {% if log.route_details %}<div class="text-secondary">{{ log.route_details }}</div>{% endif %}
+                {% if log.notes %}<div class="text-muted fst-italic">{{ log.notes }}</div>{% endif %}
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="small text-muted mb-0">No travel logs recorded yet.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- On-Site Labor Time Entry Card -->
+      <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+          <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
+            {% icon 'clock' 18 %} On-Site Labor Time
+          </h5>
+        </div>
+        <div class="card-body">
+          <form method="post" action="{% url 'workspace:labor' work_order.pk %}" class="mb-4">
+            {% csrf_token %}
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small fw-semibold">Hours Worked *</label>
+                <input type="number" step="0.25" min="0.05" max="24" name="hours" class="form-control form-control-sm" required placeholder="e.g. 2.0">
+              </div>
+              <div class="col-6">
+                <label class="form-label small fw-semibold">Work Date</label>
+                <input type="date" name="work_date" class="form-control form-control-sm">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Work Description *</label>
+              <input type="text" name="description" class="form-control form-control-sm" required placeholder="e.g. Replaced faulty gasket and pressure tested">
+            </div>
+            <button type="submit" class="btn btn-sm btn-outline-success w-100">
+              {% icon 'plus' 14 %} Record Labor Time
+            </button>
+          </form>
+
+          <!-- Labor Entries List -->
+          <div class="border-top pt-3">
+            <div class="small fw-bold text-uppercase text-secondary mb-2">Authoritative Labor Entries</div>
+            {% if labor_entries %}
+            <div class="list-group list-group-flush">
+              {% for l in labor_entries %}
+              <div class="list-group-item px-0 py-2 bg-transparent small">
+                <div class="d-flex justify-content-between">
+                  <span class="fw-bold text-success">{{ l.hours }} hrs</span>
+                  <span class="text-muted">{{ l.work_date|date:"M j, Y" }}</span>
+                </div>
+                <div class="text-secondary">{{ l.description }}</div>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="small text-muted mb-0">No labor entries recorded yet.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Parts Used & Materials Card (M09 Boundary Compliant) -->
+      <div class="card mb-4 border-0 shadow-sm" id="materials-section">
+        <div class="card-header bg-white py-3">
+          <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
+            {% icon 'archive' 18 %} Parts Used &amp; Materials
+          </h5>
+          <div class="text-muted small mt-1" style="font-size: 0.75rem;">
+            Usage record only · Stock movements managed by M09 Inventory
+          </div>
+        </div>
+        <div class="card-body">
+          <form method="post" action="{% url 'workspace:material' work_order.pk %}" class="mb-4">
+            {% csrf_token %}
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Item / Part Name *</label>
+              <input type="text" name="item_name" class="form-control form-control-sm" required placeholder="e.g. High Pressure O-Ring 25mm">
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small fw-semibold">Quantity *</label>
+                <input type="number" step="0.01" min="0.01" name="quantity" class="form-control form-control-sm" required placeholder="e.g. 2.00">
+              </div>
+              <div class="col-6">
+                <label class="form-label small fw-semibold">Unit</label>
+                <input type="text" name="unit" class="form-control form-control-sm" placeholder="ea, m, L, kg" value="ea">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Usage Notes / Reference</label>
+              <input type="text" name="notes" class="form-control form-control-sm" placeholder="e.g. Part #PRT-8821 from service van">
+            </div>
+            <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+              {% icon 'plus' 14 %} Record Material Used
+            </button>
+          </form>
+
+          <!-- Materials List -->
+          <div class="border-top pt-3">
+            <div class="small fw-bold text-uppercase text-secondary mb-2">Recorded Materials</div>
+            {% if materials %}
+            <div class="list-group list-group-flush">
+              {% for m in materials %}
+              <div class="list-group-item px-0 py-2 bg-transparent small">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <span class="fw-bold text-dark">{{ m.item_name }}</span>
+                    {% if m.part_reference %}<span class="badge bg-light text-muted border ms-1">{{ m.part_reference }}</span>{% endif %}
+                    {% if m.notes %}<div class="text-secondary" style="font-size: 0.8rem;">{{ m.notes }}</div>{% endif %}
+                  </div>
+                  <span class="badge bg-primary-subtle text-primary">{{ m.quantity }} {{ m.unit|default:"ea" }}</span>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="small text-muted mb-0">No parts or materials recorded yet.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Pause Modal -->
+<div class="modal fade" id="pauseJobModal" tabindex="-1" aria-labelledby="pauseJobModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{% url 'workspace:pause' work_order.pk %}">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="pauseJobModalLabel">Pause Job Execution</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-secondary small">Putting the job on hold pauses execution time tracking. A reason is mandatory.</p>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Hold Reason *</label>
+            <textarea name="reason" class="form-control" rows="3" required placeholder="e.g. Awaiting spare parts clearance from warehouse"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-warning btn-sm text-dark">Confirm Pause</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Complete Job Modal -->
+<div class="modal fade" id="completeJobModal" tabindex="-1" aria-labelledby="completeJobModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{% url 'workspace:complete' work_order.pk %}">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="completeJobModalLabel">Complete Work Order</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Blocker Alerts in Completion Modal -->
+          {% if work_order.checklist_required and work_order.checklist_status != 'COMPLETED' %}
+          <div class="alert alert-danger small py-2 mb-3">
+            <strong>Checklist Blocker:</strong> Inspection checklist must be completed and valid before completing this job.
+          </div>
+          {% endif %}
+
+          {% if work_order.work_type in 'CORRECTIVE,INSTALLATION' and not evidence %}
+          <div class="alert alert-danger small py-2 mb-3">
+            <strong>Evidence Blocker:</strong> At least one completion photo or evidence file must be uploaded before completion.
+          </div>
+          {% endif %}
+
+          <p class="text-secondary small">Submit final resolution summary. Minimum 10 characters required.</p>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Resolution Summary *</label>
+            <textarea name="resolution_notes" class="form-control" rows="4" minlength="10" required placeholder="Describe the corrective action taken, testing performed, and operational outcome..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">Submit Completion</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Reusable Offcanvas Execution Drawer Component -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="technicianExecutionDrawer" aria-labelledby="technicianExecutionDrawerLabel" style="width: 520px; max-width: 95vw;">
+  <div class="offcanvas-body p-0" id="drawer-content">
+    <div class="d-flex justify-content-center align-items-center h-100 p-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading drawer...</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

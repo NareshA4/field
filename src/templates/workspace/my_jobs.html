@@ -1,0 +1,149 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+
+{% block title %}My Jobs | Technician Workspace{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <p class="small text-uppercase text-secondary fw-semibold mb-1">OPERATIONS &bull; M07 TECHNICIAN WORKSPACE</p>
+      <h1 class="h3 mb-0">My Assigned Jobs</h1>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'workorders:schedule' %}" class="btn btn-outline-secondary btn-sm">
+        {% icon 'clock' 14 %} Schedule Board
+      </a>
+      <a href="{% url 'workorders:list' %}" class="btn btn-outline-secondary btn-sm">
+        {% icon 'clipboard-check' 14 %} All Work Orders
+      </a>
+    </div>
+  </div>
+
+  <!-- Metric Badges Row -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card bg-success-subtle border-success-subtle">
+        <div class="card-body p-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="small text-success fw-bold text-uppercase">Active Execution</div>
+              <div class="h3 mb-0 text-success fw-bold">{{ active_count }}</div>
+            </div>
+            <div class="text-success opacity-75">{% icon 'check' 28 %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card bg-info-subtle border-info-subtle">
+        <div class="card-body p-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="small text-info-emphasis fw-bold text-uppercase">Upcoming / Assigned</div>
+              <div class="h3 mb-0 text-info-emphasis fw-bold">{{ upcoming_count }}</div>
+            </div>
+            <div class="text-info opacity-75">{% icon 'clock' 28 %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card bg-secondary-subtle border-secondary-subtle">
+        <div class="card-body p-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="small text-secondary fw-bold text-uppercase">Completed</div>
+              <div class="h3 mb-0 text-secondary fw-bold">{{ completed_count }}</div>
+            </div>
+            <div class="text-secondary opacity-75">{% icon 'clipboard-check' 28 %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card bg-light border">
+        <div class="card-body p-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="small text-secondary fw-bold text-uppercase">Total Assigned</div>
+              <div class="h3 mb-0 fw-bold">{{ all_count }}</div>
+            </div>
+            <div class="text-secondary opacity-75">{% icon 'wrench' 28 %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters and Search Toolbar -->
+  <div class="card mb-4 shadow-sm border-0">
+    <div class="card-body p-3">
+      <div class="row g-2 align-items-center justify-content-between">
+        <div class="col-12 col-md-auto">
+          <ul class="nav nav-pills" role="tablist">
+            <li class="nav-item">
+              <a class="nav-link btn-sm py-1 px-3 {% if status_filter == 'active' %}active{% endif %}"
+                 href="{% url 'workspace:my_jobs' %}?status=active{% if search %}&q={{ search }}{% endif %}">
+                Active <span class="badge bg-white text-dark ms-1">{{ active_count }}</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link btn-sm py-1 px-3 {% if status_filter == 'upcoming' %}active{% endif %}"
+                 href="{% url 'workspace:my_jobs' %}?status=upcoming{% if search %}&q={{ search }}{% endif %}">
+                Upcoming <span class="badge bg-white text-dark ms-1">{{ upcoming_count }}</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link btn-sm py-1 px-3 {% if status_filter == 'completed' %}active{% endif %}"
+                 href="{% url 'workspace:my_jobs' %}?status=completed{% if search %}&q={{ search }}{% endif %}">
+                Completed <span class="badge bg-white text-dark ms-1">{{ completed_count }}</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link btn-sm py-1 px-3 {% if status_filter == 'all' %}active{% endif %}"
+                 href="{% url 'workspace:my_jobs' %}?status=all{% if search %}&q={{ search }}{% endif %}">
+                All Jobs <span class="badge bg-white text-dark ms-1">{{ all_count }}</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <form method="get" class="d-flex gap-2">
+            <input type="hidden" name="status" value="{{ status_filter }}">
+            <input type="search"
+                   name="q"
+                   value="{{ search }}"
+                   class="form-control form-control-sm"
+                   placeholder="Search orders, assets, sites…"
+                   hx-get="{% url 'workspace:my_jobs' %}"
+                   hx-trigger="keyup changed delay:300ms, search"
+                   hx-target="#jobs-container"
+                   hx-include="[name='status']">
+            {% if search %}
+            <a href="{% url 'workspace:my_jobs' %}?status={{ status_filter }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+            {% endif %}
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dynamic Jobs List Container -->
+  <div id="jobs-container">
+    {% include "workspace/_jobs_list_partial.html" %}
+  </div>
+</div>
+
+<!-- Reusable Offcanvas Execution Drawer Component -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="technicianExecutionDrawer" aria-labelledby="technicianExecutionDrawerLabel" style="width: 520px; max-width: 95vw;">
+  <div class="offcanvas-body p-0" id="drawer-content">
+    <div class="d-flex justify-content-center align-items-center h-100 p-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading drawer...</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
