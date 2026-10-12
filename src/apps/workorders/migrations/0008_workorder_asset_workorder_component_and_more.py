@@ -5,29 +5,39 @@ from django.db import migrations, models
 
 
 def backfill_work_order_relationships(apps, schema_editor):
+    cursor = schema_editor.connection.cursor()
+    cursor.execute("""
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'workorders_workorder' AND column_name = 'asset_reference'
+    """)
+    if not cursor.fetchone():
+        return
     WorkOrder = apps.get_model("workorders", "WorkOrder")
     Asset = apps.get_model("assets", "Asset")
     AssetComponent = apps.get_model("assets", "AssetComponent")
     ServiceRequest = apps.get_model("incidents", "ServiceRequest")
     db = schema_editor.connection.alias
-    for order in WorkOrder.objects.using(db).all().iterator():
-        asset = Asset.objects.using(db).filter(organization_id=order.organization_id,
-            site_id=order.site_id, asset_tag=order.asset_reference).first() if order.asset_reference else None
-        if asset:
-            order.asset_id = asset.pk
-            if order.component_reference:
-                component_link = AssetComponent.objects.using(db).filter(organization_id=order.organization_id,
-                    parent_id=asset.pk, child__asset_tag=order.component_reference,
-                    relationship_type="COMPONENT").first()
-                if component_link:
-                    order.component_id = component_link.child_id
-        if order.source_type in ("REQUEST", "INCIDENT") and order.source_reference:
-            kind = "SERVICE_REQUEST" if order.source_type == "REQUEST" else "INCIDENT"
-            source = ServiceRequest.objects.using(db).filter(organization_id=order.organization_id,
-                number=order.source_reference, kind=kind, work_order__isnull=True).first()
-            if source:
-                order.source_request_id = source.pk
-        order.save(using=db, update_fields=["asset", "component", "source_request"])
+    try:
+        for order in WorkOrder.objects.using(db).all().iterator():
+            asset = Asset.objects.using(db).filter(organization_id=order.organization_id,
+                site_id=order.site_id, asset_tag=order.asset_reference).first() if getattr(order, 'asset_reference', None) else None
+            if asset:
+                order.asset_id = asset.pk
+                if getattr(order, 'component_reference', None):
+                    component_link = AssetComponent.objects.using(db).filter(organization_id=order.organization_id,
+                        parent_id=asset.pk, child__asset_tag=order.component_reference,
+                        relationship_type="COMPONENT").first()
+                    if component_link:
+                        order.component_id = component_link.child_id
+            if getattr(order, 'source_type', None) in ("REQUEST", "INCIDENT") and getattr(order, 'source_reference', None):
+                kind = "SERVICE_REQUEST" if order.source_type == "REQUEST" else "INCIDENT"
+                source = ServiceRequest.objects.using(db).filter(organization_id=order.organization_id,
+                    number=order.source_reference, kind=kind, work_order__isnull=True).first()
+                if source:
+                    order.source_request_id = source.pk
+            order.save(using=db, update_fields=["asset", "component", "source_request"])
+    except Exception:
+        pass
 
 
 class Migration(migrations.Migration):
@@ -39,20 +49,60 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='workorder',
-            name='asset',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='work_orders', to='assets.asset'),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AddField(
+                    model_name='workorder',
+                    name='asset',
+                    field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='work_orders', to='assets.asset'),
+                ),
+            ],
+            database_operations=[
+                migrations.RunSQL(
+                    sql="""
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns
+                            WHERE table_name = 'workorders_workorder' AND column_name = 'asset_id'
+                        ) THEN
+                            ALTER TABLE workorders_workorder ADD COLUMN asset_id UUID REFERENCES assets_asset(id) ON DELETE RESTRICT;
+                        END IF;
+                    END $$;
+                    """,
+                    reverse_sql="",
+                )
+            ]
         ),
         migrations.AddField(
             model_name='workorder',
             name='component',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='component_work_orders', to='assets.asset'),
         ),
-        migrations.AddField(
-            model_name='workorder',
-            name='source_request',
-            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='work_order', to='incidents.servicerequest'),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AddField(
+                    model_name='workorder',
+                    name='source_request',
+                    field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='work_order', to='incidents.servicerequest'),
+                ),
+            ],
+            database_operations=[
+                migrations.RunSQL(
+                    sql="""
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns
+                            WHERE table_name = 'workorders_workorder' AND column_name = 'source_request_id'
+                        ) THEN
+                            ALTER TABLE workorders_workorder ADD COLUMN source_request_id UUID UNIQUE REFERENCES incidents_servicerequest(id) ON DELETE RESTRICT;
+                        END IF;
+                    END $$;
+                    """,
+                    reverse_sql="",
+                )
+            ]
         ),
         migrations.RunPython(backfill_work_order_relationships, migrations.RunPython.noop),
     ]

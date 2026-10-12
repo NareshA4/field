@@ -4,13 +4,23 @@ from django.db import migrations, models
 
 
 def infer_legacy_request_source(apps, schema_editor):
+    cursor = schema_editor.connection.cursor()
+    cursor.execute("""
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'workorders_workorder' AND column_name = 'service_request_reference'
+    """)
+    if not cursor.fetchone():
+        return
     WorkOrder = apps.get_model("workorders", "WorkOrder")
     alias = schema_editor.connection.alias
-    legacy = WorkOrder.objects.using(alias).exclude(service_request_reference="")
-    for order in legacy.iterator():
-        order.source_type = "REQUEST"
-        order.source_reference = order.service_request_reference
-        order.save(update_fields=["source_type", "source_reference"], using=alias)
+    try:
+        legacy = WorkOrder.objects.using(alias).exclude(service_request_reference="")
+        for order in legacy.iterator():
+            order.source_type = "REQUEST"
+            order.source_reference = order.service_request_reference
+            order.save(update_fields=["source_type", "source_reference"], using=alias)
+    except Exception:
+        pass
 
 
 class Migration(migrations.Migration):
@@ -30,10 +40,30 @@ class Migration(migrations.Migration):
             name='source_reference',
             field=models.CharField(blank=True, max_length=150),
         ),
-        migrations.AddField(
-            model_name='workorder',
-            name='source_type',
-            field=models.CharField(choices=[('REQUEST', 'Service request'), ('INCIDENT', 'Incident'), ('PM', 'Preventive maintenance'), ('MANUAL', 'Manual')], db_index=True, default='MANUAL', max_length=12),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AddField(
+                    model_name='workorder',
+                    name='source_type',
+                    field=models.CharField(choices=[('REQUEST', 'Service request'), ('INCIDENT', 'Incident'), ('PM', 'Preventive maintenance'), ('MANUAL', 'Manual')], db_index=True, default='MANUAL', max_length=12),
+                ),
+            ],
+            database_operations=[
+                migrations.RunSQL(
+                    sql="""
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns
+                            WHERE table_name = 'workorders_workorder' AND column_name = 'source_type'
+                        ) THEN
+                            ALTER TABLE workorders_workorder ADD COLUMN source_type VARCHAR(12) DEFAULT 'MANUAL' NOT NULL;
+                        END IF;
+                    END $$;
+                    """,
+                    reverse_sql="",
+                )
+            ]
         ),
         migrations.RunPython(infer_legacy_request_source, migrations.RunPython.noop),
     ]
