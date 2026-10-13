@@ -1,8 +1,12 @@
 """M05 permissions. Every request is bound to an asset, hence to a site, so all are site-scoped."""
 from apps.rbac.catalog import register
 
-register("incident", "incident.view", "View incidents and service requests", site_scoped=True)
+register("incident", "incident.view", "View incidents and service requests", site_scoped=True,
+         implies=("incident.view_assigned",))
+register("incident", "incident.view_assigned",
+         "View only requests one reported or that are the source of work assigned to oneself", site_scoped=True)
 register("incident", "incident.create", "Report incidents and service requests", site_scoped=True)
+register("incident", "incident.report_owned", "Report against assets assigned to the member", site_scoped=True)
 register("incident", "incident.update", "Edit incident details before approval", site_scoped=True)
 register("incident", "incident.attach", "Attach evidence (photos / files) to an incident", site_scoped=True)
 register("incident", "incident.triage", "Triage incidents", site_scoped=True)

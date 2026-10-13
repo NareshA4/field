@@ -2,30 +2,58 @@
 {% load ui_tags %}
 {% block title %}Incidents &amp; Requests · FieldOps Nexus{% endblock %}
 {% block content %}
-<div class="fx-page-header"><div><h1>Incidents &amp; Requests</h1><div class="text-body-secondary">Failures and service requests: report, triage, approve, and follow the resulting work order.</div></div>
+<style>
+  .incident-list-row { cursor: pointer; }
+  .incident-list-row:hover, .incident-list-row:focus-within { background: #f5f8fc; }
+  .incident-list-row:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
+</style>
+<div class="fx-page-header"><div>
+  <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item">Operations</li><li class="breadcrumb-item active">Incidents &amp; Requests</li></ol></nav>
+  <h1>Incidents &amp; Requests</h1><div class="text-body-secondary">Failures and service requests: report, triage, approve, and follow the resulting work order.</div></div>
   <div class="d-flex gap-2">{% if can_create %}<a class="btn btn-primary" href="{% url 'incidents:create' %}">{% icon 'plus' 16 %} Report incident</a>{% endif %}</div></div>
 <div class="fx-card">
   <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
-    <input class="form-control form-control-sm" style="max-width:240px" type="search" name="q" value="{{ filters.q }}" placeholder="Number, title, asset" aria-label="Search requests">
-    <select class="form-select form-select-sm" style="max-width:160px" name="site" aria-label="Site"><option value="">All sites</option>
+    <input class="form-control form-control-sm" style="max-width:352px" type="search" name="q" value="{{ filters.q }}" placeholder="Number, title, asset" aria-label="Search requests">
+    <select class="form-select form-select-sm" style="max-width:192px" name="site" aria-label="Site"><option value="">All sites</option>
       {% for s in sites %}<option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>{% endfor %}</select>
-    <select class="form-select form-select-sm" style="max-width:200px" name="status" aria-label="Status"><option value="">All statuses</option>
+    <select class="form-select form-select-sm" style="max-width:192px" name="status" aria-label="Status"><option value="">All statuses</option>
       {% for v, l in statuses %}<option value="{{ v }}" {% if filters.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
-    <select class="form-select form-select-sm" style="max-width:150px" name="severity" aria-label="Severity"><option value="">All severities</option>
+    <select class="form-select form-select-sm" style="max-width:192px" name="severity" aria-label="Severity"><option value="">All severities</option>
       {% for v, l in severities %}<option value="{{ v }}" {% if filters.severity == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
-    <select class="form-select form-select-sm" style="max-width:190px" name="kind" aria-label="Type"><option value="">All types</option>
+    <select class="form-select form-select-sm" style="max-width:192px" name="kind" aria-label="Type"><option value="">All types</option>
       {% for v, l in kinds %}<option value="{{ v }}" {% if filters.kind == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
     <button class="btn btn-sm btn-outline-secondary">Filter</button>
   </form>
-  <div class="table-responsive"><table class="table fx-table">
+  <div class="table-responsive"><table class="table fx-table align-middle">
     <thead><tr><th>Number</th><th>Title</th><th>Asset</th><th>Severity</th><th>Status</th><th>Reported</th></tr></thead>
     <tbody>{% for r in page %}
-      <tr><td><a class="fx-id" href="{% url 'incidents:detail' r.pk %}">{{ r.number }}</a></td><td><div class="fw-medium">{{ r.title }}</div><div class="fx-sub">{{ r.get_kind_display }}</div></td>
-        <td><a class="fw-medium" href="{% url 'assets:detail' r.asset_id %}">{{ r.asset.asset_tag }}</a><div class="fx-sub">{{ r.site.code }}</div></td>
+      <tr class="incident-list-row" data-detail-url="{% url 'incidents:detail' r.pk %}" tabindex="0" role="link" aria-label="Open {{ r.number }}: {{ r.title }}">
+        <td><a class="fw-semibold text-body text-decoration-none text-nowrap" href="{% url 'incidents:detail' r.pk %}">{{ r.number }}</a></td>
+        <td><a class="fw-medium text-body text-decoration-none" href="{% url 'incidents:detail' r.pk %}">{{ r.title }}</a><div class="fx-sub">{{ r.get_kind_display }}</div></td>
+        <td><a class="fw-medium text-body text-decoration-none" href="{% url 'assets:detail' r.asset_id %}">{{ r.asset.asset_tag }}</a><div class="fx-sub">{{ r.site.code }}</div></td>
         <td>{% status_badge r.severity %}</td><td>{% status_badge r.status %}</td>
-        <td class="small">{{ r.created_at|date:"d M Y H:i" }}<br>{{ r.reported_by.user.display_name }}</td></tr>
+        <td class="small text-nowrap">{{ r.created_at|date:"d M Y H:i" }}<br><span class="text-body-secondary">{{ r.reported_by.user.display_name }}</span></td>
+      </tr>
     {% empty %}<tr><td colspan="6">{% include "components/_empty_state.html" with title="No requests match" text="Adjust the filters or report an incident." %}</td></tr>{% endfor %}
     </tbody></table></div>
   {% include "components/_pagination.html" %}
 </div>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.incident-list-row').forEach(function (row) {
+    row.addEventListener('click', function (event) {
+      if (event.target.closest('a, button, input, select, label')) return;
+      window.location.assign(row.dataset.detailUrl);
+    });
+    row.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        window.location.assign(row.dataset.detailUrl);
+      }
+    });
+  });
+});
+</script>
 {% endblock %}
