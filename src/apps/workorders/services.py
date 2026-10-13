@@ -671,6 +671,9 @@ def _assert_assignee_or_dispatcher(wo, membership):
         raise PermissionDenied("Only the assigned technician or an authorized dispatcher may execute this work order.")
 
 
+assert_can_execute = _assert_assignee_or_dispatcher
+
+
 def _assert_assignee_or_authorized(wo, membership, permission):
     if (wo.assigned_to_id != membership.pk and
             not rbac.has_permission(membership, permission, wo.site)):
@@ -731,15 +734,22 @@ def complete_work_order(wo, *, membership, actor, resolution_notes, expected_ver
 @transaction.atomic
 def submit_for_review(wo, *, membership, actor, expected_version=None, request=None):
     """Persist the documented COMPLETED -> SUPERVISOR_REVIEW transition separately."""
-    _need(membership, "work_order.complete", wo.site)
+    can_complete = bool(membership and rbac.has_permission(membership, "work_order.complete", wo.site))
+    can_review = bool(membership and rbac.has_permission(membership, "work_order.review", wo.site))
+    if not (can_complete or can_review):
+        raise PermissionDenied("You do not have permission to submit this work order for review.")
     wo = WorkOrder.objects.select_for_update().get(pk=wo.pk)
     _transition(wo, WorkOrder.Status.SUPERVISOR_REVIEW)
-    if wo.assigned_to_id != membership.pk:
-        raise PermissionDenied("Only the assigned technician may submit this work order for review.")
+    if wo.assigned_to_id != membership.pk and not can_review:
+        raise PermissionDenied("Only the assigned technician or an authorized supervisor may submit this work order for review.")
     _check_completion(wo, wo.resolution_notes)
     return transition_work_order(wo, WorkOrder.Status.SUPERVISOR_REVIEW, membership=membership, actor=actor,
-        permission="work_order.complete", action="submitted_for_review", expected_version=expected_version,
+        permission="work_order.review" if can_review else "work_order.complete",
+        action="submitted_for_review", expected_version=expected_version,
         request=request)
+
+
+submit_work_order_for_review = submit_for_review
 
 
 @transaction.atomic
@@ -761,6 +771,9 @@ def review_work_order(wo, *, membership, actor, approved, notes="", expected_ver
     if not approved and not notes:
         raise ValidationFailed("A reason is required when rejecting a work order.")
     if approved:
+        blockers = closure_blockers(wo)
+        if blockers:
+            raise Conflict("Work order closure is blocked.", code="closure_blocked", details={"blockers": blockers})
         _check_completion(wo, wo.resolution_notes)
         target = WorkOrder.Status.CLOSED
         changes = {"closed_at": timezone.now(), "closed_by": actor, "supervisor_notes": notes}
@@ -839,7 +852,7 @@ def register_checklist_reference(wo, *, membership, actor, template_ref, instanc
 
 
 @transaction.atomic
-def record_labor(wo, *, membership, actor, work_date, hours, description, request=None):
+def record_labor(wo, *, membership, actor, work_date, hours, description="Labor recorded", technician=None, request=None, **kwargs):
     _need(membership, "work_order.record", wo.site)
     _assert_assignee_or_dispatcher(wo, membership)
     if wo.status not in (WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD):
@@ -848,11 +861,13 @@ def record_labor(wo, *, membership, actor, work_date, hours, description, reques
         hours = Decimal(str(hours))
     except Exception as exc:
         raise ValidationFailed("Hours must be a decimal between 0 and 24.") from exc
-    if hours <= 0 or hours > 24 or work_date > timezone.localdate() or not description.strip():
+    desc = (description or kwargs.get("notes") or "Labor recorded").strip()
+    if hours <= 0 or hours > 24 or work_date > timezone.localdate() or not desc:
         raise ValidationFailed("Labor requires 0 < hours <= 24, a non-future date, and a description.")
-    entry = WorkOrderLabor.objects.create(organization=wo.organization, work_order=wo, technician=membership,
+    target_tech = technician or membership
+    entry = WorkOrderLabor.objects.create(organization=wo.organization, work_order=wo, technician=target_tech,
                                           entered_by=actor, work_date=work_date, hours=hours,
-                                          description=description.strip())
+                                          description=desc)
     _record(wo, actor=actor, action="labor_recorded", metadata={"labor_id": str(entry.pk), "hours": str(hours)},
             request=request)
     return entry
@@ -910,15 +925,55 @@ def add_evidence(wo, *, membership, actor, attachment_id, request=None):
 def closure_blockers(wo):
     blockers = []
     if len((wo.resolution_notes or "").strip()) < 10:
-        blockers.append({"code": "resolution_notes_required", "message": "Resolution notes are required."})
-    from .checklist_adapter import get_checklist_status
-    checklist = get_checklist_status(wo)
-    if not checklist.is_valid:
-        blockers.append({"code": "checklist_pending", "message": checklist.message})
+        blockers.append("Resolution notes must contain at least 10 characters.")
+    from apps.checklists import services as checklist_services
+    blockers.extend(checklist_services.checklist_blockers(wo))
     if wo.work_type in (WorkOrder.WorkType.CORRECTIVE, WorkOrder.WorkType.INSTALLATION) and not wo.completion_evidence.exists():
-        blockers.append({"code": "evidence_required", "message": "Completion evidence is required."})
+        blockers.append("Attach completion evidence before completing this work order.")
     return blockers
 
 
 def evidence_for(wo):
     return Attachment.objects.for_organization(wo.organization).filter(work_order_links__work_order=wo)
+
+
+def checklist_blockers(wo):
+    from apps.checklists import services as checklist_services
+    return checklist_services.checklist_blockers(wo)
+
+
+def transition(wo, action, *, actor, membership, **kwargs):
+    if action == "plan":
+        start = kwargs.get("planned_start") or (timezone.now() + timedelta(days=1))
+        end = kwargs.get("planned_end") or (start + timedelta(hours=2))
+        due = kwargs.get("due_at") or (end + timedelta(days=1))
+        hours = kwargs.get("estimated_hours", 1)
+        priority = kwargs.get("priority") or wo.priority or "MEDIUM"
+        return plan_work_order(wo, membership=membership, actor=actor,
+                               planned_start=start, planned_end=end,
+                               due_at=due, estimated_hours=hours,
+                               work_type=kwargs.get("work_type", wo.work_type),
+                               priority=priority)
+    elif action == "assign":
+        tech = kwargs.get("technician")
+        assignee_id = tech.pk if hasattr(tech, "pk") else tech
+        return assign_work_order(wo, membership=membership, actor=actor,
+                                 assignee_id=assignee_id)
+    elif action == "dispatch":
+        return dispatch_work_order(wo, membership=membership, actor=actor)
+    elif action == "start":
+        return start_work_order(wo, membership=membership, actor=actor)
+    elif action == "hold":
+        return hold_work_order(wo, membership=membership, actor=actor,
+                               reason=kwargs.get("reason", "On hold"))
+    elif action == "resume":
+        return resume_work_order(wo, membership=membership, actor=actor)
+    elif action == "complete":
+        return complete_work_order(wo, membership=membership, actor=actor,
+                                   resolution_notes=kwargs.get("resolution_notes", "Work completed successfully."))
+    elif action in ("submit_for_review", "start_review"):
+        return submit_for_review(wo, membership=membership, actor=actor)
+    elif action == "close":
+        return close_work_order(wo, membership=membership, actor=actor,
+                                comment=kwargs.get("comment", "Work order approved."))
+    raise ValueError(f"Unknown action: {action}")

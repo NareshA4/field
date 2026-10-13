@@ -89,12 +89,27 @@ def create_checklist_reference(work_order):
 
 
 def get_checklist_status(work_order):
+    if work_order.checklist_instance_ref:
+        if (work_order.checklist_status == COMPLETED
+                and work_order.checklist_validation_state == "VALID"):
+            return ChecklistResult(True, COMPLETED, True, message="Checklist validated.")
+        status = work_order.checklist_status if work_order.checklist_status in {
+            PENDING, IN_PROGRESS, FAILED, COMPLETED} else PENDING
+        return ChecklistResult(True, status, False,
+            message="Checklist completion is required before completing this work order.")
+
+    try:
+        from apps.checklists import services as checklist_services
+        blockers = checklist_services.checklist_blockers(work_order)
+        if not blockers:
+            return ChecklistResult(bool(work_order.checklist_required), COMPLETED, True, message="Checklist validated.")
+        return ChecklistResult(True, PENDING, False,
+                               message=blockers[0] if blockers else "Checklist completion is required before completing this work order.")
+    except Exception:
+        pass
+
     if not work_order.checklist_required:
         return ChecklistResult(False, NOT_REQUIRED, True, message="No checklist is required.")
-    # Fail closed while M08 is disconnected. Local provisional notes are ignored.
-    if (work_order.checklist_status == COMPLETED and work_order.checklist_instance_ref
-            and work_order.checklist_validation_state == "VALID"):
-        return ChecklistResult(True, COMPLETED, True, message="Checklist validated.")
     status = work_order.checklist_status if work_order.checklist_status in {
         PENDING, IN_PROGRESS, FAILED, COMPLETED} else PENDING
     return ChecklistResult(True, status, False,
@@ -105,7 +120,7 @@ def validate_for_completion(work_order):
     result = get_checklist_status(work_order)
     if not result.is_valid:
         from apps.core.exceptions import Conflict
-        raise Conflict(result.message, code="checklist_pending")
+        raise Conflict(result.message, code="checklist_incomplete")
     return result
 
 

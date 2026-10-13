@@ -1,0 +1,258 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+
+{% block title %}{{ section_display }} Dashboard · {{ shell_org.name }}{% endblock %}
+
+{% block content %}
+<div class="fx-page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div>
+    <h1 class="h3 fw-bold mb-1">Operational Dashboards</h1>
+    <div class="text-body-secondary small">Live metric aggregations across operational records (Decision D-052).</div>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a href="{% url 'dashboards:my_work' %}" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1">
+      {% icon 'user' 14 %} My Work Cockpit
+    </a>
+  </div>
+</div>
+
+<!-- Section Navigation Tabs -->
+<ul class="nav nav-tabs mb-4">
+  {% for key, label in sections %}
+  <li class="nav-item">
+    <a class="nav-link {% if section == key %}active fw-semibold{% endif %}"
+       href="?section={{ key }}{% if selected_site %}&site={{ selected_site }}{% endif %}&from={{ date_from }}&to={{ date_to }}">
+      {{ label }}
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+
+<!-- Filter Bar -->
+<div class="fx-card p-3 mb-4 shadow-sm">
+  <form method="get" class="row g-2 align-items-end">
+    <input type="hidden" name="section" value="{{ section }}">
+    <div class="col-12 col-md-3">
+      <label class="form-label small fw-semibold text-body-secondary">Site Scope</label>
+      <select name="site" class="form-select form-select-sm">
+        <option value="">All Permitted Sites ({{ permitted_sites|length }})</option>
+        {% for s in permitted_sites %}
+        <option value="{{ s.pk }}" {% if selected_site == s.pk|stringformat:"s" or selected_site == s.code %}selected{% endif %}>
+          {{ s.code }} - {{ s.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-3">
+      <label class="form-label small fw-semibold text-body-secondary">From Date</label>
+      <input type="date" name="from" value="{{ date_from }}" class="form-control form-control-sm">
+    </div>
+    <div class="col-6 col-md-3">
+      <label class="form-label small fw-semibold text-body-secondary">To Date</label>
+      <input type="date" name="to" value="{{ date_to }}" class="form-control form-control-sm">
+    </div>
+    <div class="col-12 col-md-3 d-flex gap-2">
+      <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Apply Filters</button>
+      <a href="?section={{ section }}" class="btn btn-outline-secondary btn-sm">Reset</a>
+    </div>
+  </form>
+</div>
+
+<!-- KPI Metric Cards Grid -->
+<div class="row g-3 mb-4">
+  {% if section == "operations" %}
+    {% include "dashboards/_kpi_card.html" with title="Open Work Orders" value=kpis.open_work_orders unit="active" hint="Non-terminal work orders in pipeline" %}
+    {% include "dashboards/_kpi_card.html" with title="Overdue Orders" value=kpis.overdue_work_orders unit="orders" hint="Active jobs past planned completion end" %}
+    {% include "dashboards/_kpi_card.html" with title="Mean Time To Repair" value=kpis.mttr unit="hours" hint="Average duration of restored outages" %}
+    {% include "dashboards/_kpi_card.html" with title="Total Downtime" value=kpis.downtime_hours unit="hours" hint="Equipment outage overlap in window" %}
+    {% include "dashboards/_kpi_card.html" with title="Technician Utilization" value=kpis.technician_utilization unit="capacity" hint="Logged labor vs 8h capacity" %}
+    {% include "dashboards/_kpi_card.html" with title="PM Compliance" value=kpis.pm_compliance unit="target" hint="On-time completed preventive cycles" %}
+    {% include "dashboards/_kpi_card.html" with title="SLA Breaches" value=kpis.sla_breaches unit="breaches" hint="Missed response/resolution targets" %}
+  {% elif section == "assets" %}
+    {% include "dashboards/_kpi_card.html" with title="Total Assets" value=kpis.total_assets unit="registered" hint="Assets registered in scope" %}
+    {% include "dashboards/_kpi_card.html" with title="Active Assets" value=kpis.active_assets unit="operational" hint="Operational assets" %}
+    {% include "dashboards/_kpi_card.html" with title="In Maintenance" value=kpis.maintenance_assets unit="servicing" hint="Assets under repair" %}
+    {% include "dashboards/_kpi_card.html" with title="Downtime Hours" value=kpis.downtime_hours unit="hours" hint="Total equipment downtime in period" %}
+    {% include "dashboards/_kpi_card.html" with title="Mean Time Between Failures" value=kpis.mtbf unit="hours" hint="Operating time per breakdown" %}
+  {% elif section == "maintenance" %}
+    {% include "dashboards/_kpi_card.html" with title="PM Compliance" value=kpis.pm_compliance unit="rate" hint="Preventive maintenance delivery compliance" %}
+    {% include "dashboards/_kpi_card.html" with title="Scheduled PMs" value=kpis.scheduled_pms unit="due" hint="Total PM orders due in window" %}
+    {% include "dashboards/_kpi_card.html" with title="On-Time PMs" value=kpis.on_time_pms unit="orders" hint="Delivered on or before due date" %}
+    {% include "dashboards/_kpi_card.html" with title="Missed / Late PMs" value=kpis.missed_pms unit="orders" hint="Late or uncompleted PM cycles" %}
+  {% elif section == "service" %}
+    {% include "dashboards/_kpi_card.html" with title="Open Service Requests" value=kpis.open_requests unit="active" hint="Unresolved breakdown incidents" %}
+    {% include "dashboards/_kpi_card.html" with title="New Requests" value=kpis.new_requests_in_window unit="reported" hint="New incident calls in window" %}
+    {% include "dashboards/_kpi_card.html" with title="SLA Breaches" value=kpis.sla_breaches unit="breaches" hint="Target SLA commitment breaches" %}
+  {% elif section == "inventory" %}
+    {% include "dashboards/_kpi_card.html" with title="Stocked SKU Lines" value=kpis.total_stock_lines unit="lines" hint="Total managed parts inventory items" %}
+    {% include "dashboards/_kpi_card.html" with title="Low Stock Alerts" value=kpis.low_stock_alerts unit="items" hint="Items below reorder point" %}
+    {% include "dashboards/_kpi_card.html" with title="Net Parts Consumed" value=kpis.net_parts_consumed unit="ledger" hint="Issues minus returns to work orders" %}
+  {% endif %}
+</div>
+
+<!-- Visual Data Breakdown: Pure CSS Responsive Bars (D-052) -->
+{% if css_bars %}
+<div class="row g-3 mb-4">
+  {% if css_bars.status_distribution %}
+  <div class="col-12 col-lg-6">
+    {% include "dashboards/_css_bars.html" with title="Work Order Status Distribution" items=css_bars.status_distribution %}
+  </div>
+  {% endif %}
+
+  {% if css_bars.priority_distribution %}
+  <div class="col-12 col-lg-6">
+    {% include "dashboards/_css_bars.html" with title="Work Order Priority Mix" items=css_bars.priority_distribution %}
+  </div>
+  {% endif %}
+
+  {% if css_bars.work_type_mix %}
+  <div class="col-12 col-lg-6">
+    {% include "dashboards/_css_bars.html" with title="Maintenance Work Mix (Preventive vs Corrective)" items=css_bars.work_type_mix %}
+  </div>
+  {% endif %}
+
+  {% if css_bars.top_failing %}
+  <div class="col-12 col-lg-6">
+    {% include "dashboards/_css_bars.html" with title="Top Failing Equipment (Outage Count)" items=css_bars.top_failing %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Traceability Drilldown Table -->
+<div class="fx-card p-3 shadow-sm">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h6 class="fw-bold text-uppercase text-body-secondary small mb-0">Traceable Records Drilldown</h6>
+    <span class="text-body-secondary small">Real persisted records in current filter window</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover table-sm align-middle mb-0">
+      {% if section == "operations" %}
+        <thead>
+          <tr class="table-light small">
+            <th>Order Number</th>
+            <th>Title</th>
+            <th>Site</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Assigned To</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for wo in trace_data.recent_orders %}
+          <tr>
+            <td><a href="{% url 'workorders:detail' wo.pk %}" class="fw-semibold">{{ wo.order_number }}</a></td>
+            <td>{{ wo.title }}</td>
+            <td><span class="badge bg-light text-dark border">{{ wo.site.code }}</span></td>
+            <td><span class="badge bg-secondary">{{ wo.get_priority_display }}</span></td>
+            <td><span class="badge bg-primary">{{ wo.get_status_display }}</span></td>
+            <td>{{ wo.assigned_to.user.display_name|default:"Unassigned" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="text-center py-3 text-body-secondary">No work orders recorded in scope.</td></tr>
+          {% endfor %}
+        </tbody>
+
+      {% elif section == "assets" %}
+        <thead>
+          <tr class="table-light small">
+            <th>Asset Tag</th>
+            <th>Name</th>
+            <th>Site</th>
+            <th>Category</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in trace_data.recent_assets %}
+          <tr>
+            <td><a href="{% url 'assets:detail' a.pk %}" class="fw-semibold">{{ a.asset_tag }}</a></td>
+            <td>{{ a.name }}</td>
+            <td><span class="badge bg-light text-dark border">{{ a.site.code }}</span></td>
+            <td>{{ a.category.name|default:"-" }}</td>
+            <td><span class="badge bg-success">{{ a.get_status_display }}</span></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-center py-3 text-body-secondary">No assets found in scope.</td></tr>
+          {% endfor %}
+        </tbody>
+
+      {% elif section == "maintenance" %}
+        <thead>
+          <tr class="table-light small">
+            <th>PM Order</th>
+            <th>Title</th>
+            <th>Asset</th>
+            <th>Due Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for wo in trace_data.preventive_orders %}
+          <tr>
+            <td><a href="{% url 'workorders:detail' wo.pk %}" class="fw-semibold">{{ wo.order_number }}</a></td>
+            <td>{{ wo.title }}</td>
+            <td>{{ wo.asset.name|default:"-" }}</td>
+            <td>{{ wo.due_at|date:"Y-m-d"|default:"-" }}</td>
+            <td><span class="badge bg-primary">{{ wo.get_status_display }}</span></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-center py-3 text-body-secondary">No preventive maintenance orders found.</td></tr>
+          {% endfor %}
+        </tbody>
+
+      {% elif section == "service" %}
+        <thead>
+          <tr class="table-light small">
+            <th>Request Number</th>
+            <th>Title</th>
+            <th>Site</th>
+            <th>Severity</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sr in trace_data.service_requests %}
+          <tr>
+            <td><a href="{% url 'incidents:detail' sr.pk %}" class="fw-semibold">{{ sr.number }}</a></td>
+            <td>{{ sr.title }}</td>
+            <td><span class="badge bg-light text-dark border">{{ sr.site.code }}</span></td>
+            <td><span class="badge bg-warning text-dark">{{ sr.get_severity_display }}</span></td>
+            <td><span class="badge bg-primary">{{ sr.get_status_display }}</span></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-center py-3 text-body-secondary">No service requests recorded.</td></tr>
+          {% endfor %}
+        </tbody>
+
+      {% elif section == "inventory" %}
+        <thead>
+          <tr class="table-light small">
+            <th>Part Number</th>
+            <th>Part Name</th>
+            <th>Warehouse</th>
+            <th>On Hand</th>
+            <th>Min Level</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in trace_data.low_stock_lines %}
+          <tr>
+            <td><a href="{% url 'inventory:part_detail' b.part.pk %}" class="fw-semibold">{{ b.part.part_number }}</a></td>
+            <td>{{ b.part.name }}</td>
+            <td>{{ b.warehouse.name }}</td>
+            <td class="text-danger fw-bold">{{ b.on_hand }}</td>
+            <td>{{ b.min_level|default:"-" }}</td>
+            <td><span class="badge bg-danger">Low Stock Alert</span></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="text-center py-3 text-body-secondary">All stock levels are within normal thresholds.</td></tr>
+          {% endfor %}
+        </tbody>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% endblock %}
