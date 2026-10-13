@@ -3,12 +3,19 @@
 site (403) -> service call (validation, transaction, audit) -> redirect with a message only after success."""
 from __future__ import annotations
 
+import json
+
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.views import View
+
+def htmx_success(trigger_data: dict) -> HttpResponse:
+    response = HttpResponse(status=204)
+    response["HX-Trigger"] = json.dumps(trigger_data)
+    return response
 
 from apps.core.exceptions import DomainError, NotFound
 from apps.rbac import services as rbac
@@ -71,7 +78,13 @@ class SiteCreateView(SiteBase):
             "timezone": request.organization.timezone,
             "country": getattr(request.organization, "country", "IN") or "IN",
         }
-        return form_page(request, title="New site", form=SiteForm(initial=initial),
+        form = SiteForm(initial=initial)
+        if request.headers.get("HX-Request"):
+            return render(request, "sites/_site_modal.html", {
+                "title": "New site", "form": form, "submit": "Create site",
+                "action_url": request.path,
+            })
+        return form_page(request, title="New site", form=form,
                          cancel_url="/app/sites/", crumbs=[("Sites", "/app/sites/"), ("New site", None)],
                          submit="Create site")
 
@@ -88,7 +101,14 @@ class SiteCreateView(SiteBase):
                     form.add_error(None, exc.message)
             else:
                 messages.success(request, f"Site {site.code} created.")
+                if request.headers.get("HX-Request"):
+                    return htmx_success({"closeSiteModal": True, "siteSaved": True})
                 return redirect("sites:detail", pk=site.pk)
+        if request.headers.get("HX-Request"):
+            return render(request, "sites/_site_modal.html", {
+                "title": "New site", "form": form, "submit": "Create site",
+                "action_url": request.path,
+            }, status=200)
         return form_page(request, title="New site", form=form, cancel_url="/app/sites/",
                          crumbs=[("Sites", "/app/sites/"), ("New site", None)], submit="Create site", status=400)
 
@@ -99,7 +119,13 @@ class SiteEditView(SiteBase):
     def get(self, request, pk):
         site = self.site(request, pk, "site.update")
         initial = {f: getattr(site, f) for f in services.SITE_FIELDS}
-        return self._page(request, site, SiteForm(initial=initial))
+        form = SiteForm(initial=initial)
+        if request.headers.get("HX-Request"):
+            return render(request, "sites/_site_modal.html", {
+                "title": f"Edit {site.code}", "site": site, "form": form, "submit": "Save changes",
+                "action_url": request.path,
+            })
+        return self._page(request, site, form)
 
     def post(self, request, pk):
         site = self.site(request, pk, "site.update")
@@ -114,7 +140,14 @@ class SiteEditView(SiteBase):
                     form.add_error(None, exc.message)
             else:
                 messages.success(request, "Site saved.")
+                if request.headers.get("HX-Request"):
+                    return htmx_success({"closeSiteModal": True, "siteSaved": True})
                 return redirect("sites:detail", pk=site.pk)
+        if request.headers.get("HX-Request"):
+            return render(request, "sites/_site_modal.html", {
+                "title": f"Edit {site.code}", "site": site, "form": form, "submit": "Save changes",
+                "action_url": request.path,
+            }, status=200)
         return self._page(request, site, form, status=400)
 
     def _page(self, request, site, form, status=200):
@@ -193,7 +226,23 @@ class ZoneCreateView(SiteBase):
 
     def get(self, request, pk):
         site = self.site(request, pk, "zone.create")
-        return form_page(request, title=f"New location in {site.code}", form=self._form(request, site),
+        form = self._form(request, site)
+        parent_zone = None
+        if request.GET.get("parent"):
+            try:
+                parent_zone = site.zones.filter(pk=request.GET["parent"]).first()
+            except Exception:
+                pass
+        if request.headers.get("HX-Request"):
+            return render(request, "sites/_zone_modal.html", {
+                "title": f"New location in {site.code}",
+                "site": site,
+                "parent_zone": parent_zone,
+                "form": form,
+                "submit": "Create location",
+                "action_url": request.get_full_path(),
+            })
+        return form_page(request, title=f"New location in {site.code}", form=form,
                          cancel_url=f"/app/sites/{site.pk}/?tab=locations",
                          crumbs=_site_crumbs(site, ("New location", None)), submit="Create location")
 
@@ -208,7 +257,24 @@ class ZoneCreateView(SiteBase):
                 form.add_error(None, exc.message)
             else:
                 messages.success(request, "Location created.")
+                if request.headers.get("HX-Request"):
+                    return htmx_success({"closeZoneModal": True, "zoneSaved": True})
                 return redirect(f"/app/sites/{site.pk}/?tab=locations")
+        if request.headers.get("HX-Request"):
+            parent_zone = None
+            if request.GET.get("parent"):
+                try:
+                    parent_zone = site.zones.filter(pk=request.GET["parent"]).first()
+                except Exception:
+                    pass
+            return render(request, "sites/_zone_modal.html", {
+                "title": f"New location in {site.code}",
+                "site": site,
+                "parent_zone": parent_zone,
+                "form": form,
+                "submit": "Create location",
+                "action_url": request.get_full_path(),
+            }, status=200)
         return form_page(request, title=f"New location in {site.code}", form=form,
                          cancel_url=f"/app/sites/{site.pk}/?tab=locations",
                          crumbs=_site_crumbs(site, ("New location", None)), submit="Create location", status=400)
@@ -227,6 +293,15 @@ class ZoneEditView(SiteBase):
         form = ZoneForm(site=zone.site, zone=zone, initial={
             "name": zone.name, "zone_type": zone.zone_type, "code": zone.code, "parent": zone.parent_id,
             "description": zone.description})
+        if request.headers.get("HX-Request"):
+            return render(request, "sites/_zone_modal.html", {
+                "title": f"Edit {zone.name}",
+                "site": zone.site,
+                "zone": zone,
+                "form": form,
+                "submit": "Save location",
+                "action_url": request.path,
+            })
         return self._page(request, zone, form)
 
     def post(self, request, pk):
@@ -240,7 +315,18 @@ class ZoneEditView(SiteBase):
                 form.add_error(None, exc.message)
             else:
                 messages.success(request, "Location saved.")
+                if request.headers.get("HX-Request"):
+                    return htmx_success({"closeZoneModal": True, "zoneSaved": True})
                 return redirect(f"/app/sites/{zone.site_id}/?tab=locations")
+        if request.headers.get("HX-Request"):
+            return render(request, "sites/_zone_modal.html", {
+                "title": f"Edit {zone.name}",
+                "site": zone.site,
+                "zone": zone,
+                "form": form,
+                "submit": "Save location",
+                "action_url": request.path,
+            }, status=200)
         return self._page(request, zone, form, status=400)
 
     def _page(self, request, zone, form, status=200):
