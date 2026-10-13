@@ -66,10 +66,10 @@ class MemberInviteView(TenantPermissionMixin, View):
     required_permission = "user.invite"
 
     def get(self, request):
-        return render(request, "tenancy/member_invite.html", {"form": InviteForm(org=request.organization)})
+        return render(request, "tenancy/member_invite.html", {"form": InviteForm(org=request.organization, membership=request.membership)})
 
     def post(self, request):
-        form = InviteForm(request.POST, org=request.organization)
+        form = InviteForm(request.POST, org=request.organization, membership=request.membership)
         if form.is_valid():
             try:
                 m = services.invite_member(
@@ -108,8 +108,8 @@ class MemberDetailView(TenantPermissionMixin, View):
         return {
             "member": membership, "form": form,
             "assignments": list(membership.membership_roles.select_related("role", "site")),
-            "assign_form": assign_form or RoleAssignmentForm(org=request.organization),
-            "can_update": rbac.has_permission(m, "user.update"),
+            "assign_form": assign_form or RoleAssignmentForm(org=request.organization, membership=m),
+            "can_update": rbac.is_owner(m) or rbac.has_permission(m, "user.update") or rbac.has_role_assignment_permission(m),
             "can_deactivate": rbac.has_permission(m, "user.deactivate") and membership.user_id != request.user.pk,
             "can_invite": rbac.has_permission(m, "user.invite"),
         }
@@ -122,8 +122,11 @@ class MemberDetailView(TenantPermissionMixin, View):
         membership = self._get(request, pk)
         action = request.POST.get("action")
         needed = {"update": "user.update", "deactivate": "user.deactivate", "reactivate": "user.deactivate",
-                  "resend": "user.invite", "assign_role": "user.update", "remove_role": "user.update"}.get(action)
-        if needed is None or not rbac.has_permission(request.membership, needed):
+                  "resend": "user.invite"}.get(action)
+        if action in ("assign_role", "remove_role"):
+            if not rbac.has_role_assignment_permission(request.membership):
+                raise PermissionDenied
+        elif needed is None or not (rbac.has_permission(request.membership, needed) or rbac.has_permission_anywhere(request.membership, needed)):
             raise PermissionDenied
         try:
             if action == "update":
@@ -136,7 +139,7 @@ class MemberDetailView(TenantPermissionMixin, View):
                 )
                 messages.success(request, "Member updated.")
             elif action == "assign_role":
-                aform = RoleAssignmentForm(request.POST, org=request.organization)
+                aform = RoleAssignmentForm(request.POST, org=request.organization, membership=request.membership)
                 if not aform.is_valid():
                     return render(request, "tenancy/member_detail.html",
                                   self._ctx(request, membership, assign_form=aform))

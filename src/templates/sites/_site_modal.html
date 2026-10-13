@@ -1,0 +1,39 @@
+{% load ui_tags %}
+<div class="modal-header bg-light">
+  <div class="d-flex align-items-center gap-2">
+    <div class="fx-avatar fx-avatar-md bg-primary-subtle text-primary fw-bold">
+      {% icon 'building' 18 %}
+    </div>
+    <div>
+      <h5 class="modal-title fw-bold mb-0" id="siteModalLabel">{{ title }}</h5>
+      {% if site %}<div class="text-body-secondary small">{{ site.code }} · {{ site.name }}</div>{% endif %}
+    </div>
+  </div>
+  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<form method="post" action="{{ action_url }}" hx-post="{{ action_url }}" hx-target="#siteModalContent" hx-swap="innerHTML" hx-indicator="#site-modal-spinner" hx-disabled-elt="#site-modal-submit" novalidate id="site-modal-form">
+  {% csrf_token %}
+  <div class="modal-body p-3 p-md-4">
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger py-2 mb-3" role="alert">
+        {% for err in form.non_field_errors %}<div>{{ err }}</div>{% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="fx-form-grid">
+      {% for field in form %}
+        <div>
+          {% include "components/_form_field.html" %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="modal-footer bg-light py-2">
+    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+    <button type="submit" class="btn btn-primary btn-sm d-flex align-items-center gap-1" id="site-modal-submit">
+      <span class="spinner-border spinner-border-sm htmx-indicator" id="site-modal-spinner" role="status" aria-hidden="true" style="display:none;"></span>
+      <span>{{ submit|default:"Save" }}</span>
+    </button>
+  </div>
+</form>
