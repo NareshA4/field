@@ -93,6 +93,7 @@ api_v1 = [
          name="organization"),
     path("", include(router.urls)),
     path("", include("apps.workspace.api_urls")),
+    path("", include("apps.dashboards.api_urls")),
     path("sla-metrics/", SLAMetricsView.as_view(), name="sla-metrics"),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
@@ -121,6 +122,7 @@ urlpatterns = [
     path("app/", include("apps.contracts.urls")),
     path("app/", include("apps.checklists.urls")),
     path("app/", include("apps.workspace.urls")),
+    path("app/", include("apps.dashboards.urls")),
     path("", include("apps.ui.urls")),
 ]
 

@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     "apps.contracts",
     "apps.checklists",
     "apps.workspace",
+    "apps.dashboards",
     "apps.ui",
 ]
 

@@ -9,7 +9,7 @@ Part of the ONE integrated FieldOps Nexus ERP. Read `docs/PROJECT_SOURCE_OF_TRUT
 - **Consumes:** M05, M06, M09, M11, M04, M02.
 - **Provides:** Metrics for managers.
 - **Boundary rules:** No hardcoded numbers; every metric traceable to source records.
-- **Status:** IMPLEMENTED (Phase 9, decision D-052); tests `tests/test_m14_dashboards.py`; browser verification pending (final audit).
+- **Status:** CERTIFIED & ACCEPTED (100% Implemented & Verified in PostgreSQL 16; decision D-052; 34/34 automated tests passing in tests/test_m14_dashboards.py; live container verified).
 - **Where:** app `src/apps/dashboards/` (no tables): `metrics.py` (all aggregates + `KPI_DEFINITIONS`), `views.py` (`/app/dashboards/?section=&site=&from=&to=`, `/app/dashboards/my-work/`), `api_views.py` (`/api/v1/dashboards/`, `/api/v1/dashboards/<section>/`); permission `report.view` (+ the section's data permission).
 - **KPI definitions (formula / source / filters):** see `KPI_DEFINITIONS` in `metrics.py`, also returned by `GET /api/v1/dashboards/`. Filters: organization (always), site (within `report.view` AND data-permission scope), date window (UTC days, default 30, max 400). Snapshot KPIs ignore the window.
 
