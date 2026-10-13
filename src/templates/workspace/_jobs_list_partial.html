@@ -1,0 +1,120 @@
+{% load ui_tags %}
+
+<div class="row g-3">
+  {% for job in jobs %}
+  <div class="col-12 col-xl-6">
+    <div class="card h-100 shadow-sm border-{% if job.status == 'IN_PROGRESS' %}success{% elif job.status == 'ON_HOLD' %}warning{% elif job.status == 'DISPATCHED' %}info{% else %}secondary{% endif %}-subtle">
+      <div class="card-header bg-transparent d-flex justify-content-between align-items-center py-2">
+        <div class="d-flex align-items-center gap-2">
+          <a href="{% url 'workspace:job_detail' job.pk %}" class="fw-bold text-decoration-none">
+            {{ job.order_number }}
+          </a>
+          <span class="badge {% if job.priority == 'CRITICAL' %}bg-danger{% elif job.priority == 'HIGH' %}bg-warning text-dark{% elif job.priority == 'MEDIUM' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+            {{ job.get_priority_display }}
+          </span>
+          <span class="badge bg-light text-dark border">
+            {{ job.get_work_type_display }}
+          </span>
+        </div>
+        <span class="badge {% if job.status == 'IN_PROGRESS' %}bg-success{% elif job.status == 'ON_HOLD' %}bg-warning text-dark{% elif job.status == 'DISPATCHED' %}bg-info text-dark{% elif job.status == 'COMPLETED' or job.status == 'CLOSED' %}bg-secondary{% else %}bg-primary{% endif %}">
+          {{ job.get_status_display }}
+        </span>
+      </div>
+
+      <div class="card-body py-3">
+        <h5 class="card-title fs-6 mb-2">
+          <a href="{% url 'workspace:job_detail' job.pk %}" class="text-body text-decoration-none">
+            {{ job.title }}
+          </a>
+        </h5>
+
+        <div class="small text-secondary mb-3">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            {% icon 'pin' 14 %}
+            <span><strong>Site:</strong> {{ job.site.name }} ({{ job.site.code }})</span>
+          </div>
+          {% if job.asset %}
+          <div class="d-flex align-items-center gap-2 mb-1">
+            {% icon 'box' 14 %}
+            <span><strong>Asset:</strong> {{ job.asset.name }} <code class="text-secondary">[{{ job.asset.asset_tag }}]</code></span>
+          </div>
+          {% endif %}
+          {% if job.scheduled_start %}
+          <div class="d-flex align-items-center gap-2">
+            {% icon 'clock' 14 %}
+            <span><strong>Schedule:</strong> {{ job.scheduled_start|date:"M j, Y H:i" }} &ndash; {{ job.scheduled_end|date:"H:i" }}</span>
+          </div>
+          {% endif %}
+          {% if job.due_at %}
+          <div class="d-flex align-items-center gap-2 text-muted">
+            {% icon 'bell' 14 %}
+            <span><strong>Due:</strong> {{ job.due_at|date:"M j, Y H:i" }}</span>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if job.checklist_required %}
+        <div class="p-2 mb-3 bg-light rounded border small d-flex align-items-center justify-content-between">
+          <span class="d-flex align-items-center gap-1">
+            {% icon 'clipboard-check' 14 %}
+            <strong>Checklist:</strong> {{ job.checklist_status }}
+          </span>
+          {% if job.checklist_template_ref %}
+          <code class="text-secondary small">{{ job.checklist_template_ref }}</code>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="card-footer bg-transparent d-flex justify-content-between align-items-center py-2">
+        <div class="d-flex gap-2">
+          <a href="{% url 'workspace:job_detail' job.pk %}" class="btn btn-sm btn-outline-primary">
+            {% icon 'wrench' 14 %} Details
+          </a>
+          <button class="btn btn-sm btn-outline-secondary"
+                  hx-get="{% url 'workspace:drawer' job.pk %}"
+                  hx-target="#drawer-content"
+                  data-bs-toggle="offcanvas"
+                  data-bs-target="#technicianExecutionDrawer">
+            {% icon 'sliders' 14 %} Quick Drawer
+          </button>
+        </div>
+
+        <div>
+          {% if job.status == 'DISPATCHED' %}
+          <form method="post" action="{% url 'workspace:start' job.pk %}" class="d-inline">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-success">
+              {% icon 'check' 14 %} Start Job
+            </button>
+          </form>
+          {% elif job.status == 'IN_PROGRESS' %}
+          <button class="btn btn-sm btn-warning text-dark"
+                  hx-get="{% url 'workspace:drawer' job.pk %}"
+                  hx-target="#drawer-content"
+                  data-bs-toggle="offcanvas"
+                  data-bs-target="#technicianExecutionDrawer">
+            {% icon 'clock' 14 %} Pause / Manage
+          </button>
+          {% elif job.status == 'ON_HOLD' %}
+          <form method="post" action="{% url 'workspace:resume' job.pk %}" class="d-inline">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-info text-white">
+              {% icon 'clock' 14 %} Resume Job
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="col-12">
+    <div class="text-center py-5 bg-light rounded border">
+      <div class="text-secondary mb-2">{% icon 'clipboard-check' 36 %}</div>
+      <h6 class="text-secondary">No assigned jobs found in this category.</h6>
+      <p class="small text-muted mb-0">Check other tabs or ask your maintenance planner for new job dispatches.</p>
+    </div>
+  </div>
+  {% endfor %}
+</div>
