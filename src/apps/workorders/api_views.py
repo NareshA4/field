@@ -18,6 +18,7 @@ from .workflow import ACTION_PERMISSIONS, WORK_ORDER_STATUS
 
 
 class WorkOrderSerializer(serializers.ModelSerializer):
+    number = serializers.CharField(read_only=True)
     asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True)
     asset_name = serializers.CharField(source="asset.name", read_only=True)
     site_code = serializers.CharField(source="site.code", read_only=True)
