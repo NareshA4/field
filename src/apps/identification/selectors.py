@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import uuid
+
 from apps.core.exceptions import NotFound
+
 from .models import AssetIdentifier, ScanEvent
 
 

@@ -176,10 +176,12 @@ def test_reject_needs_a_reason_and_system_actions_are_refused(report, ops):
 ])
 def test_approved_incident_or_request_creates_one_linked_work_order(
         report, ops, make_member, kind, source_type):
-    from apps.workorders.models import WorkOrder
-    from apps.workorders import services as work_orders
     from datetime import timedelta
+
     from django.utils import timezone
+
+    from apps.workorders import services as work_orders
+    from apps.workorders.models import WorkOrder
 
     sr = report(kind=kind, severity=ServiceRequest.Severity.CRITICAL)
     services.transition(sr, action="triage", actor=ops.user)
@@ -216,6 +218,7 @@ def test_approved_incident_or_request_creates_one_linked_work_order(
 def test_approved_request_detail_exposes_create_work_order_action(report, ops, make_member):
     from django.test import Client
     from django.urls import reverse
+
     from apps.workorders.models import WorkOrder
 
     sr = report(kind=ServiceRequest.Kind.SERVICE_REQUEST, severity=ServiceRequest.Severity.HIGH)

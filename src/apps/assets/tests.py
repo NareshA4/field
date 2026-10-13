@@ -1,21 +1,17 @@
-import uuid
 from decimal import Decimal
+
 from django.test import TestCase
-from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
-from apps.assets import hierarchy, selectors, services
+from apps.assets import hierarchy, services
 from apps.assets.models import (
-    Asset,
     AssetCategory,
     AssetComponent,
-    AssetMeter,
     AssetStatus,
     AssetStatusHistory,
 )
-from apps.core.exceptions import Conflict, ValidationFailed
-from apps.rbac.models import Permission, Role
+from apps.core.exceptions import ValidationFailed
 from apps.sites.models import Site, Zone
 from apps.tenancy.models import Membership, Organization
 

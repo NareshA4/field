@@ -1,5 +1,6 @@
 from django.conf.urls.static import static  # noqa: F401
 from django.urls import include, path
+from django.views.generic import RedirectView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import SimpleRouter
 
@@ -91,12 +92,15 @@ api_v1 = [
     path("organization/", OrganizationViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
          name="organization"),
     path("", include(router.urls)),
+    path("", include("apps.workspace.api_urls")),
     path("sla-metrics/", SLAMetricsView.as_view(), name="sla-metrics"),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
 ]
 
 urlpatterns = [
+    path("docs/", RedirectView.as_view(url="/api/v1/docs/", permanent=False)),
+    path("swagger/", RedirectView.as_view(url="/api/v1/docs/", permanent=False)),
     path("health/live/", health.live, name="health_live"),
     path("health/ready/", health.ready, name="health_ready"),
     path("platform/", include("apps.tenancy.platform_urls")),
@@ -116,6 +120,7 @@ urlpatterns = [
     path("app/", include("apps.sla.urls")),
     path("app/", include("apps.contracts.urls")),
     path("app/", include("apps.checklists.urls")),
+    path("app/", include("apps.workspace.urls")),
     path("", include("apps.ui.urls")),
 ]
 

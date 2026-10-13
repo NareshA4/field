@@ -30,12 +30,10 @@ WHAT THIS TEST SUITE COVERS:
 ================================================================================
 """
 import pytest
-from django.test import Client
-from django.urls import reverse
 
 from apps.checklists import services as cl
 from apps.checklists.models import Finding
-from tests.phase3_support import make_template, new_wo, wo_in_progress
+from tests.phase3_support import make_template, wo_in_progress
 
 pytestmark = pytest.mark.django_db
 

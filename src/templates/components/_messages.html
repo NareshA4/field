@@ -1,2 +1,101 @@
-{% if messages %}<div class="mb-3" role="status">{% for m in messages %}
-  <div class="alert alert-{% if m.level_tag == 'error' %}danger{% else %}{{ m.level_tag }}{% endif %} py-2 mb-2">{{ m }}</div>{% endfor %}</div>{% endif %}
+{% if messages %}
+<div class="fx-toast-container mb-3" role="status" aria-live="polite">
+  {% for m in messages %}
+  <div class="alert alert-{% if m.level_tag == 'error' %}danger{% else %}{{ m.level_tag }}{% endif %} fx-toast-message alert-dismissible fade show d-flex align-items-center justify-content-between py-2 px-3 mb-2 shadow-sm" role="alert" data-auto-dismiss="{% if m.level_tag == 'error' or m.level_tag == 'warning' %}5500{% else %}4000{% endif %}">
+    <div class="d-flex align-items-center gap-2 flex-grow-1">
+      {% if m.level_tag == 'error' %}
+        <span class="fx-toast-icon text-danger" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        </span>
+      {% elif m.level_tag == 'warning' %}
+        <span class="fx-toast-icon text-warning" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        </span>
+      {% elif m.level_tag == 'info' %}
+        <span class="fx-toast-icon text-info" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+        </span>
+      {% else %}
+        <span class="fx-toast-icon text-success" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </span>
+      {% endif %}
+      <span class="fx-toast-text">{{ m }}</span>
+    </div>
+    <button type="button" class="btn-close ms-3 p-1" data-bs-dismiss="alert" aria-label="Close" style="font-size: 0.75rem; flex-shrink: 0;"></button>
+  </div>
+  {% endfor %}
+</div>
+<script>
+  (function() {
+    function autoDismissAll() {
+      var alerts = document.querySelectorAll('.fx-toast-message:not([data-dismiss-queued])');
+      alerts.forEach(function(el) {
+        el.setAttribute('data-dismiss-queued', '1');
+        var timeoutMs = parseInt(el.getAttribute('data-auto-dismiss') || '4000', 10);
+        var timer = null;
+        var remaining = timeoutMs;
+        var start = Date.now();
+
+        function startTimer() {
+          start = Date.now();
+          timer = setTimeout(function() {
+            dismissToast(el);
+          }, remaining);
+        }
+
+        function pauseTimer() {
+          if (timer) {
+            clearTimeout(timer);
+            timer = null;
+            remaining -= (Date.now() - start);
+            if (remaining < 400) remaining = 400;
+          }
+        }
+
+        function dismissToast(item) {
+          if (!item || item.getAttribute('data-dismissing') === '1') return;
+          item.setAttribute('data-dismissing', '1');
+          item.style.transition = 'opacity 0.35s ease, max-height 0.35s ease, margin 0.35s ease, padding 0.35s ease';
+          item.style.opacity = '0';
+          item.style.maxHeight = item.offsetHeight + 'px';
+          item.offsetHeight; // trigger reflow
+          item.style.maxHeight = '0px';
+          item.style.marginTop = '0px';
+          item.style.marginBottom = '0px';
+          item.style.paddingTop = '0px';
+          item.style.paddingBottom = '0px';
+          item.style.overflow = 'hidden';
+          setTimeout(function() {
+            if (item && item.parentNode) {
+              var parent = item.closest('.fx-toast-container');
+              item.remove();
+              if (parent && parent.children.length === 0) parent.remove();
+            }
+          }, 360);
+        }
+
+        startTimer();
+        el.addEventListener('mouseenter', pauseTimer);
+        el.addEventListener('mouseleave', startTimer);
+
+        var closeBtn = el.querySelector('.btn-close');
+        if (closeBtn) {
+          closeBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            dismissToast(el);
+          });
+        }
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', autoDismissAll);
+    } else {
+      autoDismissAll();
+    }
+    document.body.addEventListener('htmx:afterSettle', autoDismissAll);
+    document.body.addEventListener('htmx:afterSwap', autoDismissAll);
+  })();
+</script>
+{% endif %}

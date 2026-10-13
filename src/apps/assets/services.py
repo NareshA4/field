@@ -7,10 +7,9 @@ transaction. Other modules change asset status ONLY through ``change_status`` (n
 from __future__ import annotations
 
 import re
-import uuid
-from typing import Dict, Any, List
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
+from typing import Any
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -29,7 +28,6 @@ from .models import (
     AssetMeter,
     AssetMeterReading,
     AssetStatusHistory,
-    AssetComponent,
 )
 from .workflow import ACTIVE, ASSET_STATUS, TERMINAL_STATES, UNDER_MAINTENANCE
 
@@ -426,7 +424,7 @@ class AssetHierarchyService:
         return qs.select_related("category", "site", "zone")
 
     @staticmethod
-    def get_full_hierarchy_tree(asset: Asset) -> Dict[str, Any]:
+    def get_full_hierarchy_tree(asset: Asset) -> dict[str, Any]:
         from . import hierarchy
         return hierarchy.build_tree(asset)
 
