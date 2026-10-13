@@ -30,14 +30,16 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     ),
     RoleTemplate(
         "operations_manager", "Operations Manager", "Oversees maintenance and field operations.",
-        ("*.view", "incident.*", "work_order.view", "maintenance.*", "checklist.*", "inspection.*", "sla.view",
-         "inventory.request", "inventory.reserve", "inventory.reconcile", "sla.acknowledge", "contract.check",
+        ("*.view", "incident.*", "work_order.view", "work_order.create", "work_order.assign",
+         "work_order.dispatch", "maintenance.*", "checklist.*", "inspection.*", "sla.view",
+         "sla.acknowledge", "inventory.request", "inventory.reserve", "inventory.reconcile", "contract.check",
          "report.*"),
         excludes=("portal.request.*",),
     ),
     RoleTemplate(
         "asset_manager", "Asset Manager", "Owns the asset registry and hierarchy.",
         ("asset.*", "site.view", "site.create", "site.update", "zone.view", "zone.create", "zone.update",
+         "incident.view",
          "calendar.view", "contract.*", "qr.*", "work_order.view", "report.view"),
     ),
     RoleTemplate(
@@ -57,7 +59,7 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     ),
     RoleTemplate(
         "technician", "Technician", "Executes assigned field jobs.",
-        ("asset.view", "asset.meter.record", "site.view", "zone.view", "incident.create", "incident.view",
+        ("asset.view", "asset.meter.record", "site.view", "zone.view", "incident.create", "incident.view_assigned",
          "work_order.view_assigned",
          "work_order.start", "work_order.hold", "work_order.complete", "work_order.record", "work_order.attach",
          "incident.attach", "checklist.execute",
@@ -74,7 +76,8 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     ),
     RoleTemplate(
         "client_requester", "Client / Requester", "External requester using the client portal.",
-        ("portal.request.create", "portal.request.view", "portal.request.confirm"),
+        ("portal.request.create", "portal.request.view", "portal.request.confirm", "incident.report_owned",
+         "incident.view_assigned", "incident.attach", "incident.confirm"),
     ),
     RoleTemplate(
         "auditor", "Auditor / Report Consumer", "Read-only access to records, audit and reports.",

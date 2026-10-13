@@ -26,15 +26,31 @@ class RequestForm(BootstrapFormMixin, forms.Form):
     severity = forms.ChoiceField(choices=ServiceRequest.Severity.choices, initial="MEDIUM")
     service_impact = forms.ChoiceField(choices=ServiceRequest.Impact.choices, label="Service impact")
     impact_notes = forms.CharField(max_length=500, required=False, label="Impact notes")
+    failure_category = forms.CharField(max_length=100, required=False, label="Failure category",
+                                       help_text="e.g. Mechanical, Electrical, Hydraulic, etc.")
+    assigned_team = forms.CharField(max_length=100, required=False, label="Assigned team",
+                                    help_text="Optional maintenance team to route to")
     occurred_at = dt_field("When did it happen? (blank = now)")
     downtime_started_at = dt_field("Downtime started (if the asset is down)")
+    override_duplicate = forms.BooleanField(required=False, widget=forms.HiddenInput())
+    override_reason = forms.CharField(max_length=500, required=False, label="Override reason",
+                                      widget=forms.Textarea(attrs={"rows": 2}),
+                                      help_text="Mandatory reason if creating a duplicate incident")
 
     def __init__(self, *args, assets=None, editing=False, **kwargs):
         super().__init__(*args, **kwargs)
         if editing:
-            del self.fields["asset"], self.fields["downtime_started_at"], self.fields["kind"]
+            for f in ("asset", "downtime_started_at", "kind", "override_duplicate", "override_reason"):
+                if f in self.fields:
+                    del self.fields[f]
         else:
             self.fields["asset"].queryset = assets.exclude(status__in=["RETIRED", "DISPOSED"]).order_by("asset_tag")
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("override_duplicate") and len((cleaned.get("override_reason") or "").strip()) < 3:
+            self.add_error("override_reason", "Enter at least 3 characters explaining why this is a separate incident.")
+        return cleaned
 
 
 class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):

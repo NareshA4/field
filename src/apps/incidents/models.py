@@ -45,6 +45,13 @@ class ServiceRequest(TenantOwnedModel):
     resolved_at = models.DateTimeField(null=True, blank=True)
     confirmed_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
+    failure_category = models.CharField(max_length=100, blank=True, default="", help_text="Failure category")
+    assigned_team = models.CharField(max_length=100, blank=True, default="", help_text="Assigned maintenance team")
+    duplicate_of = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL,
+                                    related_name="linked_requests",
+                                    help_text="Existing active incident this request was linked to as duplicate")
+    override_reason = models.CharField(max_length=500, blank=True, default="",
+                                       help_text="Mandatory reason provided when overriding duplicate incident detection")
 
     class Meta:
         ordering = ["-created_at"]
@@ -54,10 +61,37 @@ class ServiceRequest(TenantOwnedModel):
             models.Index(fields=["organization", "site"]),
             models.Index(fields=["organization", "asset"]),
             models.Index(fields=["organization", "severity"]),
+            models.Index(fields=["organization", "asset", "status"], name="incidents_org_asset_status_idx"),
         ]
 
     def __str__(self):
         return f"{self.number} · {self.title}"
+
+    @property
+    def linked_work_order(self):
+        try:
+            if hasattr(self, "work_order") and self.work_order:
+                return self.work_order
+        except Exception:
+            pass
+        from django.apps import apps
+        if apps.is_installed("apps.workorders"):
+            from apps.workorders.models import WorkOrder
+            return WorkOrder.objects.filter(
+                organization=self.organization,
+                source_reference=self.number,
+                source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
+            ).first()
+        return None
+
+    @property
+    def assigned_team_display(self) -> str:
+        if self.assigned_team:
+            return self.assigned_team
+        wo = self.linked_work_order
+        if wo and wo.assigned_to:
+            return wo.assigned_to.user.display_name
+        return "Unassigned"
 
 
 class Downtime(TenantOwnedModel):

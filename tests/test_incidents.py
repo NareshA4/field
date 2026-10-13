@@ -200,7 +200,7 @@ def test_approved_incident_or_request_creates_one_linked_work_order(
     start = timezone.now() + timedelta(days=3)
     wo = work_orders.plan_work_order(wo, membership=planner, actor=planner.user,
                                      planned_start=start, planned_end=start + timedelta(hours=1),
-                                     due_at=start + timedelta(hours=1), estimated_hours=1,
+                                     due_at=start + timedelta(hours=2), estimated_hours=1,
                                      work_type=WorkOrder.WorkType.CORRECTIVE,
                                      priority=WorkOrder.Priority.CRITICAL)
     wo = work_orders.assign_work_order(wo, membership=planner, actor=planner.user,
@@ -366,3 +366,420 @@ def test_m05_seed_is_idempotent_and_goes_through_services(settings, org_a, site_
     call_command("seed_m05_demo")
     assert first == 4 and ServiceRequest.objects.for_organization(org_a).count() == first
     assert Downtime.objects.for_organization(org_a).count() == 2
+
+
+# --- Duplicate Incident Detection ----------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("status", [
+    "NEW", "TRIAGED", "APPROVED", "WORK_ORDER_CREATED", "IN_SERVICE", "IN_PROGRESS", "ON_HOLD",
+])
+def test_duplicate_detected_on_all_active_statuses(org_a, pump, reporter, status):
+    initial = services.create_request(
+        org_a, asset=pump, reporter=reporter, actor=reporter.user,
+        title="Main bearing overheating",
+        description="Overheating and grinding noise detected on main bearing",
+        failure_category="MECHANICAL",
+        severity="HIGH",
+        service_impact="PARTIAL_OUTAGE",
+    )
+    initial.status = status
+    initial.save(update_fields=["status"])
+
+    with pytest.raises(services.DuplicateIncidentError) as exc:
+        services.create_request(
+            org_a, asset=pump, reporter=reporter, actor=reporter.user,
+            title="Main bearing overheating",
+            description="Overheating and grinding noise detected on main bearing",
+            failure_category="MECHANICAL",
+            severity="HIGH",
+            service_impact="PARTIAL_OUTAGE",
+        )
+
+    assert exc.value.code == "duplicate_incident_detected"
+    assert len(exc.value.duplicates) >= 1
+    dup = exc.value.duplicates[0]
+    assert dup["number"] == initial.number
+    assert dup["status"] == status
+    assert dup["description"] == initial.description
+    assert "assigned_team" in dup
+    assert "linked_work_order" in dup
+    assert "created_at" in dup
+
+
+@pytest.mark.parametrize("non_blocking_status", [
+    "CLOSED", "REJECTED", "CANCELLED", "CONFIRMED",
+])
+def test_non_blocking_statuses_do_not_block_new_reports(org_a, pump, reporter, non_blocking_status):
+    old = services.create_request(
+        org_a, asset=pump, reporter=reporter, actor=reporter.user,
+        title="Pump leak",
+        description="Seal leakage",
+        failure_category="HYDRAULIC",
+        severity="MEDIUM",
+        service_impact="NONE",
+    )
+    old.status = non_blocking_status
+    old.save(update_fields=["status"])
+
+    new_sr = services.create_request(
+        org_a, asset=pump, reporter=reporter, actor=reporter.user,
+        title="Pump leak",
+        description="Seal leakage",
+        failure_category="HYDRAULIC",
+        severity="MEDIUM",
+        service_impact="NONE",
+    )
+    assert new_sr.pk != old.pk
+    assert new_sr.status == "NEW"
+
+
+def test_different_asset_does_not_trigger_duplicate(org_a, site_a1, pump, make_asset, reporter):
+    other_pump = make_asset(org_a, site_a1, "PUMP-2")
+    services.create_request(
+        org_a, asset=pump, reporter=reporter, actor=reporter.user,
+        title="Vibration failure",
+        description="Excessive shaft vibration",
+        failure_category="MECHANICAL",
+        severity="HIGH",
+        service_impact="DEGRADED",
+    )
+
+    other_sr = services.create_request(
+        org_a, asset=other_pump, reporter=reporter, actor=reporter.user,
+        title="Vibration failure",
+        description="Excessive shaft vibration",
+        failure_category="MECHANICAL",
+        severity="HIGH",
+        service_impact="DEGRADED",
+    )
+    assert other_sr.asset_id == other_pump.pk
+
+
+def test_different_incident_type_does_not_trigger_duplicate(org_a, pump, reporter):
+    incident = services.create_request(
+        org_a, asset=pump, reporter=reporter, actor=reporter.user,
+        title="Pump pressure failure", description="Pressure drops below operating range",
+        kind="INCIDENT",
+    )
+
+    request = services.create_request(
+        org_a, asset=pump, reporter=reporter, actor=reporter.user,
+        title="Pump pressure failure", description="Pressure drops below operating range",
+        kind="SERVICE_REQUEST",
+    )
+
+    assert request.kind == "SERVICE_REQUEST"
+    assert request.pk != incident.pk
+
+
+def test_different_report_description_does_not_trigger_duplicate(org_a, pump, reporter):
+    services.create_request(
+        org_a, asset=pump, reporter=reporter, actor=reporter.user,
+        title="Pump issue", description="Oil is leaking from the rear seal",
+    )
+
+    separate = services.create_request(
+        org_a, asset=pump, reporter=reporter, actor=reporter.user,
+        title="Pump issue", description="The motor is making a loud grinding noise",
+    )
+
+    assert separate.status == "NEW"
+
+
+def test_override_duplicate_with_mandatory_reason_and_audit(org_a, pump, reporter):
+    existing = services.create_request(
+        org_a, asset=pump, reporter=reporter, actor=reporter.user,
+        title="Cooling pipe ruptured",
+        description="Coolant leak on secondary line",
+        failure_category="PNEUMATIC",
+        severity="CRITICAL",
+        service_impact="FULL_OUTAGE",
+    )
+
+    with pytest.raises(ValidationFailed) as exc:
+        services.create_request(
+            org_a, asset=pump, reporter=reporter, actor=reporter.user,
+            title="Cooling pipe ruptured",
+            description="Coolant leak on secondary line",
+            failure_category="PNEUMATIC",
+            severity="CRITICAL",
+            service_impact="FULL_OUTAGE",
+            override_duplicate=True,
+            override_reason="",
+        )
+    assert exc.value.code == "override_reason_required"
+
+    overridden = services.create_request(
+        org_a, asset=pump, reporter=reporter, actor=reporter.user,
+        title="Cooling pipe ruptured",
+        description="Coolant leak on secondary line",
+        failure_category="PNEUMATIC",
+        severity="CRITICAL",
+        service_impact="FULL_OUTAGE",
+        override_duplicate=True,
+        override_reason="Different line: tertiary line ruptured during backup cycle.",
+    )
+    assert overridden.pk != existing.pk
+    assert overridden.override_reason == "Different line: tertiary line ruptured during backup cycle."
+    assert "incident.duplicate_overridden" in audit_actions(org_a)
+
+
+def test_duplicate_detection_records_audit_trail(org_a, pump, reporter):
+    services.create_request(
+        org_a, asset=pump, reporter=reporter, actor=reporter.user,
+        title="Electrical short circuit",
+        description="Spark observed near terminal block",
+        failure_category="ELECTRICAL",
+        severity="HIGH",
+        service_impact="PARTIAL_OUTAGE",
+    )
+
+    with pytest.raises(services.DuplicateIncidentError):
+        services.create_request(
+            org_a, asset=pump, reporter=reporter, actor=reporter.user,
+            title="Electrical short circuit",
+            description="Spark observed near terminal block",
+            failure_category="ELECTRICAL",
+            severity="HIGH",
+            service_impact="PARTIAL_OUTAGE",
+        )
+
+    assert "incident.duplicate_detected" in audit_actions(org_a)
+
+
+def test_link_duplicate_request_and_audit(org_a, pump, reporter):
+    parent = services.create_request(
+        org_a, asset=pump, reporter=reporter, actor=reporter.user,
+        title="Gearbox overheating",
+        description="Oil temperature exceeds limit",
+        failure_category="MECHANICAL",
+        severity="HIGH",
+        service_impact="DEGRADED",
+    )
+
+    linked = services.link_duplicate_request(
+        parent,
+        reporter=reporter,
+        actor=reporter.user,
+        title="Follow-up report on gearbox noise",
+        description="Noise is increasing",
+        notes="Corroborates initial report INC",
+    )
+
+    assert linked.duplicate_of_id == parent.pk
+    assert linked.status == "RESOLVED"
+    assert parent.history.filter(action="duplicate_linked").exists()
+    assert "incident.duplicate_linked" in audit_actions(org_a)
+
+
+def test_link_duplicate_rejects_closed_target(org_a, pump, reporter):
+    parent = services.create_request(
+        org_a, asset=pump, reporter=reporter, actor=reporter.user,
+        title="Bearing overheated", description="Bearing temperature exceeded limit",
+    )
+    parent.status = "CLOSED"
+    parent.save(update_fields=["status"])
+
+    with pytest.raises(Conflict) as exc:
+        services.link_duplicate_request(
+            parent, reporter=reporter, actor=reporter.user,
+            title="Follow-up bearing report",
+        )
+    assert exc.value.code == "duplicate_target_unavailable"
+
+
+def test_incident_list_matches_reference_columns_and_opens_detail_from_row(client, org_a, pump, ops):
+    client.force_login(ops.user)
+    incident = services.create_request(
+        org_a, asset=pump, reporter=ops, actor=ops.user,
+        title="Pump inspection needed", description="Check the discharge pressure",
+    )
+
+    response = client.get("/app/incidents/")
+
+    assert response.status_code == 200
+    assert f'data-detail-url="/app/incidents/{incident.pk}/"'.encode() in response.content
+    assert b"<th>Number</th><th>Title</th><th>Asset</th><th>Severity</th><th>Status</th><th>Reported</th>" in response.content
+    assert b"Open incident" not in response.content
+    assert f'href="/app/incidents/{incident.pk}/edit/"'.encode() not in response.content
+
+
+def test_prevent_duplicate_work_orders(org_a, pump, reporter, ops, make_member):
+    from apps.workorders.models import WorkOrder
+
+    parent = services.create_request(
+        org_a, asset=pump, reporter=reporter, actor=reporter.user,
+        title="Impeller jammed",
+        description="Foreign debris inside impeller chamber",
+        failure_category="MECHANICAL",
+        severity="CRITICAL",
+    )
+    services.transition(parent, action="triage", actor=ops.user)
+    services.transition(parent, action="approve", actor=ops.user)
+
+    planner = make_member(org_a, "planner@alpha.test", "maintenance_planner")
+    wo = services.create_work_order_for_request(parent, actor=planner.user, membership=planner)
+    assert wo.order_number
+
+    with pytest.raises((Conflict, InvalidTransition)) as exc:
+        services.create_work_order_for_request(parent, actor=planner.user, membership=planner)
+    assert exc.value.code in ("duplicate_work_order", "invalid_transition")
+
+    linked_report = services.link_duplicate_request(
+        parent, reporter=reporter, actor=reporter.user, title="Duplicate impeller report",
+    )
+    with pytest.raises(Conflict) as exc2:
+        services.create_work_order_for_request(linked_report, actor=planner.user, membership=planner)
+    assert exc2.value.code == "duplicate_incident_work_order"
+
+
+def test_api_duplicate_check_and_409_response(as_user, org_a, pump, reporter):
+    c = as_user(reporter.user, org_a)
+    body = {
+        "asset": str(pump.pk),
+        "title": "Hydraulic line pressure loss",
+        "description": "Zero pressure reading on valve manifold",
+        "failure_category": "HYDRAULIC",
+        "severity": "CRITICAL",
+        "service_impact": "FULL_OUTAGE",
+    }
+    r1 = c.post("/api/v1/service-requests/", body, format="json")
+    assert r1.status_code == 201, r1.content
+
+    # Check duplicate endpoint
+    check_res = c.get(f"/api/v1/service-requests/check-duplicate/?asset={pump.pk}&failure_category=HYDRAULIC&severity=CRITICAL&service_impact=FULL_OUTAGE&description=Zero+pressure+reading")
+    assert check_res.status_code == 200
+    assert check_res.json()["duplicate_found"] is True
+    assert len(check_res.json()["duplicates"]) >= 1
+    dup_info = check_res.json()["duplicates"][0]
+    assert dup_info["number"] == r1.json()["number"]
+    assert "assigned_team" in dup_info
+    assert "linked_work_order" in dup_info
+    assert "created_at" in dup_info
+
+    # Second creation without override yields 409 Conflict
+    r2 = c.post("/api/v1/service-requests/", body, format="json")
+    assert r2.status_code == 409
+    data2 = r2.json()
+    assert data2["code"] == "duplicate_incident_detected"
+    assert len(data2["duplicates"]) >= 1
+
+    # Override without reason fails validation
+    r3 = c.post("/api/v1/service-requests/", {**body, "override_duplicate": True, "override_reason": ""}, format="json")
+    assert r3.status_code in (400, 422)
+
+    # Override with mandatory reason succeeds
+    r4 = c.post("/api/v1/service-requests/", {**body, "override_duplicate": True, "override_reason": "Separate unit failure confirmed."}, format="json")
+    assert r4.status_code == 201
+    assert r4.json()["override_reason"] == "Separate unit failure confirmed."
+
+
+def test_api_link_duplicate_endpoint(as_user, org_a, pump, reporter):
+    c = as_user(reporter.user, org_a)
+    body = {
+        "asset": str(pump.pk),
+        "title": "Air compressor malfunction",
+        "description": "Compressor failing to maintain pressure",
+        "failure_category": "PNEUMATIC",
+        "severity": "HIGH",
+        "service_impact": "PARTIAL_OUTAGE",
+    }
+    r1 = c.post("/api/v1/service-requests/", body, format="json")
+    assert r1.status_code == 201
+    parent_id = r1.json()["id"]
+
+    link_res = c.post(f"/api/v1/service-requests/{parent_id}/link-duplicate/", {
+        "title": "Additional compressor report",
+        "description": "Pressure drop observed in sector 4",
+        "notes": "Same symptom as main ticket",
+    }, format="json")
+    assert link_res.status_code == 201
+    assert link_res.json()["duplicate_of"] == parent_id
+
+
+def test_ui_duplicate_warning_and_link_submission(client, org_a, pump, ops):
+    client.force_login(ops.user)
+    initial = services.create_request(
+        org_a, asset=pump, reporter=ops, actor=ops.user,
+        title="Conveyor belt tear",
+        description="Tear found along center seam of main belt",
+        failure_category="MECHANICAL",
+        severity="CRITICAL",
+        service_impact="FULL_OUTAGE",
+    )
+
+    # Submitting duplicate returns 409 and renders duplicate alert card
+    res = client.post("/app/incidents/new/", {
+        "asset": str(pump.pk),
+        "kind": "INCIDENT",
+        "title": "Conveyor belt tear",
+        "description": "Tear found along center seam of main belt",
+        "failure_category": "MECHANICAL",
+        "severity": "CRITICAL",
+        "service_impact": "FULL_OUTAGE",
+    })
+    assert res.status_code == 409
+    assert initial.number.encode() in res.content
+    assert b"Possible duplicate found" in res.content
+    assert b"Link this report" in res.content
+    assert b"Downtime started" in res.content
+    assert b'<script nonce="' in res.content
+    assert b'onclick="enableOverrideMode()"' not in res.content
+
+    # Submitting link_duplicate action links to existing incident and redirects to it
+    link_res = client.post("/app/incidents/new/", {
+        "action": "link_duplicate",
+        "existing_incident_id": str(initial.pk),
+        "asset": str(pump.pk),
+        "kind": "INCIDENT",
+        "title": "Follow up tear report",
+        "description": "Tear expanded",
+        "severity": "CRITICAL",
+        "service_impact": "FULL_OUTAGE",
+        "impact_notes": "Verified on shift B",
+    })
+    assert link_res.status_code == 302
+    assert f"/app/incidents/{initial.pk}/?duplicate_review=1" == link_res.url
+
+
+def test_duplicate_review_can_open_report_outside_assigned_only_scope(client, org_a, pump, ops):
+    client.force_login(ops.user)
+    existing = services.create_request(
+        org_a, asset=pump, reporter=ops, actor=ops.user,
+        title="Cooling fan failure", description="Fan stopped rotating",
+    )
+
+    response = client.get(f"/app/incidents/{existing.pk}/?duplicate_review=1")
+
+    assert response.status_code == 200
+    assert existing.number.encode() in response.content
+
+
+def test_duplicate_detected_for_pump_failed_and_pump_failure_variations(org_a, pump, ops):
+    # Reproduces scenario: INC-1 is "Pump Failed", INC-2 and INC-3 are "Pump Failure"
+    first = services.create_request(
+        org_a, asset=pump, reporter=ops, actor=ops.user,
+        title="Pump Failed",
+        severity="MEDIUM",
+    )
+    assert first.number
+
+    # Attempting to file "Pump Failure" on same pump must be detected as duplicate
+    with pytest.raises(services.DuplicateIncidentError) as exc:
+        services.create_request(
+            org_a, asset=pump, reporter=ops, actor=ops.user,
+            title="Pump Failure",
+            severity="MEDIUM",
+        )
+    assert exc.value.duplicates[0]["id"] == str(first.pk)
+
+    # Attempting to file exact "Pump Failure" again must also be detected
+    with pytest.raises(services.DuplicateIncidentError) as exc2:
+        services.create_request(
+            org_a, asset=pump, reporter=ops, actor=ops.user,
+            title="Pump Failure",
+            description="Pump is not functioning",
+            severity="MEDIUM",
+        )
+    assert exc2.value.duplicates[0]["id"] == str(first.pk)
