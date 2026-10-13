@@ -19,6 +19,7 @@ urlpatterns = [
     path("inventory/stock/transfer/", views.TransferView.as_view(), name="transfer"),
     path("inventory/stock/<uuid:pk>/", views.StockDetailView.as_view(), name="stock_detail"),
     path("inventory/stock/<uuid:pk>/adjust/", views.StockAdjustView.as_view(), name="stock_adjust"),
+    path("inventory/stock/<uuid:pk>/scrap/", views.StockScrapView.as_view(), name="stock_scrap"),
     path("inventory/stock/<uuid:pk>/levels/", views.StockLevelsView.as_view(), name="stock_levels"),
     path("inventory/reservations/", views.ReservationListView.as_view(), name="reservations"),
     path("inventory/movements/", views.MovementListView.as_view(), name="movements"),

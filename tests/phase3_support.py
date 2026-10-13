@@ -26,13 +26,34 @@ def make_template(p3, *, items=None, required=True, activate=True, work_type="",
     return t
 
 
-def new_wo(p3, *, work_type="PREVENTIVE", asset=None, title="Service pump"):
-    return wos.create_work_order(p3["org"], asset=asset or p3["asset"], actor=p3["planner"].user, title=title,
-                                 work_type=work_type)
+def new_wo(p3, *, work_type="PREVENTIVE", asset=None, title="Service pump", priority="MEDIUM"):
+    a = asset or p3["asset"]
+    return wos.create_work_order(p3["org"], site_id=a.site_id, asset=a, actor=p3["planner"].user,
+                                 membership=p3["planner"], title=title, work_type=work_type, priority=priority)
 
 
 def step(wo, action, p3, who, **data):
-    return wos.transition(wo, action=action, actor=p3[who].user, membership=p3[who], **data)
+    actor = p3[who].user
+    membership = p3[who]
+    if action == "plan":
+        planned_start = data.get("planned_start") or (timezone.now() + timedelta(days=1))
+        planned_end = data.get("planned_end") or (planned_start + timedelta(hours=2))
+        due_at = data.get("due_at") or (planned_end + timedelta(days=1))
+        estimated_hours = data.get("estimated_hours") or 2
+        priority = data.get("priority") or wo.priority or "MEDIUM"
+        return wos.plan_work_order(wo, membership=membership, actor=actor,
+                                   planned_start=planned_start, planned_end=planned_end,
+                                   due_at=due_at, estimated_hours=estimated_hours,
+                                   work_type=wo.work_type, priority=priority)
+    elif action == "assign":
+        technician = data.get("technician")
+        return wos.assign_work_order(wo, membership=membership, actor=actor,
+                                    assignee_id=technician.pk)
+    elif action == "dispatch":
+        return wos.dispatch_work_order(wo, membership=membership, actor=actor)
+    elif action == "start":
+        return wos.start_work_order(wo, membership=membership, actor=actor)
+    raise NotImplementedError(f"Action {action} not mapped")
 
 
 def wo_in_progress(p3, *, work_type="PREVENTIVE", tech="tech", asset=None):

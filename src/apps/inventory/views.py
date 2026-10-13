@@ -26,6 +26,7 @@ from .forms import (
     ReceiveForm,
     RequestPartForm,
     ReserveForm,
+    ScrapForm,
     TransferForm,
     WarehouseForm,
 )
@@ -275,6 +276,7 @@ class StockDetailView(InvBase):
             "can_adjust": can_adjust, "can_receive": rbac.has_permission(m, "inventory.receive", site),
             "can_transfer": rbac.has_permission(m, "inventory.transfer", site),
             "adjust_form": AdjustForm() if can_adjust else None,
+            "scrap_form": ScrapForm() if can_adjust else None,
             "levels_form": LevelsForm(initial={"min_level": bal.min_level, "max_level": bal.max_level,
                                                "reorder_quantity": bal.reorder_quantity}) if can_adjust else None,
             "reservations": selectors.reservations_for(m, org).filter(
@@ -296,6 +298,26 @@ class StockAdjustView(InvBase):
                 services.adjust(bal.warehouse, bal.part, form.cleaned_data["delta"],
                                 reason=form.cleaned_data["reason"], actor=request.user, request=request)
                 messages.success(request, "Stock adjusted.")
+            except DomainError as exc:
+                _fail(request, exc)
+        return redirect("inventory:stock_detail", pk=bal.pk)
+
+
+class StockScrapView(InvBase):
+    required_permission = "inventory.adjust"
+    http_method_names = ["post"]
+
+    def post(self, request, pk):
+        bal = or404(selectors.get_balance, request.membership, request.organization, pk)
+        need(request, "inventory.adjust", bal.warehouse.site_id)
+        form = ScrapForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, "Enter a positive quantity and a reason for scrapping.")
+        else:
+            try:
+                services.scrap(bal.warehouse, bal.part, form.cleaned_data["quantity"],
+                               reason=form.cleaned_data["reason"], actor=request.user, request=request)
+                messages.success(request, "Stock scrapped.")
             except DomainError as exc:
                 _fail(request, exc)
         return redirect("inventory:stock_detail", pk=bal.pk)
