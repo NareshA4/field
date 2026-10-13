@@ -1,5 +1,6 @@
 from django.conf.urls.static import static  # noqa: F401
 from django.urls import include, path
+from django.views.generic import RedirectView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import SimpleRouter
 
@@ -98,6 +99,8 @@ api_v1 = [
 ]
 
 urlpatterns = [
+    path("docs/", RedirectView.as_view(url="/api/v1/docs/", permanent=False)),
+    path("swagger/", RedirectView.as_view(url="/api/v1/docs/", permanent=False)),
     path("health/live/", health.live, name="health_live"),
     path("health/ready/", health.ready, name="health_ready"),
     path("api/v1/", include(api_v1)),
