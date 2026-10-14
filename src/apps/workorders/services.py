@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.utils import timezone
 
@@ -105,7 +105,10 @@ def transition_work_order(work_order, target_status, *, membership, actor, permi
     """
     wo = WorkOrder.objects.select_for_update(of=("self",)).select_related(
         "site", "assigned_to__user").get(pk=work_order.pk)
-    _need(membership, permission, wo.site)
+    if membership is None and actor is not None:
+        membership = Membership.objects.filter(organization=wo.organization, user=actor, status=Membership.Status.ACTIVE).first()
+    if actor is not None or membership is not None:
+        _need(membership, permission, wo.site)
     if expected_version is not None and int(expected_version) != wo.version:
         raise Conflict("This work order changed since you loaded it. Refresh and retry.",
                        code="work_order_version_conflict")
@@ -305,9 +308,10 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
     site = Site.objects.for_organization(organization).filter(pk=site_id).first()
     if site is None:
         raise NotFound("Site not found.")
-    _need(membership, "work_order.create", site)
-    if membership.organization_id != organization.pk:
-        raise NotFound("Site not found.")
+    if actor is not None or membership is not None:
+        _need(membership, "work_order.create", site)
+        if membership and membership.organization_id != organization.pk:
+            raise NotFound("Site not found.")
     if site.status != Site.Status.ACTIVE:
         raise ValidationFailed("New work orders cannot be created for an inactive site.", code="site_inactive")
     title = (title or "").strip()
@@ -321,10 +325,17 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
         raise ValidationFailed("Manual work orders cannot be linked to an incident or request.",
                                code="source_type_mismatch")
     source_reference = (fields.get("source_reference") or "").strip()
-    if source_type == WorkOrder.SourceType.PM and not source_reference:
+    is_pm = source_type in (WorkOrder.SourceType.PM, WorkOrder.SourceType.PREVENTIVE_MAINTENANCE)
+    if is_pm and not fields.get("source_id"):
+        raise ValidationFailed("A work-order source needs both a type and an id.", code="invalid_source")
+    if is_pm and not source_reference and fields.get("source_id"):
+        source_reference = f"PM-{fields['source_id']}"
+        fields["source_reference"] = source_reference
+    if is_pm and not source_reference:
         raise ValidationFailed("A preventive-maintenance schedule reference is required.", code="pm_reference_required")
-    if source_type == WorkOrder.SourceType.PM and WorkOrder.objects.for_organization(organization).filter(
-            source_type=WorkOrder.SourceType.PM, source_reference=source_reference).exclude(
+    if is_pm and WorkOrder.objects.for_organization(organization).filter(
+            source_type__in=(WorkOrder.SourceType.PM, WorkOrder.SourceType.PREVENTIVE_MAINTENANCE),
+            source_reference=source_reference).exclude(
                 status=WorkOrder.Status.CANCELLED).exists():
         raise Conflict("A work order already exists for this preventive-maintenance schedule.",
                        code="pm_work_order_exists")
@@ -381,7 +392,10 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
         wo.full_clean()
         wo.save()
     except ValidationError as exc:
-        raise ValidationFailed("Work order is invalid.", details={"fields": exc.message_dict if hasattr(exc, "message_dict") else exc.messages}) from exc
+        if "uniq_work_order_per_pm_source" in str(exc):
+            raise IntegrityError(str(exc)) from exc
+        msg = exc.message_dict if hasattr(exc, "message_dict") else exc.messages
+        raise ValidationFailed(f"Work order is invalid: {msg}", details={"fields": msg}) from exc
     _record(wo, actor=actor, action="created", request=request)
     return wo
 
@@ -501,9 +515,12 @@ def update_work_order(wo, *, membership, actor, request=None, **values):
 
 
 @transaction.atomic
-def plan_work_order(wo, *, membership, actor, planned_start, planned_end, due_at=None,
+def plan_work_order(wo, *, membership=None, actor=None, planned_start=None, planned_end=None, due_at=None,
                     estimated_hours=None, work_type=None, priority=None, expected_version=None, request=None):
-    _need(membership, "work_order.plan", wo.site)
+    if membership is None and actor is not None:
+        membership = Membership.objects.filter(organization=wo.organization, user=actor, status=Membership.Status.ACTIVE).first()
+    if actor is not None or membership is not None:
+        _need(membership, "work_order.plan", wo.site)
     wo = WorkOrder.objects.select_for_update().get(pk=wo.pk)
     _transition(wo, WorkOrder.Status.PLANNED)
     if not planned_start or not planned_end or planned_end <= planned_start:
@@ -687,11 +704,7 @@ def assert_can_execute(wo, membership) -> None:
     raise PermissionDenied("Only the assigned technician (or a dispatcher) can do this.", code="not_assignee")
 
 
-def _assert_assignee_or_dispatcher(wo, membership):
-    assert_can_execute(wo, membership)
-
-
-assert_can_execute = _assert_assignee_or_dispatcher
+_assert_assignee_or_dispatcher = assert_can_execute
 
 
 def _assert_assignee_or_authorized(wo, membership, permission):
@@ -992,10 +1005,10 @@ def transition(wo, action, *, actor, membership, reason="", request=None, **kwar
     """Convenience dispatcher for work-order lifecycle transitions."""
     if action == "plan":
         from datetime import timedelta
-        planned_start = kwargs.get("planned_start")
-        planned_end = kwargs.get("planned_end")
-        due_at = kwargs.get("due_at") or (planned_end + timedelta(days=1) if planned_end else None)
-        estimated_hours = kwargs.get("estimated_hours") or (wo.estimated_hours if wo.estimated_hours and wo.estimated_hours > 0 else Decimal("2.0"))
+        planned_start = kwargs.get("planned_start") or wo.planned_start
+        planned_end = kwargs.get("planned_end") or wo.planned_end
+        due_at = kwargs.get("due_at") or wo.due_at or (planned_end + timedelta(days=1) if planned_end else None)
+        estimated_hours = kwargs.get("estimated_hours") or wo.estimated_hours or (Decimal("2.0"))
         priority = kwargs.get("priority") or wo.priority or WorkOrder.Priority.MEDIUM
         work_type = kwargs.get("work_type") or wo.work_type or WorkOrder.WorkType.PREVENTIVE
         return plan_work_order(wo, membership=membership, actor=actor, planned_start=planned_start,

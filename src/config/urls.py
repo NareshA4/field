@@ -33,6 +33,11 @@ from apps.inventory.api_views import (
     WarehouseViewSet,
     WorkOrderPartViewSet,
 )
+from apps.maintenance.api_views import (
+    MaintenanceCycleViewSet,
+    MaintenancePlanViewSet,
+    MaintenanceScheduleViewSet,
+)
 from apps.notifications.api_views import NotificationViewSet
 from apps.portal.api_views import PortalAccountViewSet
 from apps.rbac.api_views import PermissionViewSet, RoleViewSet
@@ -82,6 +87,9 @@ router.register("stock-balances", StockBalanceViewSet, basename="stock-balance")
 router.register("stock-movements", StockMovementViewSet, basename="stock-movement")
 router.register("part-reservations", PartReservationViewSet, basename="part-reservation")
 router.register("work-order-parts", WorkOrderPartViewSet, basename="work-order-part")
+router.register("maintenance-plans", MaintenancePlanViewSet, basename="maintenance-plan")
+router.register("maintenance-schedules", MaintenanceScheduleViewSet, basename="maintenance-schedule")
+router.register("maintenance-cycles", MaintenanceCycleViewSet, basename="maintenance-cycle")
 router.register("contract-providers", ProviderViewSet, basename="contract-provider")
 router.register("coverage-agreements", AgreementViewSet, basename="coverage-agreement")
 router.register("coverage-checks", CoverageCheckViewSet, basename="coverage-check")
@@ -124,6 +132,7 @@ urlpatterns = [
     path("app/", include("apps.incidents.urls")),
     path("app/", include("apps.workorders.urls_ui")),
     path("app/", include("apps.inventory.urls")),
+    path("app/", include("apps.maintenance.urls")),
     path("app/", include("apps.sla.urls")),
     path("app/", include("apps.contracts.urls")),
     path("app/", include("apps.checklists.urls")),

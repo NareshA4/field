@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     "apps.incidents",
     "apps.workorders",
     "apps.inventory",
+    "apps.maintenance",
     "apps.sla",
     "apps.contracts",
     "apps.checklists",
@@ -198,6 +199,10 @@ CELERY_BEAT_SCHEDULE = {
     "clear-expired-sessions": {
         "task": "apps.core.tasks.clear_expired_sessions",
         "schedule": 60 * 60 * 24,
+    },
+    "generate-due-maintenance": {
+        "task": "apps.maintenance.tasks.fan_out_maintenance",
+        "schedule": 60 * 15,
     },
 }
 

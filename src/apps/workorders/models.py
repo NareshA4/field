@@ -12,6 +12,7 @@ class WorkOrder(TenantOwnedModel):
         REQUEST = "REQUEST", "Service request"
         INCIDENT = "INCIDENT", "Incident"
         PM = "PM", "Preventive maintenance"
+        PREVENTIVE_MAINTENANCE = "PREVENTIVE_MAINTENANCE", "Preventive maintenance"
         MANUAL = "MANUAL", "Manual"
 
     class Status(models.TextChoices):
@@ -58,7 +59,7 @@ class WorkOrder(TenantOwnedModel):
         on_delete=models.PROTECT, related_name="work_order")
     # Stable upstream identifier for integrations (PM, requests, or other source systems).
     source_id = models.UUIDField(null=True, blank=True)
-    source_type = models.CharField(max_length=12, choices=SourceType.choices, default=SourceType.MANUAL, db_index=True)
+    source_type = models.CharField(max_length=24, choices=SourceType.choices, default=SourceType.MANUAL, db_index=True)
     source_reference = models.CharField(max_length=150, blank=True)
     # Optional until the upstream Asset Registry app is available in this checkout.
     asset_reference = models.CharField(max_length=100, blank=True)
@@ -76,7 +77,7 @@ class WorkOrder(TenantOwnedModel):
     estimated_hours = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, default=None)
     assigned_to = models.ForeignKey("tenancy.Membership", null=True, blank=True, on_delete=models.PROTECT,
                                     related_name="assigned_work_orders")
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_work_orders")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="created_work_orders")
     dispatched_at = models.DateTimeField(null=True, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -108,6 +109,17 @@ class WorkOrder(TenantOwnedModel):
             models.CheckConstraint(condition=Q(planned_end__isnull=True) | Q(planned_start__isnull=True)
                                    | Q(planned_end__gt=models.F("planned_start")), name="wo_planned_window_valid"),
             models.CheckConstraint(condition=Q(estimated_hours__gte=0), name="wo_estimated_hours_nonnegative"),
+            models.CheckConstraint(
+                condition=(models.Q(source_type="") & models.Q(source_id__isnull=True))
+                | (models.Q(source_type="MANUAL") & models.Q(source_id__isnull=True))
+                | (~models.Q(source_type__in=["", "MANUAL"]) & models.Q(source_id__isnull=False)),
+                name="work_order_source_pair",
+            ),
+            models.UniqueConstraint(
+                fields=["source_id"],
+                condition=models.Q(source_type__in=["PM", "PREVENTIVE_MAINTENANCE"]),
+                name="uniq_work_order_per_pm_source",
+            ),
         ]
         indexes = [models.Index(fields=["organization", "status"]),
                    models.Index(fields=["site", "status"]),
@@ -146,7 +158,7 @@ class WorkOrder(TenantOwnedModel):
                 raise ValidationError({"source_request": "A valid linked incident or request is required."})
             if self.source_type == self.SourceType.MANUAL and self.source_request_id:
                 raise ValidationError({"source_request": "Manual work orders cannot link to an incident or request."})
-            if self.source_type == self.SourceType.PM and not self.source_reference.strip():
+            if self.source_type in (self.SourceType.PM, self.SourceType.PREVENTIVE_MAINTENANCE) and not self.source_reference.strip():
                 raise ValidationError({"source_reference": "A preventive-maintenance schedule reference is required."})
         if self.assigned_to_id and self.assigned_to.organization_id != self.organization_id:
             raise ValidationError({"assigned_to": "Assignee must belong to this organization."})

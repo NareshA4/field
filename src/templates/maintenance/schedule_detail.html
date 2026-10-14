@@ -1,0 +1,23 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Schedule · {{ sch.plan.name }} · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div>
+  <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'maintenance:plans' %}">Maintenance plans</a></li><li class="breadcrumb-item"><a href="{% url 'maintenance:plan' sch.plan_id %}">{{ sch.plan.name }}</a></li><li class="breadcrumb-item active">Schedule</li></ol></nav>
+  <h1>{{ sch.describe|capfirst }} {% status_badge state %}</h1>
+  <div class="text-body-secondary">{{ sch.get_trigger_type_display }} · {{ sch.plan.asset.asset_tag }} · site {{ sch.plan.site.code }}</div></div>
+  <div class="d-flex gap-2">{% if can.generate and state != "DISABLED" %}<form method="post" action="{% url 'maintenance:schedule_action' sch.pk 'generate' %}" class="m-0">{% csrf_token %}<button class="btn btn-primary">Generate now</button></form>{% endif %}
+  {% if can.update %}<a class="btn btn-outline-primary" href="{% url 'maintenance:schedule_edit' sch.pk %}">Edit</a>
+    {% if sch.is_active %}<form method="post" action="{% url 'maintenance:schedule_action' sch.pk 'disable' %}" class="m-0">{% csrf_token %}<button class="btn btn-outline-secondary" data-confirm="Disable this schedule?">Disable</button></form>
+    {% else %}<form method="post" action="{% url 'maintenance:schedule_action' sch.pk 'enable' %}" class="m-0">{% csrf_token %}<button class="btn btn-outline-success">Enable</button></form>{% endif %}{% endif %}</div></div>
+{% if blocked %}<div class="alert alert-secondary">Not generating right now: {{ blocked }}.</div>{% endif %}
+<div class="row g-3 mb-3"><div class="col-lg-6"><div class="fx-card"><div class="fx-card-header">Recurrence</div><div class="fx-card-body"><dl class="fx-kv">
+  {% if sch.trigger_type == "TIME" %}<dt>Repeats</dt><dd>{{ sch.describe }}</dd><dt>First due date</dt><dd>{{ sch.start_date|date:"d M Y" }}</dd><dt>Next due</dt><dd id="next-due">{{ sch.next_due_date|date:"d M Y" }}</dd>
+  {% else %}<dt>Meter</dt><dd>{{ sch.meter.name }} ({{ sch.meter.unit }})</dd><dt>Every</dt><dd>{{ sch.interval_value|floatformat:"-3" }} {{ sch.meter.unit }}, counting from {{ sch.start_value|floatformat:"-3" }}</dd><dt>Next threshold</dt><dd id="next-due">{{ sch.next_due_value|floatformat:"-3" }} {{ sch.meter.unit }}</dd>{% endif %}
+  <dt>Next occurrence no.</dt><dd>{{ sch.next_sequence }}</dd></dl></div></div></div>
+  <div class="col-lg-6"><div class="fx-card"><div class="fx-card-header">Windows &amp; reminders</div><div class="fx-card-body"><dl class="fx-kv">
+  <dt>Generate early</dt><dd>{{ sch.lead_days }} day(s) before due</dd><dt>Maintenance window</dt><dd>{{ sch.window_start_time|time:"H:i" }} for {{ sch.window_hours }} h (site time)</dd>
+  <dt>Reminder</dt><dd>{% if sch.reminder_days %}{{ sch.reminder_days }} day(s) before{% else %}none{% endif %}</dd>
+  <dt>Last scheduler run</dt><dd>{{ sch.last_run_at|date:"d M Y H:i"|default:"never" }}</dd>{% if sch.last_error %}<dt>Last error</dt><dd class="text-danger">{{ sch.last_error }}</dd>{% endif %}</dl></div></div></div></div>
+<div class="fx-card"><div class="fx-card-header">Generated work</div>{% include "maintenance/_cycle_table.html" with rows=cycles %}{% include "components/_pagination.html" with page=cycles %}</div>
+{% endblock %}

@@ -69,6 +69,8 @@ class ServiceRequest(TenantOwnedModel):
 
     @property
     def linked_work_order(self):
+        if hasattr(self, "_linked_work_order"):
+            return self._linked_work_order
         try:
             if hasattr(self, "work_order") and self.work_order:
                 return self.work_order
@@ -83,6 +85,10 @@ class ServiceRequest(TenantOwnedModel):
                 source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
             ).first()
         return None
+
+    @linked_work_order.setter
+    def linked_work_order(self, value):
+        self._linked_work_order = value
 
     @property
     def assigned_team_display(self) -> str:

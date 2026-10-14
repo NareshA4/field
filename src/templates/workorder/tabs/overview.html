@@ -3,7 +3,11 @@
   <dl class="wo-summary-grid">
     <dt>Work order</dt><dd>{{ wo.order_number }}</dd><dt>Title</dt><dd>{{ wo.title }}</dd>
     <dt>Description</dt><dd>{{ wo.description|default:"—"|linebreaksbr }}</dd>
+    {% if wo.source_type == "PREVENTIVE_MAINTENANCE" or wo.source_type == "PM" %}
+    <dt>Source</dt><dd id="wo-source">{% if pm_cycle and can_view_pm %}<a href="{% url 'maintenance:plan' pm_cycle.schedule.plan_id %}">Preventive maintenance: {{ pm_cycle.schedule.plan.name }}</a>{% elif pm_cycle %}Preventive maintenance: {{ pm_cycle.schedule.plan.name }}{% else %}Preventive maintenance{% endif %}{% if pm_cycle %} · cycle #{{ pm_cycle.sequence }}{% endif %}</dd>
+    {% else %}
     <dt>Source</dt><dd>{{ wo.get_source_type_display }}{% if wo.source_reference %} · {{ wo.source_reference }}{% endif %}</dd>
+    {% endif %}
     <dt>Site</dt><dd>{{ wo.site.code }} · {{ wo.site.name }}</dd><dt>Asset</dt><dd>{{ wo.asset_reference|default:"Not linked" }}</dd>
     <dt>Component</dt><dd>{{ wo.component_reference|default:"Not specified" }}</dd>
     <dt>Work type</dt><dd>{{ wo.get_work_type_display|default:"Not set" }}</dd><dt>Priority</dt><dd><span class="wo-priority priority-{{ wo.priority|lower|default:'none' }}">{{ wo.get_priority_display|default:"Not set" }}</span></dd>
