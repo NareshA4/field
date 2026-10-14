@@ -25,7 +25,7 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     RoleTemplate(
         "admin", "Organization Admin", "Administers users, roles, sites and configuration.",
         ("organization.*", "user.*", "role.*", "site.*", "zone.*", "calendar.*", "audit.view", "report.view",
-         "*.view"),
+         "*.view", "incident.triage", "incident.approve", "work_order.create"),
         excludes=("portal.request.*",),
     ),
     RoleTemplate(

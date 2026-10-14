@@ -24,7 +24,7 @@ CONFIRMS = {"reject": "Reject this request?", "close": "Close this request?"}
 
 
 def _req(request, pk, code=None) -> ServiceRequest:
-    sr = or404(selectors.get_request, request.membership, request.organization, pk, "incident.view_assigned")
+    sr = or404(selectors.get_request, request.membership, request.organization, pk, "incident.view")
     if code:
         need(request, code, sr.site_id)
     return sr
@@ -41,6 +41,30 @@ class RequestListView(IncidentBase):
         m, org = request.membership, request.organization
         qs = selectors.filter_requests(selectors.requests_for(m, org), request.GET)
         page = Paginator(qs, 20).get_page(request.GET.get("page"))
+
+        linked_wo_map = {}
+        from django.apps import apps
+        if apps.is_installed("apps.workorders"):
+            from apps.workorders.models import WorkOrder
+            req_numbers = [r.number for r in page]
+            for wo in WorkOrder.objects.for_organization(org).filter(
+                source_reference__in=req_numbers,
+                source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
+            ):
+                linked_wo_map[wo.source_reference] = wo
+
+        for r in page:
+            wo = linked_wo_map.get(r.number)
+            r.linked_work_order = wo
+            r.can_triage = (r.status == "NEW" and rbac.has_permission(m, "incident.triage", r.site_id))
+            r.can_approve = (r.status == "TRIAGED" and rbac.has_permission(m, "incident.approve", r.site_id))
+            r.can_reject = (r.status == "TRIAGED" and rbac.has_permission(m, "incident.approve", r.site_id))
+            r.can_convert = (
+                r.status == "APPROVED" and
+                rbac.has_permission(m, "work_order.create", r.site_id) and
+                not wo
+            )
+
         return render(request, "incidents/list.html", {
             "page": page, "filters": request.GET, "statuses": ServiceRequest.Status.choices,
             "severities": ServiceRequest.Severity.choices, "kinds": ServiceRequest.Kind.choices,
@@ -114,7 +138,7 @@ class RequestEditView(IncidentBase):
 
 
 class RequestDetailView(IncidentBase):
-    required_permission = "incident.view_assigned"
+    required_permission = "incident.view"
 
     def get(self, request, pk):
         m, org = request.membership, request.organization
@@ -125,27 +149,85 @@ class RequestDetailView(IncidentBase):
         can = {k: rbac.has_permission(m, code, sr.site_id) for k, code in (
             ("update", "incident.update"), ("attach", "incident.attach"), ("downtime", "incident.downtime.manage"),
             ("view_site", "site.view"))}
-        can["create_work_order"] = (sr.status == "APPROVED" and
-                                     rbac.has_permission(m, "work_order.create", sr.site_id))
+
         linked_work_order = None
         from django.apps import apps
-        if (apps.is_installed("apps.workorders") and
-                (rbac.has_permission(m, "work_order.view", sr.site_id) or
-                 rbac.has_permission(m, "work_order.view_assigned", sr.site_id))):
+        if apps.is_installed("apps.workorders"):
             from apps.workorders.models import WorkOrder
 
             linked_work_order = WorkOrder.objects.for_organization(org).filter(
                 source_reference=sr.number,
                 source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
             ).first()
+
+        can["triage"] = (sr.status == "NEW" and rbac.has_permission(m, "incident.triage", sr.site_id))
+        can["approve"] = (sr.status == "TRIAGED" and rbac.has_permission(m, "incident.approve", sr.site_id))
+        can["reject"] = (sr.status == "TRIAGED" and rbac.has_permission(m, "incident.approve", sr.site_id))
+        can["create_work_order"] = (sr.status == "APPROVED" and
+                                     rbac.has_permission(m, "work_order.create", sr.site_id) and
+                                     not linked_work_order)
+
         transitions = [
-            {"label": t.label, "url": f"/app/incidents/{sr.pk}/transition/{t.action}/", "style": BUTTON_STYLES.get(
+            {"action": t.action, "label": t.label, "url": f"/app/incidents/{sr.pk}/transition/{t.action}/", "style": BUTTON_STYLES.get(
                 t.action, "primary"), "reason": t.action in REASON_REQUIRED, "confirm": CONFIRMS.get(t.action)}
             for t in REQUEST_STATUS.available(sr.status)
             if t.action not in SYSTEM_ACTIONS and rbac.has_permission(m, ACTION_PERMISSIONS[t.action], sr.site_id)]
+
+        # Diagnostic and guidance context
+        user_roles = [mr.role.name for mr in m.membership_roles.select_related("role").all()]
+        user_roles_str = ", ".join(user_roles) if user_roles else "No roles assigned"
+        is_client = hasattr(m, "portal_account") and m.portal_account.is_enabled
+
+        if sr.status == "NEW":
+            next_action_title = "Triage Request"
+            required_perm = "incident.triage"
+            authorized_roles = "Operations Manager, Service Manager, Organization Owner"
+            is_authorized = can["triage"]
+            stage_index = 1
+        elif sr.status == "TRIAGED":
+            next_action_title = "Approve or Reject Request"
+            required_perm = "incident.approve"
+            authorized_roles = "Operations Manager, Service Manager, Organization Owner"
+            is_authorized = can["approve"]
+            stage_index = 2
+        elif sr.status == "APPROVED":
+            next_action_title = "Convert to Work Order"
+            required_perm = "work_order.create"
+            authorized_roles = "Maintenance Planner, Organization Owner"
+            is_authorized = can["create_work_order"]
+            stage_index = 3
+        elif sr.status == "WORK_ORDER_CREATED":
+            next_action_title = "Work Order Execution"
+            required_perm = "work_order.view"
+            authorized_roles = "Maintenance Planner, Supervisor, Technician"
+            is_authorized = True
+            stage_index = 4
+        elif sr.status == "REJECTED":
+            next_action_title = "Request Rejected"
+            required_perm = None
+            authorized_roles = "N/A"
+            is_authorized = False
+            stage_index = 2
+        else:
+            next_action_title = sr.get_status_display()
+            required_perm = None
+            authorized_roles = "Internal Staff"
+            is_authorized = True
+            stage_index = 5
+
+        workflow_guide = {
+            "next_action_title": next_action_title,
+            "required_perm": required_perm,
+            "authorized_roles": authorized_roles,
+            "is_authorized": is_authorized,
+            "user_roles_str": user_roles_str,
+            "stage_index": stage_index,
+            "is_client": is_client,
+        }
+
         ctx = {"sr": sr, "tab": tab, "tabs": TABS, "can": can, "transitions": transitions,
                "downtime": selectors.downtime_for(org, sr), "editable": sr.status in ("NEW", "TRIAGED"),
-               "linked_work_order": linked_work_order}
+               "linked_work_order": linked_work_order, "workflow_guide": workflow_guide}
         if tab == "evidence":
             ctx["evidence"] = selectors.evidence_for(org, sr)
             ctx["evidence_form"] = EvidenceForm()
@@ -160,7 +242,7 @@ class RequestDetailView(IncidentBase):
 
 class _Post(IncidentBase):
     http_method_names = ["post"]
-    required_permission = "incident.view_assigned"
+    required_permission = "incident.view"
     tab = "overview"
 
     def done(self, request, sr, ok: str | None = None):
@@ -172,14 +254,22 @@ class _Post(IncidentBase):
 class RequestTransitionView(_Post):
     def post(self, request, pk, action):
         sr = _req(request, pk)
+        if hasattr(request.membership, "portal_account") and request.membership.portal_account.is_enabled:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("Clients cannot perform internal service request actions.")
         if action not in ACTION_PERMISSIONS:
             messages.error(request, "That step is performed by the work order, not by hand.")
             return self.done(request, sr)
         need(request, ACTION_PERMISSIONS[action], sr.site_id)
         try:
-            services.transition(sr, action=action, reason=request.POST.get("reason", ""), actor=request.user,
-                                request=request)
-            return self.done(request, sr, "Status updated.")
+            services.transition(
+                sr,
+                action=action,
+                reason=request.POST.get("reason") or request.POST.get("rejection_reason", ""),
+                actor=request.user,
+                request=request
+            )
+            return self.done(request, sr, f"Status updated: {sr.get_status_display()}.")
         except DomainError as exc:
             messages.error(request, exc.message)
             return self.done(request, sr)
@@ -190,7 +280,31 @@ class RequestWorkOrderView(_Post):
 
     def post(self, request, pk):
         sr = _req(request, pk)
+        if hasattr(request.membership, "portal_account") and request.membership.portal_account.is_enabled:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("Clients cannot convert service requests into work orders.")
+
+        if sr.status != "APPROVED":
+            messages.error(
+                request,
+                f"Cannot convert to work order: Request must be in APPROVED status (currently '{sr.get_status_display()}')."
+            )
+            return self.done(request, sr)
+
         need(request, "work_order.create", sr.site_id)
+
+        from apps.workorders.models import WorkOrder
+        existing_wo = WorkOrder.objects.for_organization(request.organization).filter(
+            source_reference=sr.number,
+            source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
+        ).first()
+        if existing_wo:
+            messages.error(
+                request,
+                f"A work order ({existing_wo.order_number}) is already linked to this request. Duplicate conversion is prevented."
+            )
+            return self.done(request, sr)
+
         try:
             wo = services.create_work_order_for_request(
                 sr, actor=request.user, membership=request.membership, request=request)

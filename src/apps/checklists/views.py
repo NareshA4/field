@@ -253,6 +253,11 @@ class InspectionDetailView(_View):
 
     required_permission = "inspection.view"
 
+    def dispatch(self, request, *args, **kwargs):
+        m = getattr(request, "membership", None)
+        self.required_permission = "inspection.view" if m and rbac.has_permission_anywhere(m, "inspection.view") else "inspection.execute"
+        return super().dispatch(request, *args, **kwargs)
+
     def get(self, request, pk):
         insp: Inspection = or404(selectors.get_inspection, request.membership, request.organization, pk)
         org = request.organization

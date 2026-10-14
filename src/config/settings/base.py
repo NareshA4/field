@@ -77,8 +77,8 @@ INSTALLED_APPS = [
     "apps.sla",
     "apps.contracts",
     "apps.checklists",
+    "apps.portal",
     "apps.ui",
-
 ]
 
 MIDDLEWARE = [

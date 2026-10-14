@@ -191,8 +191,10 @@ def _notify_reporter(sr: ServiceRequest, action: str, reason: str):
         return
     from apps.notifications import services as notifications
 
+    is_client = getattr(sr.reported_by.user, "is_client", False)
+    link = f"/portal/requests/{sr.pk}/" if is_client else f"/app/incidents/{sr.pk}/"
     notifications.notify(sr.organization, [sr.reported_by.user], title=f"{sr.number} {texts[action]}",
-                         body=sr.title, link=f"/app/incidents/{sr.pk}/", source="incidents")
+                         body=sr.title, link=link, source="incidents")
 
 
 @transaction.atomic
@@ -201,10 +203,20 @@ def create_work_order_for_request(sr: ServiceRequest, *, actor, membership, requ
     caller holds ``work_order.create`` for the request's site. ``plan`` may carry title / description / priority /
     planned_start / planned_end / estimated_hours. The work-order lifecycle is M06's."""
     from apps.workorders import services as work_orders
+    from apps.workorders.models import WorkOrder
 
     sr = ServiceRequest.objects.select_related("asset", "site").select_for_update(of=("self",)).get(pk=sr.pk)
     if sr.status != APPROVED:
         REQUEST_STATUS.get(sr.status, "link_work_order")  # raises invalid_transition with the usual envelope
+    existing_wo = WorkOrder.objects.for_organization(sr.organization).filter(
+        source_reference=sr.number,
+        source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
+    ).first()
+    if existing_wo:
+        raise Conflict(
+            f"A work order ({existing_wo.order_number}) is already linked to this request.",
+            code="source_work_order_exists",
+        )
     wo = work_orders.create_work_order(
         sr.organization, asset=sr.asset, actor=actor, membership=membership, request=request, source_request=sr,
         component=plan.pop("component", None),

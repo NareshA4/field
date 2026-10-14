@@ -18,13 +18,45 @@
     <button class="btn btn-sm btn-outline-secondary">Filter</button>
   </form>
   <div class="table-responsive"><table class="table fx-table">
-    <thead><tr><th>Number</th><th>Title</th><th>Asset</th><th>Severity</th><th>Status</th><th>Reported</th></tr></thead>
+    <thead><tr><th>Number</th><th>Title</th><th>Asset</th><th>Severity</th><th>Status</th><th>Reported</th><th style="min-width: 180px;">Actions</th></tr></thead>
     <tbody>{% for r in page %}
       <tr><td><a class="fx-id" href="{% url 'incidents:detail' r.pk %}">{{ r.number }}</a></td><td><div class="fw-medium">{{ r.title }}</div><div class="fx-sub">{{ r.get_kind_display }}</div></td>
         <td><a class="fw-medium" href="{% url 'assets:detail' r.asset_id %}">{{ r.asset.asset_tag }}</a><div class="fx-sub">{{ r.site.code }}</div></td>
         <td>{% status_badge r.severity %}</td><td>{% status_badge r.status %}</td>
-        <td class="small">{{ r.created_at|date:"d M Y H:i" }}<br>{{ r.reported_by.user.display_name }}</td></tr>
-    {% empty %}<tr><td colspan="6">{% include "components/_empty_state.html" with title="No requests match" text="Adjust the filters or report an incident." %}</td></tr>{% endfor %}
+        <td class="small">{{ r.created_at|date:"d M Y H:i" }}<br>{{ r.reported_by.user.display_name }}</td>
+        <td>
+          <div class="d-flex align-items-center gap-1 flex-wrap">
+            <a class="btn btn-sm btn-outline-secondary py-0 px-2" href="{% url 'incidents:detail' r.pk %}">Details</a>
+            {% if r.can_triage %}
+            <form method="post" action="{% url 'incidents:transition' r.pk 'triage' %}" class="d-inline m-0">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-outline-primary py-0 px-2" type="submit" title="Triage request">Triage</button>
+            </form>
+            {% endif %}
+            {% if r.can_approve %}
+            <form method="post" action="{% url 'incidents:transition' r.pk 'approve' %}" class="d-inline m-0">
+              {% csrf_token %}
+              <input type="hidden" name="reason" value="Approved by staff" />
+              <button class="btn btn-sm btn-success text-white py-0 px-2" type="submit" title="Approve request">Approve</button>
+            </form>
+            {% endif %}
+            {% if r.can_reject %}
+            <a class="btn btn-sm btn-outline-danger py-0 px-2" href="{% url 'incidents:detail' r.pk %}#reject-panel" title="Reject request with reason">Reject</a>
+            {% endif %}
+            {% if r.can_convert %}
+            <form method="post" action="{% url 'incidents:create_work_order' r.pk %}" class="d-inline m-0">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-primary text-white py-0 px-2" type="submit" title="Convert to Work Order">Convert WO</button>
+            </form>
+            {% endif %}
+            {% if r.linked_work_order %}
+            <a class="badge bg-light text-dark border text-decoration-none" href="{% url 'workorders:detail' r.linked_work_order.pk %}" title="View linked work order">
+              {% icon 'tool' 12 %} {{ r.linked_work_order.order_number|default:r.linked_work_order.number }}
+            </a>
+            {% endif %}
+          </div>
+        </td></tr>
+    {% empty %}<tr><td colspan="7">{% include "components/_empty_state.html" with title="No requests match" text="Adjust the filters or report an incident." %}</td></tr>{% endfor %}
     </tbody></table></div>
   {% include "components/_pagination.html" %}
 </div>

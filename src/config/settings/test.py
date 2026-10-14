@@ -26,3 +26,4 @@ REST_FRAMEWORK = {  # noqa: F405
 }
 LOGGING["root"]["level"] = "WARNING"  # noqa: F405
 MIDDLEWARE = [m for m in MIDDLEWARE if "whitenoise" not in m]  # noqa: F405
+WORKORDER_PROVISIONAL_CHECKLIST_ENABLED = True

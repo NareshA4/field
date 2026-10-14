@@ -12,6 +12,7 @@ urlpatterns = [
     path("work-orders/mine/", ui_views.MyJobsView.as_view(), name="mine"),
     path("work-orders/new/", ui_views.WorkOrderCreateView.as_view(), name="create"),
     path("work-orders/<uuid:pk>/tabs/<str:tab>/", ui_views.WorkOrderTabView.as_view(), name="tab"),
+    path("work-orders/<uuid:pk>/checklist/execute/", ui_views.WorkOrderChecklistExecuteView.as_view(), name="checklist_execute"),
     path("work-orders/<uuid:pk>/edit/", ui_views.WorkOrderEditView.as_view(), name="edit"),
     path("work-orders/<uuid:pk>/", ui_views.WorkOrderDetailView.as_view(), name="detail"),
     path("work-orders/<uuid:pk>/<str:operation>/", ui_views.WorkOrderActionView.as_view(), name="action"),

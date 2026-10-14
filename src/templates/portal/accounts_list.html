@@ -1,0 +1,66 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+
+{% block title %}Portal Accounts · FieldOps Nexus{% endblock %}
+
+{% block content %}
+<div class="fx-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <h1 class="h3 fw-bold mb-1">Client Portal Accounts</h1>
+    <div class="text-body-secondary">Authorized external client and requester accounts for {{ org.name }}.</div>
+  </div>
+</div>
+
+<div class="card shadow-sm border" style="border-radius: var(--fx-radius);">
+  <div class="card-header bg-transparent py-3 border-bottom d-flex align-items-center justify-content-between">
+    <div class="fw-semibold">Registered Client Accounts ({{ accounts.count }})</div>
+  </div>
+  <div class="table-responsive">
+    <table class="table fx-table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Company</th>
+          <th>Requester</th>
+          <th>Email</th>
+          <th>Membership</th>
+          <th>Portal Status</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in accounts %}
+        <tr>
+          <td class="fw-medium">{{ a.company_name|default:"—" }}</td>
+          <td>{{ a.membership.user.full_name }}</td>
+          <td class="text-body-secondary">{{ a.membership.user.email }}</td>
+          <td>{% status_badge a.membership.status %}</td>
+          <td>
+            {% if a.is_enabled %}
+            <span class="badge bg-success-subtle text-success border border-success-subtle">Enabled</span>
+            {% else %}
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Disabled</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <form method="post" action="{% url 'portal:account_toggle' a.pk %}" class="d-inline">
+              {% csrf_token %}
+              {% if a.is_enabled %}
+              <button type="submit" class="btn btn-sm btn-outline-danger">Disable</button>
+              {% else %}
+              <button type="submit" class="btn btn-sm btn-outline-success">Enable</button>
+              {% endif %}
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center py-4 text-body-secondary">
+            No client portal accounts registered yet. Use the role seeder or invite client members to get started.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
