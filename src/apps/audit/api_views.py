@@ -53,7 +53,7 @@ class AuditLogViewSet(TenantAPIMixin, viewsets.ReadOnlyModelViewSet):
                    responses=OpenApiTypes.BINARY)
     @action(detail=False, methods=["get"])
     def export(self, request):
-        fmt = (request.query_params.get("export_format") or "csv").lower()
+        fmt = (request.query_params.get("export_format") or request.query_params.get("format") or "csv").lower()
         if fmt not in exports.FORMATS:
             raise ValidationFailed("Unknown export format (csv, xlsx or pdf).", code="invalid_format")
         from django.http import HttpResponse
