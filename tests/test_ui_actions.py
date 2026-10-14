@@ -176,3 +176,265 @@ def test_audit_ui_filters_and_detail(client, owner_a, org_a):
     entry = AuditLog.objects.filter(organization=org_a, action="organization.created").first()
     assert client.get(f"/app/audit/{entry.pk}/").status_code == 200
     assert "organization.created" not in client.get("/app/audit/?q=nomatch-xyz").content.decode().split("<tbody>")[1]
+
+
+def test_service_request_workflow_ui_actions_and_permissions(
+    client, org_a, site_a1, make_asset, make_member
+):
+    from apps.incidents.models import ServiceRequest
+    from apps.incidents import services as incident_services
+    from apps.workorders.models import WorkOrder
+
+    asset = make_asset(org_a, site_a1, "CHILLER-SR-UI")
+    ops = make_member(org_a, "ops.ui@alpha.test", "operations_manager")
+    planner = make_member(org_a, "planner.ui@alpha.test", "maintenance_planner")
+    tech = make_member(org_a, "tech.ui@alpha.test", "technician")
+
+    # 1. Create a request in NEW status
+    sr = incident_services.create_request(
+        org_a,
+        asset=asset,
+        title="AC compressor failure",
+        description="Overheating alarm tripped",
+        severity="HIGH",
+        reporter=ops,
+        actor=ops.user,
+    )
+    assert sr.status == "NEW"
+
+    # Planner views NEW request: cannot triage, sees warning notice
+    client.force_login(planner.user)
+    res_planner = client.get(f"/app/incidents/{sr.pk}/")
+    assert res_planner.status_code == 200
+    html_planner = res_planner.content.decode()
+    assert "btn-triage-request" not in html_planner
+    assert "Action Unavailable" in html_planner
+    assert "incident.triage" in html_planner
+
+    # Ops views NEW request: can triage, sees Triage Request button
+    client.force_login(ops.user)
+    res_ops = client.get(f"/app/incidents/{sr.pk}/")
+    assert res_ops.status_code == 200
+    assert "btn-triage-request" in res_ops.content.decode()
+
+    # Technician tries to POST triage: blocked
+    client.force_login(tech.user)
+    res_tech_triage = client.post(f"/app/incidents/{sr.pk}/transition/triage/")
+    assert res_tech_triage.status_code == 403
+
+    # Ops POSTs triage: succeeds, status -> TRIAGED
+    client.force_login(ops.user)
+    res_triage = client.post(f"/app/incidents/{sr.pk}/transition/triage/")
+    assert res_triage.status_code == 302
+    sr.refresh_from_db()
+    assert sr.status == "TRIAGED"
+
+    # Ops views TRIAGED request: sees Approve Request & Reject Request buttons
+    res_ops_triaged = client.get(f"/app/incidents/{sr.pk}/")
+    assert "btn-approve-request" in res_ops_triaged.content.decode()
+    assert "btn-reject-request" in res_ops_triaged.content.decode()
+
+    # Reject without reason fails validation
+    res_reject_empty = client.post(f"/app/incidents/{sr.pk}/transition/reject/", {"reason": ""})
+    assert res_reject_empty.status_code == 302
+    sr.refresh_from_db()
+    assert sr.status == "TRIAGED"  # Still TRIAGED
+
+    # Ops POSTs approve: succeeds, status -> APPROVED
+    res_approve = client.post(f"/app/incidents/{sr.pk}/transition/approve/")
+    assert res_approve.status_code == 302
+    sr.refresh_from_db()
+    assert sr.status == "APPROVED"
+
+    # Ops views APPROVED request: cannot convert (lacks work_order.create), sees guidance notice
+    res_ops_approved = client.get(f"/app/incidents/{sr.pk}/")
+    assert "btn-convert-work-order" not in res_ops_approved.content.decode()
+    assert "work_order.create" in res_ops_approved.content.decode()
+
+    # Planner views APPROVED request: sees Convert to Work Order button
+    client.force_login(planner.user)
+    res_planner_approved = client.get(f"/app/incidents/{sr.pk}/")
+    assert "btn-convert-work-order" in res_planner_approved.content.decode()
+
+    # Planner POSTs create work order: succeeds -> redirects to work order detail
+    res_convert = client.post(f"/app/incidents/{sr.pk}/create-work-order/")
+    assert res_convert.status_code == 302
+    wo = WorkOrder.objects.filter(source_reference=sr.number).first()
+    assert wo is not None
+    assert res_convert.url == f"/app/work-orders/{wo.pk}/"
+
+    sr.refresh_from_db()
+    assert sr.status == "WORK_ORDER_CREATED"
+
+    # Attempting duplicate conversion: blocked
+    res_dup = client.post(f"/app/incidents/{sr.pk}/create-work-order/")
+    assert res_dup.status_code == 302
+    # Count of work orders remains 1
+    assert WorkOrder.objects.filter(source_reference=sr.number).count() == 1
+
+    # Viewing detail page now shows linked work order badge and duplicate prevention notice
+    res_converted_detail = client.get(f"/app/incidents/{sr.pk}/")
+    assert wo.order_number in res_converted_detail.content.decode()
+    assert "Duplicate work order conversion is prevented" in res_converted_detail.content.decode()
+
+
+def test_client_portal_account_forbidden_from_internal_actions(
+    client, org_a, site_a1, make_asset, make_member
+):
+    from apps.portal.models import PortalAccount
+    from apps.incidents import services as incident_services
+
+    asset = make_asset(org_a, site_a1, "CHILLER-CLIENT-BLOCK")
+    ops = make_member(org_a, "ops.cb@alpha.test", "operations_manager")
+    sr = incident_services.create_request(
+        org_a,
+        asset=asset,
+        title="Client Action Block Test",
+        description="Testing internal endpoint protection",
+        severity="LOW",
+        reporter=ops,
+        actor=ops.user,
+    )
+
+    # Setup client account
+    client_member = make_member(org_a, "client.blocked@acme.test", "client_requester")
+    PortalAccount.objects.create(organization=org_a, membership=client_member, company_name="Acme", is_enabled=True)
+
+    client.force_login(client_member.user)
+
+    # Client cannot access internal incident detail page (no incident.view)
+    assert client.get(f"/app/incidents/{sr.pk}/").status_code == 403
+
+    # Client cannot POST triage
+    assert client.post(f"/app/incidents/{sr.pk}/transition/triage/").status_code == 403
+
+    # Client cannot POST create work order
+    assert client.post(f"/app/incidents/{sr.pk}/create-work-order/").status_code == 403
+
+
+def test_admin_and_staff_actions_on_incidents_list_and_detail(
+    client, org_a, site_a1, make_asset, make_member
+):
+    from apps.incidents import services as incident_services
+    from apps.workorders.models import WorkOrder
+
+    asset = make_asset(org_a, site_a1, "CHILLER-ADMIN-ACT")
+    admin_member = make_member(org_a, "admin.act@alpha.test", "admin")
+    reporter = make_member(org_a, "rep.act@alpha.test", "technician")
+
+    sr = incident_services.create_request(
+        org_a,
+        asset=asset,
+        title="Admin Approval Test",
+        description="Testing Admin actions on list and detail",
+        severity="HIGH",
+        reporter=reporter,
+        actor=reporter.user,
+    )
+
+    client.force_login(admin_member.user)
+
+    # 1. Admin views list: Actions column present, Triage button shown for NEW request
+    res_list = client.get("/app/incidents/")
+    assert res_list.status_code == 200
+    content_list = res_list.content.decode()
+    assert "Actions" in content_list
+    assert f"/app/incidents/{sr.pk}/transition/triage/" in content_list
+
+    # 2. Admin executes Triage from list
+    res_triage = client.post(f"/app/incidents/{sr.pk}/transition/triage/", follow=True)
+    assert res_triage.status_code == 200
+    sr.refresh_from_db()
+    assert sr.status == "TRIAGED"
+
+    # 3. Admin views list: Approve and Reject buttons shown for TRIAGED request
+    res_list2 = client.get("/app/incidents/")
+    content_list2 = res_list2.content.decode()
+    assert f"/app/incidents/{sr.pk}/transition/approve/" in content_list2
+
+    # 4. Admin executes Approve from detail or list
+    res_approve = client.post(f"/app/incidents/{sr.pk}/transition/approve/", {"reason": "Admin approved work"}, follow=True)
+    assert res_approve.status_code == 200
+    sr.refresh_from_db()
+    assert sr.status == "APPROVED"
+
+    # 5. Admin views list: Convert WO button shown for APPROVED request
+    res_list3 = client.get("/app/incidents/")
+    content_list3 = res_list3.content.decode()
+    assert f"/app/incidents/{sr.pk}/create-work-order/" in content_list3
+
+    # 6. Admin executes Convert to Work Order
+    res_conv = client.post(f"/app/incidents/{sr.pk}/create-work-order/", follow=True)
+    assert res_conv.status_code == 200
+    sr.refresh_from_db()
+    assert sr.status == "WORK_ORDER_CREATED"
+    wo = WorkOrder.objects.filter(source_reference=sr.number).first()
+    assert wo is not None
+
+
+def test_client_attachment_download_authorization(
+    client, org_a, site_a1, make_asset, make_member
+):
+    from apps.portal.models import PortalAccount
+    from apps.incidents import services as incident_services
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    asset = make_asset(org_a, site_a1, "CHILLER-ATTACH-AUTH")
+    client1_member = make_member(org_a, "client1.att@acme.test", "client_requester")
+    PortalAccount.objects.create(organization=org_a, membership=client1_member, company_name="Acme 1", is_enabled=True)
+
+    client2_member = make_member(org_a, "client2.att@acme.test", "client_requester")
+    PortalAccount.objects.create(organization=org_a, membership=client2_member, company_name="Acme 2", is_enabled=True)
+
+    admin_member = make_member(org_a, "admin.att@alpha.test", "admin")
+
+    sr = incident_services.create_request(
+        org_a,
+        asset=asset,
+        title="Attachment Test",
+        description="Testing attachment download",
+        severity="LOW",
+        reporter=client1_member,
+        actor=client1_member.user,
+    )
+
+    # Attach file uploaded by client1
+    test_file = SimpleUploadedFile("diagnostic.txt", b"Test diagnostic content", content_type="text/plain")
+    att = incident_services.add_evidence(
+        sr,
+        test_file,
+        description="Diagnostic report",
+        actor=client1_member.user,
+    )
+
+    # Client1 can download their own uploaded attachment
+    client.force_login(client1_member.user)
+    res_c1 = client.get(f"/app/files/{att.pk}/download/")
+    assert res_c1.status_code in (200, 302)
+
+    # Client2 cannot download Client1's attachment (out of scope returns 404 / 403)
+    client.force_login(client2_member.user)
+    res_c2 = client.get(f"/app/files/{att.pk}/download/")
+    assert res_c2.status_code in (403, 404)
+
+    # Staff Admin can download attachment
+    client.force_login(admin_member.user)
+    res_admin = client.get(f"/app/files/{att.pk}/download/")
+    assert res_admin.status_code in (200, 302)
+
+
+def test_client_only_portal_account_provisioning(org_a, make_member):
+    from apps.portal import services as portal_services
+    from apps.core.exceptions import ValidationFailed
+
+    # Staff member with technician role cannot be provisioned as a PortalAccount
+    tech_member = make_member(org_a, "tech.noportal@alpha.test", "technician")
+    with pytest.raises(ValidationFailed) as exc_info:
+        portal_services.create_portal_account(
+            org_a,
+            tech_member,
+            company_name="Tech Co",
+        )
+    assert exc_info.value.code == "not_client_only"
+
+

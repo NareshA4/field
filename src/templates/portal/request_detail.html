@@ -1,0 +1,401 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+
+{% block title %}{{ sr.number }} · Service Request Tracking · FieldOps Nexus{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <!-- Breadcrumb Navigation -->
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small">
+      <li class="breadcrumb-item"><a href="{% url 'portal:dashboard' %}" class="text-decoration-none">Client Portal</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'portal:requests_list' %}" class="text-decoration-none">My Requests</a></li>
+      <li class="breadcrumb-item active font-monospace fw-semibold" aria-current="page">{{ sr.number }}</li>
+    </ol>
+  </nav>
+
+  <!-- Page Header -->
+  <div class="fx-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-3 border-bottom">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="font-monospace fw-bold fs-5 text-primary">{{ sr.number }}</span>
+        {% status_badge sr.status %}
+        {% if sr.severity == "HIGH" or sr.severity == "CRITICAL" %}
+        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ sr.severity }}</span>
+        {% elif sr.severity == "MEDIUM" %}
+        <span class="badge bg-warning-subtle text-warning border border-warning-subtle">{{ sr.severity }}</span>
+        {% else %}
+        <span class="badge bg-secondary-subtle text-secondary">{{ sr.severity }}</span>
+        {% endif %}
+      </div>
+      <h1 class="h3 fw-bold mb-1">{{ sr.title }}</h1>
+      <p class="text-body-secondary mb-0">
+        Submitted on {{ sr.created_at|date:"F d, Y · H:i" }} by {{ sr.reported_by.user.full_name }}
+      </p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <a href="{% url 'portal:requests_list' %}" class="btn btn-outline-secondary d-flex align-items-center gap-1">
+        &larr; Back to Requests
+      </a>
+      <a href="{% url 'portal:request_create' %}" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
+        {% icon 'plus-circle' 16 %} New Request
+      </a>
+    </div>
+  </div>
+
+  <!-- Progress Stage Tracker Banner -->
+  <div class="card shadow-sm border mb-4" style="border-radius: var(--fx-radius);">
+    <div class="card-body p-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <div class="fw-bold">Request Lifecycle Progress</div>
+        <div class="small text-body-secondary">
+          Current State: <strong class="text-dark">{{ status_label }}</strong>
+        </div>
+      </div>
+
+      {% if sr.status == "REJECTED" %}
+      <div class="alert alert-danger d-flex align-items-center gap-2 mb-0" role="alert">
+        {% icon 'alert-circle' 20 %}
+        <div>
+          <strong>Request Declined:</strong> This service request could not be processed.
+          {% if sr.decision_reason %}<span class="ms-1">Reason: {{ sr.decision_reason }}</span>{% endif %}
+        </div>
+      </div>
+      {% else %}
+      <!-- 5-Step Visual Progress Bar -->
+      <div class="position-relative m-3">
+        <div class="progress" style="height: 4px;">
+          <div class="progress-bar bg-primary" role="progressbar" 
+            {% if current_stage == "PENDING" and sr.status == "NEW" %}style="width: 10%;"
+            {% elif current_stage == "PENDING" %}style="width: 30%;"
+            {% elif current_stage == "IN_PROGRESS" %}style="width: 55%;"
+            {% elif current_stage == "RESOLVED" %}style="width: 80%;"
+            {% elif current_stage == "CLOSED" %}style="width: 100%;"
+            {% else %}style="width: 15%;"{% endif %}>
+          </div>
+        </div>
+        <div class="d-flex justify-content-between position-absolute top-50 start-0 w-100 translate-middle-y">
+          <!-- Step 1: Submitted -->
+          <div class="text-center" style="width: 80px;">
+            <div class="btn btn-sm btn-primary rounded-circle mb-1" style="width: 28px; height: 28px; padding: 2px;">
+              {% icon 'check' 14 %}
+            </div>
+            <div class="small fw-semibold">Submitted</div>
+          </div>
+          <!-- Step 2: Triaged & Approved -->
+          <div class="text-center" style="width: 80px;">
+            <div class="btn btn-sm {% if sr.status != 'NEW' %}btn-primary{% else %}btn-secondary{% endif %} rounded-circle mb-1" style="width: 28px; height: 28px; padding: 2px;">
+              {% if sr.status != 'NEW' %}{% icon 'check' 14 %}{% else %}2{% endif %}
+            </div>
+            <div class="small fw-semibold">Approved</div>
+          </div>
+          <!-- Step 3: In Progress -->
+          <div class="text-center" style="width: 80px;">
+            <div class="btn btn-sm {% if current_stage == 'IN_PROGRESS' or current_stage == 'RESOLVED' or current_stage == 'CLOSED' %}btn-primary{% else %}btn-secondary{% endif %} rounded-circle mb-1" style="width: 28px; height: 28px; padding: 2px;">
+              {% if current_stage == 'IN_PROGRESS' or current_stage == 'RESOLVED' or current_stage == 'CLOSED' %}{% icon 'check' 14 %}{% else %}3{% endif %}
+            </div>
+            <div class="small fw-semibold">In Progress</div>
+          </div>
+          <!-- Step 4: Resolved -->
+          <div class="text-center" style="width: 80px;">
+            <div class="btn btn-sm {% if current_stage == 'RESOLVED' or current_stage == 'CLOSED' %}btn-primary{% else %}btn-secondary{% endif %} rounded-circle mb-1" style="width: 28px; height: 28px; padding: 2px;">
+              {% if current_stage == 'RESOLVED' or current_stage == 'CLOSED' %}{% icon 'check' 14 %}{% else %}4{% endif %}
+            </div>
+            <div class="small fw-semibold">Resolved</div>
+          </div>
+          <!-- Step 5: Closed -->
+          <div class="text-center" style="width: 80px;">
+            <div class="btn btn-sm {% if current_stage == 'CLOSED' %}btn-primary{% else %}btn-secondary{% endif %} rounded-circle mb-1" style="width: 28px; height: 28px; padding: 2px;">
+              {% if current_stage == 'CLOSED' %}{% icon 'check' 14 %}{% else %}5{% endif %}
+            </div>
+            <div class="small fw-semibold">Closed</div>
+          </div>
+        </div>
+      </div>
+      <div class="mt-4 pt-3 text-center small text-body-secondary">
+        Stage: <strong>{{ current_stage }}</strong> · Real-time tracking updated from operations system
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Closure Confirmation Banner (if already confirmed) -->
+  {% if confirmation %}
+  <div class="alert alert-success d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 shadow-sm" role="alert" style="border-radius: var(--fx-radius);">
+    <div class="d-flex align-items-center gap-3">
+      {% icon 'check-circle' 28 %}
+      <div>
+        <strong class="fs-6 text-success">Service Completion Confirmed!</strong>
+        <div class="text-body small mt-1">
+          Confirmed on <strong>{{ confirmation.confirmed_at|date:"F d, Y · H:i" }}</strong> by {{ confirmation.confirmed_by.email }}.
+          {% if confirmation.rating %}
+          <span class="ms-2 badge bg-success text-white">Rating: {{ confirmation.rating }}/5 ★</span>
+          {% endif %}
+        </div>
+        {% if confirmation.feedback %}
+        <div class="mt-1 small text-body-secondary fst-italic">"{{ confirmation.feedback }}"</div>
+        {% endif %}
+      </div>
+    </div>
+    <span class="badge bg-success text-white px-3 py-2 fw-semibold">
+      Status: CONFIRMED
+    </span>
+  </div>
+  {% endif %}
+
+  <!-- Confirm Completion or Reopen Action Card (if eligible and not yet confirmed) -->
+  {% if eligible_for_confirmation or eligible_for_reopen %}
+  {% if not confirmation %}
+  <div class="card shadow-sm border border-success mb-4" style="border-radius: var(--fx-radius); background: linear-gradient(to right, #f8fff9, #ffffff);">
+    <div class="card-header bg-transparent py-3 border-bottom d-flex align-items-center justify-content-between">
+      <div class="fw-bold text-success d-flex align-items-center gap-2">
+        {% icon 'check-circle' 20 %} Action Required: Confirm Service Completion
+      </div>
+      <span class="badge bg-success text-white">Ready for Client Review</span>
+    </div>
+    <div class="card-body p-4">
+      <div class="mb-3">
+        <p class="mb-2 text-body">
+          Our service team has completed the required work for reference 
+          <strong class="font-monospace text-primary">{{ sr.number }}</strong> on 
+          <strong>{{ sr.asset.name }} ({{ sr.asset.asset_tag }})</strong>, and supervisor review has been approved.
+        </p>
+        <p class="small text-body-secondary mb-0">
+          Please confirm that the issue has been resolved to your satisfaction. If the problem persists, you may reopen the request for rework.
+        </p>
+      </div>
+
+      {% if eligible_for_confirmation %}
+      <form method="post" action="{% url 'portal:request_confirm' sr.pk %}" class="mt-3">
+        {% csrf_token %}
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-md-4">
+            <label for="rating" class="form-label small fw-semibold">Satisfaction Rating (Optional)</label>
+            <select name="rating" id="rating" class="form-select form-select-sm">
+              <option value="">Select rating (optional)</option>
+              <option value="5">5 - Excellent (Completely Resolved)</option>
+              <option value="4">4 - Good</option>
+              <option value="3">3 - Satisfactory</option>
+              <option value="2">2 - Needs Improvement</option>
+              <option value="1">1 - Poor</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-8">
+            <label for="feedback" class="form-label small fw-semibold">Confirmation Notes / Feedback (Optional)</label>
+            <input type="text" name="feedback" id="feedback" class="form-control form-control-sm" placeholder="Any comments regarding the completed service..." maxlength="1000" />
+          </div>
+        </div>
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <button type="submit" class="btn btn-success d-inline-flex align-items-center gap-2 shadow-sm" onclick="return confirm('Are you sure you want to confirm satisfactory completion of this service request?');">
+            {% icon 'check-circle' 16 %} Confirm Completion
+          </button>
+          {% if eligible_for_reopen %}
+          <button type="button" class="btn btn-outline-warning text-dark d-inline-flex align-items-center gap-2" data-bs-toggle="collapse" data-bs-target="#reopenCollapse" aria-expanded="false" aria-controls="reopenCollapse">
+            {% icon 'alert-circle' 16 %} Issue Unresolved? Reopen Request
+          </button>
+          {% endif %}
+        </div>
+      </form>
+      {% endif %}
+
+      {% if eligible_for_reopen %}
+      <div class="collapse mt-3" id="reopenCollapse">
+        <div class="card card-body bg-light border border-warning shadow-none">
+          <h6 class="text-warning-emphasis fw-bold mb-2">Reopen Request for Rework</h6>
+          <p class="small text-body-secondary mb-3">
+            If the issue has not been satisfactorily resolved, you can reopen this request. Please provide details explaining why rework is needed so our service team can follow up.
+          </p>
+          <form method="post" action="{% url 'portal:request_reopen' sr.pk %}">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label for="reopen_reason" class="form-label small fw-semibold">Reason for Reopening <span class="text-danger">*</span></label>
+              <textarea name="reason" id="reopen_reason" class="form-control form-control-sm" rows="3" required minlength="3" maxlength="500" placeholder="Describe the ongoing issue or why rework is required (mandatory, min 3 characters)..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-warning text-dark shadow-sm d-inline-flex align-items-center gap-2" onclick="return confirm('Are you sure you want to reopen this request for rework?');">
+              {% icon 'alert-circle' 16 %} Submit Reopen Request
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  <div class="row g-4 mb-4">
+    <!-- Left Column: Problem Details & Associated Assets -->
+    <div class="col-12 col-lg-7">
+      <!-- Request Details Card -->
+      <div class="card shadow-sm border mb-4" style="border-radius: var(--fx-radius);">
+        <div class="card-header bg-transparent py-3 border-bottom">
+          <div class="fw-semibold">Request Description &amp; Details</div>
+        </div>
+        <div class="card-body p-4">
+          <div class="mb-3">
+            <div class="text-body-secondary small fw-medium text-uppercase mb-1">Subject / Title</div>
+            <div class="fs-6 fw-semibold">{{ sr.title }}</div>
+          </div>
+
+          <div class="mb-3">
+            <div class="text-body-secondary small fw-medium text-uppercase mb-1">Problem Description</div>
+            <div class="p-3 bg-light rounded border text-body" style="white-space: pre-wrap;">{{ sr.description|default:"No detailed problem description provided." }}</div>
+          </div>
+
+          {% if sr.impact_notes %}
+          <div class="mb-3">
+            <div class="text-body-secondary small fw-medium text-uppercase mb-1">Impact Notes</div>
+            <div class="small text-body-secondary">{{ sr.impact_notes }}</div>
+          </div>
+          {% endif %}
+
+          <div class="row g-3 pt-2 border-top">
+            <div class="col-6 col-sm-4">
+              <div class="text-body-secondary small">Service Impact</div>
+              <div class="fw-semibold small">{{ sr.get_service_impact_display|default:sr.service_impact }}</div>
+            </div>
+            <div class="col-6 col-sm-4">
+              <div class="text-body-secondary small">Occurred Time</div>
+              <div class="fw-semibold small">{{ sr.occurred_at|date:"Y-m-d H:i" }}</div>
+            </div>
+            <div class="col-6 col-sm-4">
+              <div class="text-body-secondary small">Last Updated</div>
+              <div class="fw-semibold small">{{ sr.updated_at|date:"Y-m-d H:i" }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Uploaded Attachments / Evidence (if any) -->
+      {% if attachments %}
+      <div class="card shadow-sm border mb-4" style="border-radius: var(--fx-radius);">
+        <div class="card-header bg-transparent py-3 border-bottom d-flex align-items-center justify-content-between">
+          <div class="fw-semibold">Uploaded Attachments ({{ attachments.count }})</div>
+        </div>
+        <ul class="list-group list-group-flush">
+          {% for att in attachments %}
+          <li class="list-group-item d-flex align-items-center justify-content-between p-3">
+            <div class="d-flex align-items-center gap-2">
+              {% icon 'file-text' 20 %}
+              <div>
+                <div class="fw-semibold small">{{ att.original_name }}</div>
+                <div class="text-body-secondary small">{{ att.mime_type }} · {{ att.size }} bytes</div>
+              </div>
+            </div>
+            <span class="text-body-secondary small">{{ att.created_at|date:"Y-m-d H:i" }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Right Column: Asset / Site Information & Status Progression History -->
+    <div class="col-12 col-lg-5">
+      <!-- Asset & Site Card -->
+      <div class="card shadow-sm border mb-4" style="border-radius: var(--fx-radius);">
+        <div class="card-header bg-transparent py-3 border-bottom">
+          <div class="fw-semibold">Associated Asset &amp; Location</div>
+        </div>
+        <div class="card-body p-4">
+          <div class="mb-3">
+            <div class="text-body-secondary small fw-medium text-uppercase mb-1">Equipment Asset</div>
+            <div class="fw-bold">{{ sr.asset.name }}</div>
+            <div class="small font-monospace text-primary">Tag: {{ sr.asset.asset_tag }}</div>
+            {% if sr.asset.model_number %}
+            <div class="small text-body-secondary">Model: {{ sr.asset.model_number }}</div>
+            {% endif %}
+          </div>
+
+          <div class="border-top pt-3">
+            <div class="text-body-secondary small fw-medium text-uppercase mb-1">Service Site / Location</div>
+            <div class="fw-bold">{{ sr.site.name }}</div>
+            <div class="small font-monospace text-secondary">Code: {{ sr.site.code }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scheduled Visit & Work Order Status Card -->
+      {% if work_order %}
+      <div class="card shadow-sm border mb-4" style="border-radius: var(--fx-radius);">
+        <div class="card-header bg-transparent py-3 border-bottom d-flex align-items-center justify-content-between">
+          <div class="fw-semibold d-flex align-items-center gap-2">
+            {% icon 'calendar' 16 %} Scheduled Service Visit
+          </div>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+            {{ work_order.order_number }}
+          </span>
+        </div>
+        <div class="card-body p-4">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <span class="text-body-secondary small fw-medium">Work Order Status</span>
+            <span class="badge bg-info-subtle text-info fw-semibold">{{ work_order.get_status_display }}</span>
+          </div>
+
+          {% if work_order.planned_start or work_order.planned_end %}
+          <div class="mb-3 p-3 bg-light rounded border">
+            <div class="text-body-secondary small fw-medium text-uppercase mb-1">Visit Window</div>
+            <div class="fw-semibold small">
+              {{ work_order.planned_start|date:"F d, Y · H:i"|default:"TBD" }}
+              {% if work_order.planned_end %} &ndash; {{ work_order.planned_end|date:"H:i" }}{% endif %}
+            </div>
+          </div>
+          {% endif %}
+
+          {% if technician_name %}
+          <div class="d-flex align-items-center gap-2 pt-2 border-top">
+            <div class="fx-avatar rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px;">
+              {{ technician_name|slice:":1"|upper }}
+            </div>
+            <div>
+              <div class="small fw-semibold">{{ technician_name }}</div>
+              <div class="text-body-secondary" style="font-size: 0.75rem;">Assigned Field Technician</div>
+            </div>
+          </div>
+          {% else %}
+          <div class="small text-body-secondary pt-2 border-top">
+            {% if work_order.status == "DRAFT" or work_order.status == "PLANNED" %}
+            Technician dispatch will be assigned prior to the service visit.
+            {% else %}
+            Service technician allocated. Dispatch details will appear once on route.
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- History & Progress Timeline Card -->
+      <div class="card shadow-sm border mb-4" style="border-radius: var(--fx-radius);">
+        <div class="card-header bg-transparent py-3 border-bottom">
+          <div class="fw-semibold">Status &amp; Activity History</div>
+        </div>
+        <div class="card-body p-4">
+          {% if history %}
+          <div class="timeline position-relative ps-3" style="border-left: 2px solid var(--fx-border, #e9ecef);">
+            {% for h in history %}
+            <div class="position-relative mb-3 pb-1">
+              <span class="position-absolute rounded-circle bg-primary" style="left: -21px; top: 4px; width: 10px; height: 10px;"></span>
+              <div class="d-flex align-items-center justify-content-between">
+                <span class="fw-semibold small">{% status_badge h.to_status %}</span>
+                <span class="text-body-secondary small">{{ h.created_at|date:"M d, H:i" }}</span>
+              </div>
+              <div class="small text-body mt-1">
+                {{ h.action|title }}
+                {% if h.reason and h.action == 'reject' or h.action == 'reopen' %}<span class="text-body-secondary">— {{ h.reason }}</span>{% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="text-center py-3 text-body-secondary small">
+            Initial request created. Operations team has been notified.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

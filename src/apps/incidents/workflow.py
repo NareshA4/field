@@ -59,10 +59,10 @@ REQUEST_STATUS = StateMachine(
     "service_request",
     STATES,
     [
-        Transition("triage", (NEW,), TRIAGED, label="Triage"),
-        Transition("approve", (TRIAGED,), APPROVED, label="Approve"),
-        Transition("reject", (TRIAGED,), REJECTED, label="Reject"),
-        Transition("link_work_order", (APPROVED,), WORK_ORDER_CREATED, label="Work order created"),
+        Transition("triage", (NEW,), TRIAGED, label="Triage Request"),
+        Transition("approve", (TRIAGED,), APPROVED, label="Approve Request"),
+        Transition("reject", (TRIAGED,), REJECTED, label="Reject Request"),
+        Transition("link_work_order", (APPROVED,), WORK_ORDER_CREATED, label="Convert to Work Order"),
         Transition("work_order_cancelled", (WORK_ORDER_CREATED,), APPROVED, label="Work order cancelled"),
         Transition("start_service", (WORK_ORDER_CREATED,), IN_SERVICE, label="Start service"),
         Transition("resolve", (IN_SERVICE,), RESOLVED, label="Resolve"),
@@ -79,4 +79,4 @@ ACTION_PERMISSIONS = {
     "confirm": "incident.confirm", "reopen": "incident.confirm", "close": "incident.close",
 }
 REASON_REQUIRED = ("reject", "reopen")
-BUTTON_STYLES = {"reject": "danger", "reopen": "warning", "close": "secondary"}
+BUTTON_STYLES = {"triage": "info", "approve": "success", "reject": "danger", "reopen": "warning", "close": "secondary"}

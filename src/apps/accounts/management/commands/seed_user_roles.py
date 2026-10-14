@@ -27,15 +27,14 @@ class Command(BaseCommand):
 
         # 1. Organization Setup
         org, _ = Organization.objects.get_or_create(
-            code="APEX-IND",
+            slug="apex-industrial-technologies",
             defaults={
                 "name": "Apex Industrial Technologies Ltd",
-                "slug": "apex-industrial-technologies",
                 "contact_email": "operations@apexindustrial.example.com",
                 "contact_phone": "+94 11 289 9000",
             },
         )
-        self.stdout.write(self.style.SUCCESS(f"[OK] Organization: {org.name} ({org.code})"))
+        self.stdout.write(self.style.SUCCESS(f"[OK] Organization: {org.name} ({org.slug})"))
 
         # 2. Seed System Roles for the Organization
         roles_dict = seed_system_roles(org)
@@ -171,13 +170,23 @@ class Command(BaseCommand):
                     defaults={"site": None}
                 )
 
-            # If portal client, setup PortalAccount
+            # If portal client, setup PortalAccount & initial asset grant
             if p.get("is_portal_client"):
-                PortalAccount.objects.unscoped().get_or_create(
+                portal_acc, _ = PortalAccount.objects.unscoped().get_or_create(
                     organization=org,
                     membership=membership,
                     defaults={"company_name": "Acme Corporation", "is_enabled": True}
                 )
+                from apps.assets.models import Asset
+                from apps.portal.models import PortalAssetGrant
+                first_asset = Asset.objects.filter(organization=org).exclude(status__in=["RETIRED", "DISPOSED"]).first()
+                if first_asset:
+                    PortalAssetGrant.objects.unscoped().get_or_create(
+                        organization=org,
+                        portal_account=portal_acc,
+                        asset=first_asset,
+                    )
+
 
             created_users.append({
                 "role": role.name if role else p["role_key"],

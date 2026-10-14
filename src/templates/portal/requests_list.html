@@ -1,0 +1,190 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+
+{% block title %}My Service Requests · FieldOps Nexus{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <!-- Page Header -->
+  <div class="fx-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-3 border-bottom">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <a href="{% url 'portal:dashboard' %}" class="text-decoration-none small text-body-secondary">&larr; Portal Dashboard</a>
+        <span class="text-body-secondary small">/</span>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-7">FON-M13 Portal</span>
+      </div>
+      <h1 class="h3 fw-bold mb-1">My Service Requests</h1>
+      <p class="text-body-secondary mb-0">Track and monitor status progression for equipment service requests submitted by {{ company_name }}.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <a href="{% url 'portal:request_create' %}" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
+        {% icon 'plus-circle' 16 %} Submit Request
+      </a>
+    </div>
+  </div>
+
+  <!-- Filter & Search Toolbar -->
+  <div class="card shadow-sm border mb-4" style="border-radius: var(--fx-radius);">
+    <div class="card-body p-3">
+      <form method="get" class="row g-2 align-items-center">
+        <div class="col-12 col-md-4">
+          <div class="input-group">
+            <span class="input-group-text bg-transparent border-end-0">{% icon 'search' 16 %}</span>
+            <input type="text" name="q" value="{{ search_query }}" class="form-control border-start-0" placeholder="Search reference or title..." />
+          </div>
+        </div>
+        <div class="col-12 col-md-4">
+          <select name="status" class="form-select">
+            <option value="">All Statuses</option>
+            {% for s_val, s_lbl in statuses %}
+            <option value="{{ s_val }}" {% if status_filter == s_val %}selected{% endif %}>{{ s_lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-4 d-flex gap-2">
+          <button type="submit" class="btn btn-outline-primary d-flex align-items-center gap-1">
+            {% icon 'funnel' 14 %} Filter
+          </button>
+          {% if status_filter or search_query %}
+          <a href="{% url 'portal:requests_list' %}" class="btn btn-outline-secondary d-flex align-items-center gap-1">
+            {% icon 'x' 14 %} Reset
+          </a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Requests Table Card -->
+  <div class="card shadow-sm border mb-4" style="border-radius: var(--fx-radius);">
+    <div class="card-header bg-transparent py-3 border-bottom d-flex align-items-center justify-content-between">
+      <div class="fw-semibold">
+        Submitted Requests 
+        <span class="badge bg-secondary-subtle text-secondary ms-1">{{ page_obj.paginator.count }}</span>
+      </div>
+      <div class="small text-body-secondary">Showing page {{ page_obj.number }} of {{ page_obj.paginator.num_pages|default:1 }}</div>
+    </div>
+    <div class="table-responsive">
+      <table class="table fx-table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Reference</th>
+            <th>Title</th>
+            <th>Asset</th>
+            <th>Site</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Last Updated</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in page_obj %}
+          <tr>
+            <td>
+              <a href="{% url 'portal:request_detail' r.pk %}" class="font-monospace fw-bold text-decoration-none text-primary">
+                {{ r.number }}
+              </a>
+            </td>
+            <td>
+              <div class="fw-semibold text-truncate" style="max-width: 260px;">{{ r.title }}</div>
+              {% if r.description %}
+              <div class="small text-body-secondary text-truncate" style="max-width: 260px;">{{ r.description }}</div>
+              {% endif %}
+            </td>
+            <td>
+              <div class="fw-medium">{{ r.asset.asset_tag }}</div>
+              <div class="small text-body-secondary">{{ r.asset.name }}</div>
+            </td>
+            <td>
+              <span class="badge bg-light text-dark border">{{ r.site.code }}</span>
+            </td>
+            <td>
+              {% if r.severity == "HIGH" or r.severity == "CRITICAL" %}
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ r.severity }}</span>
+              {% elif r.severity == "MEDIUM" %}
+              <span class="badge bg-warning-subtle text-warning border border-warning-subtle">{{ r.severity }}</span>
+              {% else %}
+              <span class="badge bg-secondary-subtle text-secondary">{{ r.severity }}</span>
+              {% endif %}
+            </td>
+            <td>{% status_badge r.status %}</td>
+            <td class="text-body-secondary small">{{ r.created_at|date:"Y-m-d H:i" }}</td>
+            <td class="text-body-secondary small">{{ r.updated_at|date:"Y-m-d H:i" }}</td>
+            <td class="text-end">
+              <a href="{% url 'portal:request_detail' r.pk %}" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1">
+                {% icon 'eye' 14 %} View Details
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="text-center py-5">
+              <div class="py-4">
+                <div class="text-body-secondary mb-3">{% icon 'inbox' 48 %}</div>
+                <h5 class="fw-semibold mb-1">No service requests found</h5>
+                <p class="text-body-secondary small mb-3">
+                  {% if status_filter or search_query %}
+                  No service requests matched your filter criteria. Try resetting your search filters.
+                  {% else %}
+                  You have not submitted any service requests yet. When you report equipment issues, you can track their real-time progress here.
+                  {% endif %}
+                </p>
+                {% if status_filter or search_query %}
+                <a href="{% url 'portal:requests_list' %}" class="btn btn-sm btn-outline-secondary">Reset Filters</a>
+                {% else %}
+                <a href="{% url 'portal:request_create' %}" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1">
+                  {% icon 'plus-circle' 14 %} Submit Your First Request
+                </a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination Controls -->
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="card-footer bg-transparent py-3 border-top d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <div class="small text-body-secondary">
+        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} total records)
+      </div>
+      <nav aria-label="Requests pagination">
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% qs_without_page %}" aria-label="Previous">
+              &laquo; Previous
+            </a>
+          </li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">&laquo; Previous</span></li>
+          {% endif %}
+
+          {% for p in page_obj.paginator.page_range %}
+            {% if p == page_obj.number %}
+            <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+            {% elif p > page_obj.number|add:"-3" and p < page_obj.number|add:"3" %}
+            <li class="page-item"><a class="page-link" href="?page={{ p }}{% qs_without_page %}">{{ p }}</a></li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% qs_without_page %}" aria-label="Next">
+              Next &raquo;
+            </a>
+          </li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">Next &raquo;</span></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

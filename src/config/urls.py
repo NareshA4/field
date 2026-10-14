@@ -34,6 +34,7 @@ from apps.inventory.api_views import (
     WorkOrderPartViewSet,
 )
 from apps.notifications.api_views import NotificationViewSet
+from apps.portal.api_views import PortalAccountViewSet
 from apps.rbac.api_views import PermissionViewSet, RoleViewSet
 from apps.sites.api_views import (
     CalendarViewSet,
@@ -69,7 +70,9 @@ router.register("asset-components", ComponentViewSet, basename="asset-component"
 router.register("asset-meters", MeterViewSet, basename="asset-meter")
 router.register("asset-identifiers", IdentifierViewSet, basename="asset-identifier")
 router.register("service-requests", ServiceRequestViewSet, basename="service-request")
+router.register("requests", ServiceRequestViewSet, basename="request")
 router.register("work-orders", WorkOrderViewSet, basename="work-order")
+router.register("workorders", WorkOrderViewSet, basename="workorder")
 router.register("checklist-templates", ChecklistTemplateViewSet, basename="checklist-template")
 router.register("inspections", InspectionViewSet, basename="inspection")
 router.register("findings", FindingViewSet, basename="finding")
@@ -86,11 +89,13 @@ router.register("coverage", CoverageViewSet, basename="coverage")
 router.register("sla-profiles", SLAProfileViewSet, basename="sla-profile")
 router.register("sla-trackings", SLATrackingViewSet, basename="sla-tracking")
 router.register("sla-breaches", SLABreachViewSet, basename="sla-breach")
+router.register("portal-accounts", PortalAccountViewSet, basename="portal-account")
 
 api_v1 = [
     path("auth/", include("apps.accounts.api_urls")),
     path("organization/", OrganizationViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
          name="organization"),
+    path("portal/", include("apps.portal.api_urls")),
     path("", include(router.urls)),
     path("", include("apps.workspace.api_urls")),
     path("", include("apps.dashboards.api_urls")),
@@ -107,6 +112,7 @@ urlpatterns = [
     path("platform/", include("apps.tenancy.platform_urls")),
     path("api/v1/", include(api_v1)),
     path("accounts/", include("apps.accounts.urls")),
+    path("app/portal/", include("apps.portal.urls")),
     path("app/", include("apps.tenancy.urls")),
     path("app/", include("apps.rbac.urls")),
     path("app/", include("apps.audit.urls")),

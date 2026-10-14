@@ -1,0 +1,208 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+
+{% block title %}Client Portal · FieldOps Nexus{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <!-- Header Banner -->
+  <div class="fx-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-3 border-bottom">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-7">FON-M13 Portal</span>
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 fs-7">
+          <span class="d-inline-block rounded-circle bg-success me-1" style="width: 6px; height: 6px;"></span>
+          Authorized Client
+        </span>
+      </div>
+      <h1 class="h3 fw-bold mb-1">{{ company_name }}</h1>
+      <p class="text-body-secondary mb-0">Welcome to your dedicated service and maintenance requester portal.</p>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <a href="{% url 'portal:request_create' %}" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
+        {% icon 'plus-circle' 16 %} Submit Request
+      </a>
+      <div class="text-end d-none d-sm-block">
+        <div class="small fw-semibold">{{ request.user.full_name }}</div>
+        <div class="small text-body-secondary">{{ request.user.email }}</div>
+      </div>
+      <div class="fx-avatar rounded-circle bg-dark text-white d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width: 42px; height: 42px;">
+        {{ request.user.full_name|slice:":1"|upper }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Confirmation Banner if Request was Created -->
+  {% if created_ref %}
+  <div class="alert alert-success d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 shadow-sm" role="alert" style="border-radius: var(--fx-radius);">
+    <div class="d-flex align-items-center gap-2">
+      {% icon 'check-circle' 22 %}
+      <div>
+        <strong>Service Request Created Successfully!</strong> Reference number: 
+        <span class="font-monospace fw-bold px-2 py-1 bg-white rounded border border-success-subtle text-success">{{ created_ref }}</span>.
+        Your request has been logged in PostgreSQL and queued for operations triage.
+      </div>
+    </div>
+    <a href="{% url 'portal:request_create' %}" class="btn btn-sm btn-outline-success">
+      {% icon 'plus-circle' 14 %} Submit Another Request
+    </a>
+  </div>
+  {% endif %}
+
+  <!-- Quick Status Grid -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-4">
+      <div class="card h-100 shadow-sm border" style="border-radius: var(--fx-radius);">
+        <div class="card-body p-3">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="text-body-secondary small fw-medium">Client Account</span>
+            <span class="badge bg-success text-white">Active</span>
+          </div>
+          <div class="fs-5 fw-bold text-truncate">{{ account.company_name|default:"Acme Corporation" }}</div>
+          <div class="small text-body-secondary mt-1">Verified organization partner</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card h-100 shadow-sm border" style="border-radius: var(--fx-radius);">
+        <div class="card-body p-3">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="text-body-secondary small fw-medium">Organization</span>
+            <span class="badge bg-secondary-subtle text-secondary">{{ org.timezone }}</span>
+          </div>
+          <div class="fs-5 fw-bold text-truncate">{{ org.name }}</div>
+          <div class="small text-body-secondary mt-1">Slug: {{ org.slug }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card h-100 shadow-sm border" style="border-radius: var(--fx-radius);">
+        <div class="card-body p-3">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="text-body-secondary small fw-medium">RBAC Security Boundary</span>
+            <span class="badge bg-info-subtle text-info">Client / Requester</span>
+          </div>
+          <div class="fs-5 fw-bold">Strictly Isolated</div>
+          <div class="small text-body-secondary mt-1">Restricted to authorized requests &amp; assets</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Service Requests (if any) -->
+  {% if recent_requests %}
+  <div class="card shadow-sm border mb-4" style="border-radius: var(--fx-radius);">
+    <div class="card-header bg-transparent py-3 border-bottom d-flex align-items-center justify-content-between">
+      <div class="fw-semibold">Your Recent Service Requests</div>
+      <div class="d-flex align-items-center gap-2">
+        <a href="{% url 'portal:requests_list' %}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+          {% icon 'list-check' 14 %} View All Requests
+        </a>
+        <a href="{% url 'portal:request_create' %}" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
+          {% icon 'plus' 14 %} New Request
+        </a>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table fx-table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Reference</th>
+            <th>Title</th>
+            <th>Asset</th>
+            <th>Site</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in recent_requests %}
+          <tr>
+            <td>
+              <a href="{% url 'portal:request_detail' r.pk %}" class="font-monospace fw-semibold text-primary text-decoration-none">
+                {{ r.number }}
+              </a>
+            </td>
+            <td class="fw-medium">{{ r.title }}</td>
+            <td>{{ r.asset.asset_tag }} <span class="text-body-secondary small">({{ r.asset.name }})</span></td>
+            <td><span class="badge bg-light text-dark border">{{ r.site.code }}</span></td>
+            <td>
+              {% if r.severity == "HIGH" or r.severity == "CRITICAL" %}
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ r.severity }}</span>
+              {% elif r.severity == "MEDIUM" %}
+              <span class="badge bg-warning-subtle text-warning border border-warning-subtle">{{ r.severity }}</span>
+              {% else %}
+              <span class="badge bg-secondary-subtle text-secondary">{{ r.severity }}</span>
+              {% endif %}
+            </td>
+            <td>{% status_badge r.status %}</td>
+            <td class="text-body-secondary small">{{ r.created_at|date:"Y-m-d H:i" }}</td>
+            <td class="text-end">
+              <a href="{% url 'portal:request_detail' r.pk %}" class="btn btn-sm btn-outline-primary py-0 px-2">
+                View
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Foundation Overview -->
+  <div class="card shadow-sm border mb-4" style="border-radius: var(--fx-radius);">
+    <div class="card-header bg-transparent py-3 border-bottom d-flex align-items-center justify-content-between">
+      <div class="fw-semibold">Requester Portal Overview</div>
+      <span class="small text-body-secondary">M13: Functionality 2 of 7</span>
+    </div>
+    <div class="card-body p-4">
+      <div class="row align-items-center g-4">
+        <div class="col-lg-8">
+          <h2 class="h5 fw-bold mb-2">Self-Service Request Submission</h2>
+          <p class="text-body-secondary mb-3">
+            Your client identity is authenticated through FieldOps Nexus single identity model with dedicated 
+            Client / Requester role governance. You can submit equipment breakdowns and maintenance requests 
+            directly into the enterprise operations queue.
+          </p>
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            <span class="badge bg-light text-dark border px-2 py-2">
+              {% icon 'shield' 14 %} portal.request.create
+            </span>
+            <span class="badge bg-light text-dark border px-2 py-2">
+              {% icon 'eye' 14 %} portal.request.view
+            </span>
+            <span class="badge bg-light text-dark border px-2 py-2">
+              {% icon 'check' 14 %} portal.request.confirm
+            </span>
+          </div>
+          <div>
+            <a href="{% url 'portal:request_create' %}" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1">
+              {% icon 'plus-circle' 14 %} Create Service Request Now
+            </a>
+          </div>
+        </div>
+        <div class="col-lg-4 text-center text-lg-end">
+          <div class="p-3 rounded bg-light border d-inline-block text-start w-100">
+            <div class="small fw-semibold text-uppercase text-body-secondary mb-2">Account Summary</div>
+            <div class="d-flex justify-content-between small py-1 border-bottom">
+              <span class="text-body-secondary">Account ID</span>
+              <span class="font-monospace text-truncate ms-2" style="max-width: 140px;">{{ account.id }}</span>
+            </div>
+            <div class="d-flex justify-content-between small py-1 border-bottom">
+              <span class="text-body-secondary">Membership</span>
+              <span class="badge bg-success-subtle text-success">{{ membership.status }}</span>
+            </div>
+            <div class="d-flex justify-content-between small py-1">
+              <span class="text-body-secondary">Status</span>
+              <span class="text-success fw-semibold">Enabled</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
