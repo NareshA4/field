@@ -1,0 +1,23 @@
+<div class="fx-card p-3 shadow-sm h-100">
+  <h6 class="fw-bold text-uppercase text-body-secondary small mb-3">{{ title }}</h6>
+  {% if items %}
+  <div class="d-flex flex-column gap-3">
+    {% for item in items %}
+    <div>
+      <div class="d-flex justify-content-between align-items-center mb-1 small">
+        <span class="fw-medium text-dark">{{ item.label }}</span>
+        <span class="text-body-secondary">{{ item.count }} ({{ item.pct }}%)</span>
+      </div>
+      <div class="progress" style="height: 10px; background-color: #E2E8F0; border-radius: 6px;">
+        <div class="progress-bar" role="progressbar"
+             style="width: {{ item.pct }}%; background: linear-gradient(90deg, #0B1F3A 0%, #1E3A8A 100%); border-radius: 6px;"
+             aria-valuenow="{{ item.pct }}" aria-valuemin="0" aria-valuemax="100">
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-body-secondary small py-3 text-center">No distribution data recorded in this period.</div>
+  {% endif %}
+</div>

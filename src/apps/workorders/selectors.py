@@ -45,5 +45,26 @@ def work_order_list(membership, organization, params=None):
     return qs
 
 
+work_orders_for = work_order_list
+
+
 def evidence_for(wo):
     return Attachment.objects.for_organization(wo.organization).filter(work_order_links__work_order=wo)
+
+
+def total_hours(organization, wo):
+    from django.db.models import Sum
+    from .models import WorkOrderLabor
+    res = WorkOrderLabor.objects.filter(organization=organization, work_order=wo).aggregate(total=Sum("hours"))["total"]
+    return res or 0
+
+
+def labor_for(organization, wo):
+    from .models import WorkOrderLabor
+    return WorkOrderLabor.objects.filter(organization=organization, work_order=wo).select_related("technician__user")
+
+
+def materials_for(organization, wo):
+    from .models import WorkOrderMaterial
+    return WorkOrderMaterial.objects.filter(organization=organization, work_order=wo)
+

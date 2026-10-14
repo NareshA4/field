@@ -101,6 +101,13 @@ class AdjustSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=300)
 
 
+class ScrapSerializer(serializers.Serializer):
+    warehouse = serializers.UUIDField()
+    part = serializers.UUIDField()
+    quantity = serializers.DecimalField(max_digits=14, decimal_places=3, help_text="Positive quantity")
+    reason = serializers.CharField(max_length=300, help_text="Reason for scrapping / damage")
+
+
 class LevelsSerializer(serializers.Serializer):
     warehouse = serializers.UUIDField()
     part = serializers.UUIDField()
@@ -314,8 +321,8 @@ class WarehouseViewSet(TenantAPIMixin, viewsets.ViewSet):
 @extend_schema(parameters=[ID_PARAM])
 class StockBalanceViewSet(TenantAPIMixin, viewsets.ViewSet):
     permission_map = {"list": "inventory.view", "retrieve": "inventory.view", "receive": "inventory.receive",
-                      "adjust": "inventory.adjust", "levels": "inventory.adjust", "transfer": "inventory.transfer",
-                      "movements": "inventory.view"}
+                      "adjust": "inventory.adjust", "scrap": "inventory.adjust", "levels": "inventory.adjust",
+                      "transfer": "inventory.transfer", "movements": "inventory.view"}
 
     def _wh(self, request, pk, code):
         return selectors.get_warehouse(request.membership, request.organization, pk, code)
@@ -359,6 +366,15 @@ class StockBalanceViewSet(TenantAPIMixin, viewsets.ViewSet):
         wh = self._wh(request, d["warehouse"], "inventory.adjust")
         part = selectors.get_part(request.organization, d["part"])
         mv = services.adjust(wh, part, d["delta"], reason=d["reason"], actor=request.user, request=request)
+        return Response(MovementSerializer(mv).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(request=ScrapSerializer, responses={201: MovementSerializer})
+    @action(detail=False, methods=["post"])
+    def scrap(self, request):
+        d = _validated(ScrapSerializer, request)
+        wh = self._wh(request, d["warehouse"], "inventory.adjust")
+        part = selectors.get_part(request.organization, d["part"])
+        mv = services.scrap(wh, part, d["quantity"], reason=d["reason"], actor=request.user, request=request)
         return Response(MovementSerializer(mv).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(request=LevelsSerializer, responses=BalanceSerializer)

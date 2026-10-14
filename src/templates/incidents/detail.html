@@ -122,9 +122,14 @@
 {% if tab == "overview" %}
 <div class="row g-3"><div class="col-lg-7">
   <div class="fx-card mb-3"><div class="fx-card-header">What happened</div><div class="fx-card-body"><dl class="fx-kv">
-    <dt>Description</dt><dd>{{ sr.description|default:"—"|linebreaksbr }}</dd><dt>Occurred</dt><dd>{{ sr.occurred_at|date:"d M Y H:i" }}</dd>
+    <dt>Description</dt><dd>{{ sr.description|default:"—"|linebreaksbr }}</dd>
+    {% if sr.failure_category %}<dt>Failure category</dt><dd>{{ sr.failure_category }}</dd>{% endif %}
+    {% if sr.assigned_team %}<dt>Assigned team</dt><dd>{{ sr.assigned_team }}</dd>{% endif %}
+    <dt>Occurred</dt><dd>{{ sr.occurred_at|date:"d M Y H:i" }}</dd>
     <dt>Service impact</dt><dd>{{ sr.get_service_impact_display }}{% if sr.impact_notes %} · {{ sr.impact_notes }}{% endif %}</dd>
     <dt>Reported by</dt><dd>{{ sr.reported_by.user.display_name }} on {{ sr.created_at|date:"d M Y H:i" }}</dd>
+    {% if sr.duplicate_of %}<dt>Duplicate of</dt><dd><a href="{% url 'incidents:detail' sr.duplicate_of.pk %}">{{ sr.duplicate_of.number }} · {{ sr.duplicate_of.title }}</a></dd>{% endif %}
+    {% if sr.override_reason %}<dt class="text-warning">Override reason</dt><dd class="text-warning-emphasis fw-medium">{{ sr.override_reason }}</dd>{% endif %}
     {% if sr.decision_reason %}<dt>Decision / reason</dt><dd>{{ sr.decision_reason }}</dd>{% endif %}</dl></div></div>
   </div>
 <div class="col-lg-5">

@@ -1,0 +1,285 @@
+{% extends "shell.html" %}
+{% block title %}{{ title }} · FieldOps Nexus{% endblock %}
+
+{% block content %}
+{% include "components/_page_header.html" %}
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <section class="alert alert-warning border-warning shadow-sm mb-4 {% if not detected_duplicates %}d-none{% endif %}" id="duplicateAlert" role="status" aria-live="polite" aria-atomic="false">
+      <div class="d-flex align-items-center mb-2">
+        <i class="bi bi-exclamation-triangle-fill fs-4 me-2 text-warning"></i>
+        <h2 class="h5 mb-0 fw-bold">Possible duplicate found</h2>
+      </div>
+      <p class="mb-3 text-secondary" id="duplicateSummary">
+        {% if detected_duplicates %}{{ detected_duplicates|length }} open report{{ detected_duplicates|length|pluralize }} match this asset, type, and report text. Review the details before continuing.{% else %}An open report matches this asset, type, and report text. Review it before continuing.{% endif %}
+      </p>
+      <div id="duplicateCards">
+        {% for dup in detected_duplicates %}{% include "incidents/_duplicate_card.html" %}{% endfor %}
+      </div>
+      <div class="mt-3 p-3 bg-light rounded border">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <button type="button" class="btn btn-warning" id="enableOverrideButton">
+            Create separate incident
+          </button>
+          <a class="btn btn-outline-secondary" href="{{ cancel_url }}">Cancel report</a>
+          <span class="small text-secondary">To link this report, choose “Link this report” on the matching incident.</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="fx-card"><div class="fx-card-body">
+      <form method="post" id="incidentReportForm" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="action" id="formAction" value="create">
+        <input type="hidden" name="existing_incident_id" id="existingIncidentId" value="">
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger py-2" role="alert">{{ form.non_field_errors.0 }}</div>
+        {% endif %}
+
+        <div class="fx-form-grid">
+          {% for field in form %}
+            {% if field.name == "failure_category" or field.name == "assigned_team" %}
+              {# These optional routing details are handled outside the compact report form. #}
+            {% elif field.name == "override_duplicate" %}
+              {{ field }}
+            {% elif field.name == "override_reason" %}
+              <div id="overrideReasonGroup" class="mb-3 {% if not detected_duplicates and not form.override_duplicate.value and not form.override_reason.value %}d-none{% endif %}">
+                <div class="alert alert-warning mb-2 py-2">
+                  <small><strong>Required:</strong> Explain why this is a separate incident. Enter at least 3 characters.</small>
+                </div>
+                {% include "components/_form_field.html" %}
+              </div>
+            {% else %}
+              <div>{% include "components/_form_field.html" %}</div>
+            {% endif %}
+          {% endfor %}
+        </div>
+
+        <div class="d-flex gap-2 align-items-center mt-3 pt-3 border-top">
+          <button type="submit" id="submitBtn" class="btn btn-primary" {% if detected_duplicates and not form.override_duplicate.value %}disabled{% endif %}>{% if form.override_duplicate.value %}Create incident with override{% else %}{{ submit|default:"Submit report" }}{% endif %}</button>
+          <a class="btn btn-link text-secondary" href="{{ cancel_url }}">Cancel</a>
+        </div>
+      </form>
+    </div></div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+function enableOverrideMode() {
+  var overrideField = document.getElementById('id_override_duplicate');
+  var reasonGroup = document.getElementById('overrideReasonGroup');
+  var reasonInput = document.getElementById('id_override_reason');
+  var ownedAssetReporter = {{ owned_asset_reporter|yesno:"true,false" }};
+  var submitButton = document.getElementById('submitBtn');
+  if (overrideField) overrideField.value = 'True';
+  if (reasonGroup) {
+    reasonGroup.classList.remove('d-none');
+  }
+  if (reasonInput) {
+    reasonInput.required = true;
+    reasonInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    reasonInput.focus({ preventScroll: true });
+  }
+  if (submitButton) {
+    submitButton.disabled = false;
+    submitButton.textContent = 'Create incident with override';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  var assetSelect = document.getElementById('id_asset');
+  var kindSelect = document.getElementById('id_kind');
+  var descInput = document.getElementById('id_description');
+  var titleInput = document.getElementById('id_title');
+  var alertEl = document.getElementById('duplicateAlert');
+  var summaryEl = document.getElementById('duplicateSummary');
+  var cardsEl = document.getElementById('duplicateCards');
+  var form = document.getElementById('incidentReportForm');
+  var overrideButton = document.getElementById('enableOverrideButton');
+  var submitButton = document.getElementById('submitBtn');
+  var overrideField = document.getElementById('id_override_duplicate');
+  var reasonInput = document.getElementById('id_override_reason');
+  var serverHasDuplicates = {{ detected_duplicates|length|default:0 }} > 0;
+  var requestNumber = 0;
+  var checkTimer = null;
+
+  function text(value, fallback) {
+    return value === null || value === undefined || value === '' ? (fallback || 'Not specified') : String(value);
+  }
+
+  function addDetail(list, label, value) {
+    var cell = document.createElement('div');
+    cell.className = 'col-6 col-lg-3';
+    var term = document.createElement('dt');
+    term.className = 'text-body-secondary';
+    term.textContent = label;
+    var detail = document.createElement('dd');
+    detail.className = 'text-break';
+    detail.textContent = text(value);
+    cell.append(term, detail);
+    list.appendChild(cell);
+  }
+
+  function makeCard(incident) {
+    var article = document.createElement('article');
+    article.className = 'card mb-3 border-warning-subtle';
+    var body = document.createElement('div');
+    body.className = 'card-body p-3 p-md-4';
+    var heading = document.createElement('div');
+    heading.className = 'd-flex flex-wrap justify-content-between align-items-start gap-2 mb-3';
+    var headingText = document.createElement('div');
+    var numberLink = document.createElement(ownedAssetReporter ? 'span' : 'a');
+    numberLink.className = 'fs-5 fw-semibold text-decoration-none';
+    if (!ownedAssetReporter) {
+      numberLink.href = '/app/incidents/' + encodeURIComponent(incident.id) + '/?duplicate_review=1';
+      numberLink.target = '_blank';
+      numberLink.rel = 'noopener noreferrer';
+    }
+    numberLink.textContent = text(incident.number, 'Existing incident');
+    var title = document.createElement('div');
+    title.className = 'fw-semibold mt-1';
+    title.textContent = text(incident.title, 'No title');
+    headingText.append(numberLink, title);
+    var badge = document.createElement('span');
+    badge.className = 'badge text-bg-secondary';
+    badge.textContent = text(incident.status_display || incident.status);
+    heading.append(headingText, badge);
+
+    var details = document.createElement('dl');
+    details.className = 'row g-2 small mb-3';
+    addDetail(details, 'Type', incident.kind_display || incident.kind);
+    addDetail(details, 'Asset / site', [incident.asset_tag, incident.asset_name, incident.site_code].filter(Boolean).join(' · '));
+    addDetail(details, 'Severity', incident.severity_display || incident.severity);
+    addDetail(details, 'Service impact', incident.impact_display || incident.service_impact_display || incident.impact);
+    addDetail(details, 'Failure category', incident.failure_category || incident.category);
+    addDetail(details, 'Assigned team', incident.assigned_team);
+    addDetail(details, 'Linked work order', incident.linked_work_order ? incident.linked_work_order + (incident.linked_work_order_status ? ' · ' + incident.linked_work_order_status : '') : 'None');
+    addDetail(details, 'Reported', incident.created_at_display || incident.created_at);
+    addDetail(details, 'Incident time', incident.occurred_at_display);
+    addDetail(details, 'Downtime started', incident.downtime_started_at_display);
+    addDetail(details, 'Reported by', incident.reported_by);
+    if (incident.impact_notes) addDetail(details, 'Impact notes', incident.impact_notes);
+
+    var descriptionBlock = document.createElement('div');
+    descriptionBlock.className = 'border-top pt-3 mb-3';
+    var descriptionLabel = document.createElement('div');
+    descriptionLabel.className = 'small fw-semibold mb-1';
+    descriptionLabel.textContent = 'Description';
+    var description = document.createElement('div');
+    description.className = 'small text-break';
+    description.style.whiteSpace = 'pre-wrap';
+    description.textContent = text(incident.description, 'No description on file; title was used for comparison.');
+    descriptionBlock.append(descriptionLabel, description);
+
+    var actions = document.createElement('div');
+    actions.className = 'd-flex flex-wrap gap-2';
+    var open = document.createElement('a');
+    open.className = 'btn btn-sm btn-outline-primary';
+    open.href = numberLink.href;
+    open.target = '_blank';
+    open.rel = 'noopener noreferrer';
+    open.textContent = 'Open existing incident';
+    var link = document.createElement('button');
+    link.className = 'btn btn-sm btn-outline-success';
+    link.type = 'button';
+    link.dataset.linkDuplicate = '';
+    link.dataset.duplicateId = incident.id;
+    link.dataset.duplicateNumber = incident.number;
+    link.textContent = 'Link this report';
+    if (!ownedAssetReporter) actions.append(open);
+    actions.append(link);
+    body.append(heading, details, descriptionBlock, actions);
+    article.appendChild(body);
+    return article;
+  }
+
+  function showDuplicates(duplicates) {
+    cardsEl.replaceChildren();
+    duplicates.forEach(function(incident) { cardsEl.appendChild(makeCard(incident)); });
+    summaryEl.textContent = duplicates.length + ' open report' + (duplicates.length === 1 ? '' : 's') +
+      ' match this asset, type, and report text. Review the details before continuing.';
+    alertEl.classList.toggle('d-none', duplicates.length === 0);
+    if (overrideField && overrideField.value !== 'True') {
+      if (submitButton) submitButton.disabled = duplicates.length > 0;
+    }
+    if (!duplicates.length && !serverHasDuplicates && overrideField && overrideField.value !== 'True') {
+      document.getElementById('overrideReasonGroup').classList.add('d-none');
+      if (reasonInput) { reasonInput.required = false; reasonInput.value = ''; }
+      if (submitButton) submitButton.textContent = 'Submit report';
+    }
+  }
+
+  function runCheck() {
+    var assetId = assetSelect ? assetSelect.value : '';
+    var reportText = (descInput ? descInput.value : '').trim() || (titleInput ? titleInput.value : '').trim();
+    if (!assetId || !reportText) {
+      if (!serverHasDuplicates) showDuplicates([]);
+      return;
+    }
+    var thisRequest = ++requestNumber;
+    var params = new URLSearchParams({
+      asset: assetId,
+      kind: kindSelect ? kindSelect.value : 'INCIDENT',
+      title: titleInput ? titleInput.value : '',
+      description: descInput ? descInput.value : ''
+    });
+
+    fetch('/app/incidents/check-duplicate/?' + params.toString())
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (thisRequest === requestNumber) {
+          serverHasDuplicates = false;
+          showDuplicates(data.duplicate_found && data.duplicates ? data.duplicates : []);
+        }
+      }).catch(function() { /* The backend repeats this check when the report is submitted. */ });
+  }
+
+  function scheduleCheck() {
+    clearTimeout(checkTimer);
+    checkTimer = setTimeout(runCheck, 400);
+  }
+
+  [assetSelect, kindSelect, descInput, titleInput].forEach(function(el) {
+    if (el) {
+      el.addEventListener('change', scheduleCheck);
+      el.addEventListener('input', scheduleCheck);
+    }
+  });
+
+  if (overrideButton) overrideButton.addEventListener('click', enableOverrideMode);
+
+  // Client validation on submit
+  if (form) {
+    cardsEl.addEventListener('click', function(event) {
+      var button = event.target.closest('[data-link-duplicate]');
+      if (!button) return;
+      var incidentNumber = button.dataset.duplicateNumber;
+      if (!confirm('Link this report to ' + incidentNumber + '? The new report will be saved as a linked follow-up.')) return;
+      document.getElementById('formAction').value = 'link_duplicate';
+      document.getElementById('existingIncidentId').value = button.dataset.duplicateId;
+      form.requestSubmit();
+    });
+    form.addEventListener('submit', function(e) {
+      var actionInput = document.getElementById('formAction');
+      if (actionInput && actionInput.value === 'link_duplicate') {
+        return;
+      }
+      if (overrideField && (overrideField.value === 'True' || overrideField.value === '1')) {
+        if (!reasonInput || !reasonInput.value.trim() || reasonInput.value.trim().length < 3) {
+          e.preventDefault();
+          alert('An override reason of at least 3 characters is mandatory when overriding duplicate detection.');
+          enableOverrideMode();
+        }
+      }
+    });
+  }
+  runCheck();
+});
+</script>
+{% endblock %}
+

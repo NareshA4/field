@@ -1,0 +1,137 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+
+{% block title %}My Work Cockpit · {{ shell_org.name }}{% endblock %}
+
+{% block content %}
+<div class="fx-page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div>
+    <h1 class="h3 fw-bold mb-1">My Work Cockpit</h1>
+    <div class="text-body-secondary small">Personal operational workload, assigned jobs, and labor utilization.</div>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a href="{% url 'dashboards:hub' %}" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
+      {% icon 'grid' 14 %} Operational Hub
+    </a>
+    <a href="{% url 'workspace:my_jobs' %}" class="btn btn-primary btn-sm d-flex align-items-center gap-1">
+      {% icon 'clipboard-check' 14 %} Technician Workspace
+    </a>
+  </div>
+</div>
+
+<!-- Date Window Filter -->
+<div class="fx-card p-3 mb-4 shadow-sm">
+  <form method="get" class="row g-2 align-items-end">
+    <div class="col-12 col-md-4">
+      <label class="form-label small fw-semibold text-body-secondary">Reporting Window Start</label>
+      <input type="date" name="from" value="{{ date_from }}" class="form-control form-control-sm">
+    </div>
+    <div class="col-12 col-md-4">
+      <label class="form-label small fw-semibold text-body-secondary">Reporting Window End</label>
+      <input type="date" name="to" value="{{ date_to }}" class="form-control form-control-sm">
+    </div>
+    <div class="col-12 col-md-4 d-flex gap-2">
+      <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Update Period</button>
+      <a href="{% url 'dashboards:my_work' %}" class="btn btn-outline-secondary btn-sm">Reset</a>
+    </div>
+  </form>
+</div>
+
+<!-- Personal KPI Summary Cards -->
+<div class="row g-3 mb-4">
+  {% include "dashboards/_kpi_card.html" with title="Open Assigned Jobs" value=kpis.open_jobs unit="jobs" hint="Active jobs in your assigned queue" %}
+  {% include "dashboards/_kpi_card.html" with title="Currently In Progress" value=kpis.active_in_progress unit="active" hint="Job currently being executed" %}
+  {% include "dashboards/_kpi_card.html" with title="Completed in Window" value=kpis.completed_in_window unit="done" hint="Jobs completed within window" %}
+  {% include "dashboards/_kpi_card.html" with title="Logged Labor Hours" value=kpis.logged_hours unit="hours" hint="Recorded labor entries in period" %}
+  {% include "dashboards/_kpi_card.html" with title="Workday Utilization" value=kpis.utilization unit="capacity" hint="Against 8-hour workday capacity" %}
+</div>
+
+<!-- Capacity Utilization CSS Bar -->
+<div class="fx-card p-3 shadow-sm mb-4">
+  <h6 class="fw-bold text-uppercase text-body-secondary small mb-2">Workday Capacity Utilization</h6>
+  <div class="d-flex justify-content-between align-items-center mb-1 small">
+    <span class="text-body-secondary">Logged {{ kpis.logged_hours }} of standard capacity ({{ data.details.available_capacity_hours }} h)</span>
+    <span class="fw-bold text-dark">{{ util_pct }}%</span>
+  </div>
+  <div class="progress" style="height: 12px; background-color: #E2E8F0; border-radius: 6px;">
+    <div class="progress-bar" role="progressbar"
+         style="width: {{ util_pct }}%; background: linear-gradient(90deg, #10B981 0%, #059669 100%); border-radius: 6px;"
+         aria-valuenow="{{ util_pct }}" aria-valuemin="0" aria-valuemax="100">
+    </div>
+  </div>
+</div>
+
+<!-- Assigned Jobs Queue Table -->
+<div class="fx-card p-3 shadow-sm mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h6 class="fw-bold text-uppercase text-body-secondary small mb-0">Active Assigned Work Orders</h6>
+    <a href="{% url 'workspace:my_jobs' %}" class="small text-decoration-none">Open Workspace &rarr;</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover table-sm align-middle mb-0">
+      <thead>
+        <tr class="table-light small">
+          <th>Order Number</th>
+          <th>Title</th>
+          <th>Site</th>
+          <th>Asset</th>
+          <th>Priority</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in open_jobs %}
+        <tr>
+          <td><span class="fw-semibold">{{ job.order_number }}</span></td>
+          <td>{{ job.title }}</td>
+          <td><span class="badge bg-light text-dark border">{{ job.site.code }}</span></td>
+          <td>{{ job.asset.name|default:"-" }}</td>
+          <td><span class="badge bg-secondary">{{ job.get_priority_display }}</span></td>
+          <td><span class="badge bg-primary">{{ job.get_status_display }}</span></td>
+          <td>
+            <a href="{% url 'workspace:job_detail' job.pk %}" class="btn btn-outline-primary btn-sm py-0 px-2">
+              Execute Job
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center py-3 text-body-secondary">No active work orders currently assigned to you.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Recent Labor Entries Table -->
+<div class="fx-card p-3 shadow-sm">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h6 class="fw-bold text-uppercase text-body-secondary small mb-0">Recent Labor Activity Log</h6>
+    <span class="text-body-secondary small">Recorded wrench and transit time</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover table-sm align-middle mb-0">
+      <thead>
+        <tr class="table-light small">
+          <th>Date</th>
+          <th>Work Order</th>
+          <th>Hours</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in recent_labor %}
+        <tr>
+          <td>{{ entry.work_date|date:"Y-m-d" }}</td>
+          <td><span class="fw-semibold">{{ entry.work_order.order_number }}</span> - {{ entry.work_order.title }}</td>
+          <td class="fw-bold text-dark">{{ entry.hours }} h</td>
+          <td>{{ entry.description|default:"-" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center py-3 text-body-secondary">No labor entries recorded in this window.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

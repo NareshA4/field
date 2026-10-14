@@ -118,3 +118,9 @@ class IssueForm(BootstrapFormMixin, forms.Form):
 class QuantityForm(BootstrapFormMixin, forms.Form):
     quantity = forms.DecimalField(min_value=0.001, required=False, **QTY)
     reason = forms.CharField(max_length=300, required=False)
+
+
+class ScrapForm(BootstrapFormMixin, forms.Form):
+    quantity = forms.DecimalField(min_value=0.001, **QTY)
+    reason = forms.CharField(max_length=300, label="Reason (scrap / damage / expiration)")
+

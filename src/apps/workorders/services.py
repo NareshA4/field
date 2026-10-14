@@ -688,6 +688,9 @@ def _assert_assignee_or_dispatcher(wo, membership):
     assert_can_execute(wo, membership)
 
 
+assert_can_execute = _assert_assignee_or_dispatcher
+
+
 def _assert_assignee_or_authorized(wo, membership, permission):
     if (wo.assigned_to_id != membership.pk and
             not rbac.has_permission(membership, permission, wo.site)):
@@ -748,16 +751,22 @@ def complete_work_order(wo, *, membership, actor, resolution_notes, expected_ver
 @transaction.atomic
 def submit_for_review(wo, *, membership, actor, expected_version=None, request=None):
     """Persist the documented COMPLETED -> SUPERVISOR_REVIEW transition separately."""
-    code = "work_order.review" if rbac.has_permission(membership, "work_order.review", wo.site) else "work_order.complete"
-    _need(membership, code, wo.site)
+    can_complete = bool(membership and rbac.has_permission(membership, "work_order.complete", wo.site))
+    can_review = bool(membership and rbac.has_permission(membership, "work_order.review", wo.site))
+    if not (can_complete or can_review):
+        raise PermissionDenied("You do not have permission to submit this work order for review.")
     wo = WorkOrder.objects.select_for_update().get(pk=wo.pk)
     _transition(wo, WorkOrder.Status.SUPERVISOR_REVIEW)
-    if code == "work_order.complete" and wo.assigned_to_id != membership.pk:
-        raise PermissionDenied("Only the assigned technician may submit this work order for review.")
+    if wo.assigned_to_id != membership.pk and not can_review:
+        raise PermissionDenied("Only the assigned technician or an authorized supervisor may submit this work order for review.")
     _check_completion(wo, wo.resolution_notes)
     return transition_work_order(wo, WorkOrder.Status.SUPERVISOR_REVIEW, membership=membership, actor=actor,
-        permission=code, action="submitted_for_review", expected_version=expected_version,
+        permission="work_order.review" if can_review else "work_order.complete",
+        action="submitted_for_review", expected_version=expected_version,
         request=request)
+
+
+submit_work_order_for_review = submit_for_review
 
 
 @transaction.atomic
@@ -781,7 +790,7 @@ def review_work_order(wo, *, membership, actor, approved, notes="", expected_ver
     if approved:
         blockers = closure_blockers(wo)
         if blockers:
-            raise Conflict("; ".join(blockers), code="closure_blocked")
+            raise Conflict("; ".join(blockers), code="closure_blocked", details={"blockers": blockers})
         _check_completion(wo, wo.resolution_notes)
         target = WorkOrder.Status.CLOSED
         changes = {"closed_at": timezone.now(), "closed_by": actor, "supervisor_notes": notes}
@@ -860,7 +869,7 @@ def register_checklist_reference(wo, *, membership, actor, template_ref, instanc
 
 
 @transaction.atomic
-def record_labor(wo, *, membership, actor, work_date, hours, description="Labor performed", technician=None, notes="", request=None):
+def record_labor(wo, *, membership, actor, work_date, hours, description="Labor recorded", technician=None, notes="", request=None, **kwargs):
     _need(membership, "work_order.record", wo.site)
     _assert_assignee_or_dispatcher(wo, membership)
     if wo.status not in (WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD):
@@ -869,11 +878,11 @@ def record_labor(wo, *, membership, actor, work_date, hours, description="Labor 
         hours = Decimal(str(hours))
     except Exception as exc:
         raise ValidationFailed("Hours must be a decimal between 0 and 24.") from exc
-    desc = (description or notes or "Labor performed").strip()
+    desc = (description or notes or kwargs.get("notes") or "Labor recorded").strip()
     if hours <= 0 or hours > 24 or work_date > timezone.localdate() or not desc:
         raise ValidationFailed("Labor requires 0 < hours <= 24, a non-future date, and a description.")
-    tech = technician or membership
-    entry = WorkOrderLabor.objects.create(organization=wo.organization, work_order=wo, technician=tech,
+    target_tech = technician or membership
+    entry = WorkOrderLabor.objects.create(organization=wo.organization, work_order=wo, technician=target_tech,
                                           entered_by=actor, work_date=work_date, hours=hours,
                                           description=desc)
     _record(wo, actor=actor, action="labor_recorded", metadata={"labor_id": str(entry.pk), "hours": str(hours)},
@@ -894,23 +903,29 @@ def record_work_update(wo, *, membership, actor, update, request=None):
     return wo
 
 
+def assert_recordable(wo, membership):
+    _assert_assignee_or_dispatcher(wo, membership)
+
+
 @transaction.atomic
-def record_material(wo, *, membership, actor, item_name, quantity, unit="", part_reference="", notes="", request=None):
+def record_material(wo, *, membership, actor, item_name="", quantity, unit="", part_reference="", notes="", description="", part_number="", part_line=None, request=None):
     _need(membership, "work_order.record", wo.site)
     _assert_assignee_or_dispatcher(wo, membership)
     if wo.status not in (WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD):
         raise Conflict("Materials can only be recorded during active work.")
+    name = (item_name or description or "").strip()
+    ref = (part_reference or part_number or "").strip()
     try:
         quantity = Decimal(str(quantity))
     except Exception as exc:
         raise ValidationFailed("Quantity must be a positive decimal.") from exc
-    if quantity <= 0 or not item_name.strip():
+    if quantity <= 0 or not name:
         raise ValidationFailed("Material name and positive quantity are required.")
     entry = WorkOrderMaterial.objects.create(organization=wo.organization, work_order=wo, entered_by=actor,
-        item_name=item_name.strip(), quantity=quantity, unit=unit.strip(), part_reference=part_reference.strip(),
-        notes=notes.strip())
+        item_name=name, quantity=quantity, unit=unit.strip(), part_reference=ref,
+        part_line=part_line, notes=notes.strip())
     _record(wo, actor=actor, action="material_recorded", metadata={"material_id": str(entry.pk),
-            "quantity": str(quantity), "inventory_movement": False}, request=request)
+            "quantity": str(quantity), "inventory_movement": part_line is not None}, request=request)
     return entry
 
 
@@ -934,16 +949,16 @@ def closure_blockers(wo):
     blockers = []
     if len((wo.resolution_notes or "").strip()) < 10:
         blockers.append("Resolution notes must contain at least 10 characters.")
+    from apps.checklists import services as checklist_services
     try:
-        from apps.checklists.services import checklist_blockers as m08_checklist_blockers
-        blockers.extend(m08_checklist_blockers(wo))
+        blockers.extend(checklist_services.checklist_blockers(wo))
     except Exception:
         from .checklist_adapter import get_checklist_status
         checklist = get_checklist_status(wo)
         if not checklist.is_valid:
             blockers.append(checklist.message)
     if wo.work_type in (WorkOrder.WorkType.CORRECTIVE, WorkOrder.WorkType.INSTALLATION) and not wo.completion_evidence.exists():
-        blockers.append("Completion evidence is required.")
+        blockers.append("Attach completion evidence before completing this work order.")
     return blockers
 
 

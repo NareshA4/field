@@ -17,8 +17,27 @@ ORDERINGS = {"-created_at": "-created_at", "created_at": "created_at", "number":
              "severity": "severity", "status": "status"}
 
 
+def is_owned_asset_reporter(membership) -> bool:
+    """Client requesters may create reports only for assets explicitly assigned to their membership."""
+    if membership is None or not rbac.has_permission_anywhere(membership, "incident.report_owned"):
+        return False
+    return not rbac.has_permission_anywhere(membership, "incident.create")
+
+
 def requests_for(membership, org, code: str = "incident.view"):
     qs = ServiceRequest.objects.for_organization(org).select_related("asset", "site", "reported_by__user")
+    from apps.rbac.models import MembershipRole
+
+    role_keys = set(MembershipRole.objects.filter(membership=membership).values_list("role__system_key", flat=True))
+    if "client_requester" in role_keys and not rbac.has_permission_anywhere(membership, "incident.create"):
+        return qs.filter(reported_by=membership)
+    # Technician templates historically also carried ``incident.view``. Keep the visible request set limited to
+    # their own reports and assigned work even if an additive role sync left that older grant in place.
+    if code == "incident.view":
+        broader_roles = {"owner", "admin", "operations_manager", "asset_manager", "maintenance_planner",
+                         "supervisor", "stores_manager", "service_manager", "auditor"}
+        if "technician" in role_keys and not (role_keys & broader_roles):
+            code = "incident.view_assigned"
     if code == "incident.view_assigned":
         cond = Q(pk__isnull=True)  # matches nothing
         full = rbac.site_scope(membership, "incident.view")

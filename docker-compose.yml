@@ -19,6 +19,7 @@ x-app: &app
     redis: {condition: service_healthy}
   volumes:
     - media:/app/media
+    - ./src:/app/src
 
 services:
   db:

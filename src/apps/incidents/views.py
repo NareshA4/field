@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.http import Http404
 from django.shortcuts import redirect, render
 from django.views import View
 
@@ -35,7 +36,7 @@ class IncidentBase(TenantPermissionMixin, View):
 
 
 class RequestListView(IncidentBase):
-    required_permission = "incident.view"
+    required_permission = "incident.view_assigned"
 
     def get(self, request):
         m, org = request.membership, request.organization
@@ -69,17 +70,67 @@ class RequestListView(IncidentBase):
             "page": page, "filters": request.GET, "statuses": ServiceRequest.Status.choices,
             "severities": ServiceRequest.Severity.choices, "kinds": ServiceRequest.Kind.choices,
             "sites": site_selectors.sites_for(m, org, "incident.view").order_by("code"),
-            "can_create": rbac.has_permission_anywhere(m, "incident.create")})
+            "can_create": (rbac.has_permission_anywhere(m, "incident.create") or
+                           selectors.is_owned_asset_reporter(m))})
+
+
+class RequestCheckDuplicateView(IncidentBase):
+    required_permission = "incident.create"
+
+    def dispatch(self, request, *args, **kwargs):
+        if selectors.is_owned_asset_reporter(request.membership):
+            self.required_permission = "incident.report_owned"
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        from django.http import JsonResponse
+        asset_id = request.GET.get("asset")
+        if not asset_id:
+            return JsonResponse({"duplicate_found": False, "duplicates": []})
+        if selectors.is_owned_asset_reporter(request.membership):
+            from apps.assets.models import Asset
+
+            valid_asset = Asset.objects.for_organization(request.organization).filter(
+                pk=asset_id, owner=request.membership).exclude(status__in=("RETIRED", "DISPOSED")).exists()
+            if not valid_asset:
+                raise Http404
+        else:
+            asset = asset_selectors.get_asset(request.membership, request.organization, asset_id, "asset.view")
+            need(request, "incident.create", asset.site_id)
+        duplicates = services.find_duplicate_incidents(
+            request.organization,
+            asset_id=asset_id,
+            kind=request.GET.get("kind", "INCIDENT"),
+            failure_category=request.GET.get("failure_category", ""),
+            service_impact=request.GET.get("service_impact", ""),
+            severity=request.GET.get("severity", ""),
+            description=request.GET.get("description", ""),
+            title=request.GET.get("title", ""),
+        )
+        return JsonResponse({
+            "duplicate_found": len(duplicates) > 0,
+            "duplicates": duplicates,
+        })
 
 
 class RequestCreateView(IncidentBase):
     required_permission = "incident.create"
     crumbs = [("Incidents & requests", "/app/incidents/"), ("Report", None)]
 
+    def dispatch(self, request, *args, **kwargs):
+        if selectors.is_owned_asset_reporter(request.membership):
+            self.required_permission = "incident.report_owned"
+        return super().dispatch(request, *args, **kwargs)
+
     def _assets(self, request, wanted=None):
         # The asset must lie in the caller's site scope (asset.view + incident.create), so a report can never be
         # raised against an asset outside the reporter's sites.
         m, org = request.membership, request.organization
+        if selectors.is_owned_asset_reporter(m):
+            from apps.assets.models import Asset
+
+            return Asset.objects.for_organization(org).filter(owner=m).exclude(
+                status__in=("RETIRED", "DISPOSED")).select_related("site").order_by("asset_tag")
         scope = rbac.site_scope(m, "incident.create")
         qs = asset_selectors.assets_for(m, org, "asset.view")
         return scope.filter(qs.distinct(), "site_id")
@@ -87,25 +138,130 @@ class RequestCreateView(IncidentBase):
     def get(self, request):
         form = RequestForm(assets=self._assets(request, request.GET.get("asset")),
                            initial={"asset": request.GET.get("asset")})
-        return form_page(request, title="Report an incident / request", form=form, submit="Submit report",
-                         cancel_url="/app/incidents/", crumbs=self.crumbs,
-                         subtitle="Describe what failed and its impact. A supervisor will triage it.")
+        return render(request, "incidents/create.html", {
+            "title": "Report an incident / request",
+            "form": form,
+            "owned_asset_reporter": selectors.is_owned_asset_reporter(request.membership),
+            "cancel_url": "/app/incidents/",
+            "crumbs": self.crumbs,
+            "subtitle": "Describe what failed and its impact. A supervisor will triage it.",
+            "detected_duplicates": None,
+        })
 
     def post(self, request):
+        if request.POST.get("action") == "link_duplicate":
+            form = RequestForm(request.POST, assets=self._assets(request, request.POST.get("asset")))
+            if not form.is_valid():
+                return render(request, "incidents/create.html", {
+                    "title": "Report an incident / request", "form": form,
+                    "owned_asset_reporter": selectors.is_owned_asset_reporter(request.membership),
+                    "cancel_url": "/app/incidents/", "crumbs": self.crumbs,
+                    "subtitle": "Correct the report details before linking it.",
+                    "detected_duplicates": None,
+                }, status=400)
+            existing_id = request.POST.get("existing_incident_id")
+            report_permission = ("incident.report_owned" if selectors.is_owned_asset_reporter(request.membership)
+                                 else "incident.create")
+            if selectors.is_owned_asset_reporter(request.membership):
+                existing_sr = ServiceRequest.objects.for_organization(request.organization).filter(
+                    pk=existing_id).select_related("asset", "site").first()
+                if existing_sr is None:
+                    raise Http404
+            else:
+                existing_sr = or404(selectors.get_request, request.membership, request.organization,
+                                    existing_id, report_permission)
+            need(request, report_permission, existing_sr.site_id)
+            d = form.cleaned_data
+            if (selectors.is_owned_asset_reporter(request.membership) and
+                    existing_sr.asset.owner_id != request.membership.pk):
+                raise Http404
+            if d["asset"].pk != existing_sr.asset_id or d["kind"] != existing_sr.kind:
+                form.add_error(None, "The linked incident must match the report's asset and type.")
+                return render(request, "incidents/create.html", {
+                    "title": "Report an incident / request", "form": form,
+                    "owned_asset_reporter": selectors.is_owned_asset_reporter(request.membership),
+                    "cancel_url": "/app/incidents/", "crumbs": self.crumbs,
+                    "subtitle": "Review the report details before linking it.",
+                    "detected_duplicates": None,
+                }, status=400)
+            matches = services.find_duplicate_incidents(
+                request.organization, asset_id=d["asset"].pk, kind=d["kind"],
+                description=d["description"], title=d["title"],
+            )
+            if str(existing_sr.pk) not in {item["id"] for item in matches}:
+                form.add_error(None, "Select one of the matching active incidents shown above.")
+                return render(request, "incidents/create.html", {
+                    "title": "Report an incident / request", "form": form,
+                    "owned_asset_reporter": selectors.is_owned_asset_reporter(request.membership),
+                    "cancel_url": "/app/incidents/", "crumbs": self.crumbs,
+                    "subtitle": "Review the matching incident before linking this report.",
+                    "detected_duplicates": matches,
+                }, status=400)
+            try:
+                linked = services.link_duplicate_request(
+                    existing_sr,
+                    reporter=request.membership,
+                    actor=request.user,
+                    title=d["title"],
+                    description=d["description"],
+                    notes=d["impact_notes"],
+                    severity=d["severity"],
+                    service_impact=d["service_impact"],
+                    failure_category=d["failure_category"],
+                    assigned_team=d["assigned_team"],
+                    request=request,
+                )
+            except DomainError as exc:
+                form.add_error(None, exc.message)
+                return render(request, "incidents/create.html", {
+                    "title": "Report an incident / request", "form": form,
+                    "owned_asset_reporter": selectors.is_owned_asset_reporter(request.membership),
+                    "cancel_url": "/app/incidents/", "crumbs": self.crumbs,
+                    "subtitle": "The selected incident could not be linked.",
+                    "detected_duplicates": None,
+                }, status=exc.status_code)
+            messages.success(request, f"New report {linked.number} linked to existing incident {existing_sr.number}.")
+            if selectors.is_owned_asset_reporter(request.membership):
+                return redirect("incidents:detail", pk=linked.pk)
+            return redirect(f"/app/incidents/{existing_sr.pk}/?duplicate_review=1")
+
         form = RequestForm(request.POST, assets=self._assets(request, request.POST.get("asset")))
         if form.is_valid():
             d = dict(form.cleaned_data)
             asset = d.pop("asset")
+            override_duplicate = d.pop("override_duplicate", False)
+            override_reason = d.pop("override_reason", "")
             try:
-                sr = services.create_request(request.organization, asset=asset, reporter=request.membership,
-                                             actor=request.user, request=request,
-                                             **{k: v for k, v in d.items() if v not in (None, "")})
+                sr = services.create_request(
+                    request.organization, asset=asset, reporter=request.membership,
+                    actor=request.user, request=request,
+                    override_duplicate=override_duplicate,
+                    override_reason=override_reason,
+                    **{k: v for k, v in d.items() if v not in (None, "")}
+                )
                 messages.success(request, f"{sr.number} reported.")
                 return redirect("incidents:detail", pk=sr.pk)
+            except services.DuplicateIncidentError as exc:
+                return render(request, "incidents/create.html", {
+                    "title": "Report an incident / request",
+                    "owned_asset_reporter": selectors.is_owned_asset_reporter(request.membership),
+                    "form": form,
+                    "cancel_url": "/app/incidents/",
+                    "crumbs": self.crumbs,
+                    "subtitle": "Possible duplicate incident detected. Review existing details below.",
+                    "detected_duplicates": exc.duplicates,
+                }, status=409)
             except DomainError as exc:
                 form.add_error(None, exc.message)
-        return form_page(request, title="Report an incident / request", form=form, submit="Submit report",
-                         cancel_url="/app/incidents/", crumbs=self.crumbs, status=400)
+        return render(request, "incidents/create.html", {
+            "title": "Report an incident / request",
+            "owned_asset_reporter": selectors.is_owned_asset_reporter(request.membership),
+            "form": form,
+            "cancel_url": "/app/incidents/",
+            "crumbs": self.crumbs,
+            "subtitle": "Describe what failed and its impact. A supervisor will triage it.",
+            "detected_duplicates": None,
+        }, status=400)
 
 
 class RequestEditView(IncidentBase):
@@ -140,9 +296,18 @@ class RequestEditView(IncidentBase):
 class RequestDetailView(IncidentBase):
     required_permission = "incident.view"
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.GET.get("duplicate_review") == "1":
+            self.required_permission = "incident.create"
+        return super().dispatch(request, *args, **kwargs)
+
     def get(self, request, pk):
         m, org = request.membership, request.organization
-        sr = _req(request, pk)
+        if request.GET.get("duplicate_review") == "1":
+            sr = or404(selectors.get_request, m, org, pk, "incident.create")
+            need(request, "incident.create", sr.site_id)
+        else:
+            sr = _req(request, pk)
         tab = request.GET.get("tab", "overview")
         if tab not in dict(TABS):
             tab = "overview"
@@ -155,18 +320,26 @@ class RequestDetailView(IncidentBase):
         if apps.is_installed("apps.workorders"):
             from apps.workorders.models import WorkOrder
 
-            linked_work_order = WorkOrder.objects.for_organization(org).filter(
+            linked_orders = WorkOrder.objects.for_organization(org).filter(
                 source_reference=sr.number,
                 source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
-            ).first()
+            )
+            if linked_orders.exists():
+                can["create_work_order"] = False
+                if (rbac.has_permission(m, "work_order.view", sr.site_id) or
+                        rbac.has_permission(m, "work_order.view_assigned", sr.site_id)):
+                    linked_work_order = linked_orders.first()
+            else:
+                can["create_work_order"] = (sr.status == "APPROVED" and
+                                             rbac.has_permission(m, "work_order.create", sr.site_id))
 
         can["triage"] = (sr.status == "NEW" and rbac.has_permission(m, "incident.triage", sr.site_id))
         can["approve"] = (sr.status == "TRIAGED" and rbac.has_permission(m, "incident.approve", sr.site_id))
         can["reject"] = (sr.status == "TRIAGED" and rbac.has_permission(m, "incident.approve", sr.site_id))
-        can["create_work_order"] = (sr.status == "APPROVED" and
-                                     rbac.has_permission(m, "work_order.create", sr.site_id) and
-                                     not linked_work_order)
-
+        if "create_work_order" not in can:
+            can["create_work_order"] = (sr.status == "APPROVED" and
+                                         rbac.has_permission(m, "work_order.create", sr.site_id) and
+                                         not linked_work_order)
         transitions = [
             {"action": t.action, "label": t.label, "url": f"/app/incidents/{sr.pk}/transition/{t.action}/", "style": BUTTON_STYLES.get(
                 t.action, "primary"), "reason": t.action in REASON_REQUIRED, "confirm": CONFIRMS.get(t.action)}

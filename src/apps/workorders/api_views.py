@@ -18,6 +18,7 @@ from .workflow import ACTION_PERMISSIONS, WORK_ORDER_STATUS
 
 
 class WorkOrderSerializer(serializers.ModelSerializer):
+    number = serializers.CharField(read_only=True)
     asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True)
     asset_name = serializers.CharField(source="asset.name", read_only=True)
     site_code = serializers.CharField(source="site.code", read_only=True)
@@ -32,7 +33,7 @@ class WorkOrderSerializer(serializers.ModelSerializer):
                   "asset_name", "site", "site_code", "source_request", "source_request_number", "source_type",
                   "source_id", "planned_start",
                   "planned_end", "estimated_hours", "assigned_to", "assigned_to_name", "dispatched_at", "started_at",
-                  "completed_at", "review_started_at", "closed_at", "hold_reason", "resolution_notes",
+                  "completed_at", "closed_at", "hold_reason", "resolution_notes",
                   "available_actions", "total_hours", "created_at", "updated_at"]
         read_only_fields = fields
 
@@ -187,8 +188,8 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.ViewSet):
         "labor:post": "work_order.record", "materials:get": "work_order.view_assigned",
         "materials:post": "work_order.record", "evidence:get": "work_order.view_assigned",
         "evidence:post": "work_order.attach",
-        "checklist_status": "work_order.view_assigned",
         "checklist_reference": "work_order.update",
+        "checklist_status": "work_order.view_assigned",
         "validate_checklist": "work_order.view_assigned",
     }
 
@@ -368,6 +369,8 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.ViewSet):
         wo = self._obj(request, pk)
         from .checklist_adapter import get_checklist_status, get_checklist_summary
         result = get_checklist_status(wo)
-        return Response(get_checklist_summary(wo),
-                        status=status.HTTP_200_OK if result.is_valid else status.HTTP_409_CONFLICT)
+        return Response(
+            get_checklist_summary(wo),
+            status=status.HTTP_200_OK if result.is_valid else status.HTTP_409_CONFLICT,
+        )
 

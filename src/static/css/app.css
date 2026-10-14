@@ -739,3 +739,69 @@ body.fx-app {
 .fx-scan-ok { color: #1a7f45; }
 .fx-scan-warn { color: #9a5b00; }
 @media (max-width: 575px) { .fx-scan-viewport { aspect-ratio: 3 / 4; max-height: 65vh; } }
+
+/* FX Toast & Alert Message Enhancements */
+.fx-toast-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fx-toast-message {
+  border-radius: 8px !important;
+  font-size: 0.88rem !important;
+  line-height: 1.4 !important;
+  border-left-width: 4px !important;
+  animation: fxToastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform, max-height;
+}
+
+.fx-toast-message.alert-success {
+  background-color: #f0fdf4 !important;
+  border-color: #bbf7d0 !important;
+  border-left-color: #16a34a !important;
+  color: #15803d !important;
+}
+
+.fx-toast-message.alert-danger {
+  background-color: #fef2f2 !important;
+  border-color: #fecaca !important;
+  border-left-color: #dc2626 !important;
+  color: #b91c1c !important;
+}
+
+.fx-toast-message.alert-warning {
+  background-color: #fffbeb !important;
+  border-color: #fde68a !important;
+  border-left-color: #d97706 !important;
+  color: #b45309 !important;
+}
+
+.fx-toast-message.alert-info {
+  background-color: #f0f9ff !important;
+  border-color: #bae6fd !important;
+  border-left-color: #0284c7 !important;
+  color: #0369a1 !important;
+}
+
+.fx-toast-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fx-toast-text {
+  font-weight: 500;
+}
+
+@keyframes fxToastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
