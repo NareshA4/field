@@ -243,6 +243,9 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
     source_request = fields.pop("source_request", None)
     source_asset = fields.pop("asset", None)
     component = fields.pop("component", None)
+    passed_site = fields.pop("site", None)
+    if site_id is None and passed_site is not None:
+        site_id = getattr(passed_site, "pk", passed_site)
     if site_id is None and source_asset is not None:
         site_id = source_asset.site_id
     if source_request is not None:
