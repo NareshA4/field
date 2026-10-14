@@ -5,8 +5,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('workorders', '0004_sync_schema'),
-        ('workorders', '0010_m08_checklist_boundary'),
+        ('workorders', '0011_merge_0004_sync_schema_0010_m08_checklist_boundary'),
     ]
 
     operations = [
