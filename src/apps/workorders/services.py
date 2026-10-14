@@ -25,10 +25,10 @@ from .models import (
 )
 
 TRANSITIONS = {
-    WorkOrder.Status.DRAFT: {WorkOrder.Status.PLANNED},
-    WorkOrder.Status.PLANNED: {WorkOrder.Status.ASSIGNED},
-    WorkOrder.Status.ASSIGNED: {WorkOrder.Status.DISPATCHED},
-    WorkOrder.Status.DISPATCHED: {WorkOrder.Status.IN_PROGRESS},
+    WorkOrder.Status.DRAFT: {WorkOrder.Status.PLANNED, WorkOrder.Status.CANCELLED},
+    WorkOrder.Status.PLANNED: {WorkOrder.Status.ASSIGNED, WorkOrder.Status.CANCELLED},
+    WorkOrder.Status.ASSIGNED: {WorkOrder.Status.DISPATCHED, WorkOrder.Status.CANCELLED},
+    WorkOrder.Status.DISPATCHED: {WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.CANCELLED},
     WorkOrder.Status.IN_PROGRESS: {WorkOrder.Status.ON_HOLD, WorkOrder.Status.COMPLETED},
     WorkOrder.Status.ON_HOLD: {WorkOrder.Status.IN_PROGRESS},
     WorkOrder.Status.SUPERVISOR_REVIEW: {WorkOrder.Status.CLOSED, WorkOrder.Status.IN_PROGRESS},
@@ -789,6 +789,9 @@ def review_work_order(wo, *, membership, actor, approved, notes="", expected_ver
                                              else ClosureApproval.Decision.RETURNED), comment=notes)
     if action == "review_rejected":
         _sync_incident_request(wo, "reworked", actor, request)
+    elif approved:
+        from apps.inventory import services as inventory_services
+        inventory_services.on_work_order_closed(wo, actor=actor, request=request)
     return wo
 
 
@@ -800,6 +803,21 @@ def close_work_order(wo, *, membership, actor, comment, expected_version=None, r
 def return_for_rework(wo, *, membership, actor, comment, expected_version=None, request=None):
     return review_work_order(wo, membership=membership, actor=actor, approved=False, notes=comment,
                              expected_version=expected_version, request=request)
+
+
+@transaction.atomic
+def cancel_work_order(wo, *, membership, actor, reason="", expected_version=None, request=None):
+    reason = (reason or "").strip()
+    if len(reason) < 3:
+        raise ValidationFailed("A reason is required to cancel a work order.", code="reason_required")
+    _need(membership, "work_order.cancel", wo.site)
+    from apps.inventory import services as inventory_services
+    inventory_services.on_work_order_cancelled(wo, actor=actor, request=request)
+    return transition_work_order(
+        wo, WorkOrder.Status.CANCELLED, membership=membership, actor=actor,
+        permission="work_order.cancel", action="cancelled", reason=reason,
+        expected_version=expected_version, request=request,
+    )
 
 
 @transaction.atomic
@@ -934,6 +952,8 @@ def closure_blockers(wo):
         blockers.append("Resolution notes must contain at least 10 characters.")
     from apps.checklists import services as checklist_services
     blockers.extend(checklist_services.checklist_blockers(wo))
+    from apps.inventory import services as inventory_services
+    blockers.extend(inventory_services.part_blockers(wo))
     if wo.work_type in (WorkOrder.WorkType.CORRECTIVE, WorkOrder.WorkType.INSTALLATION) and not wo.completion_evidence.exists():
         blockers.append("Attach completion evidence before completing this work order.")
     return blockers
@@ -982,4 +1002,7 @@ def transition(wo, action, *, actor, membership, **kwargs):
     elif action == "close":
         return close_work_order(wo, membership=membership, actor=actor,
                                 comment=kwargs.get("comment", "Work order approved."))
+    elif action == "cancel":
+        return cancel_work_order(wo, membership=membership, actor=actor,
+                                 reason=kwargs.get("reason", "Cancelled"))
     raise ValueError(f"Unknown action: {action}")

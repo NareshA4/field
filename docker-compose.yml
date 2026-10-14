@@ -7,12 +7,11 @@ x-app: &app
     DATABASE_URL: postgres://${POSTGRES_USER:-fieldops}:${POSTGRES_PASSWORD:-fieldops}@db:5432/${POSTGRES_DB:-fieldops}
     REDIS_URL: redis://redis:6379/0
     CELERY_BROKER_URL: redis://redis:6379/1
-    # The local stack is plain HTTP behind Nginx on :8080. Production keeps these secure defaults (see prod.py).
     DJANGO_SECURE_SSL_REDIRECT: "false"
     DJANGO_SECURE_COOKIES: "false"
-    TRUSTED_PROXY_COUNT: "1"             # Nginx is the only proxy in front of Gunicorn
+    TRUSTED_PROXY_COUNT: "1"
     SITE_BASE_URL: http://localhost:${NGINX_PORT:-8080}
-    DJANGO_CSRF_TRUSTED_ORIGINS: http://localhost:${NGINX_PORT:-8080},http://127.0.0.1:${NGINX_PORT:-8080}
+    DJANGO_CSRF_TRUSTED_ORIGINS: http://localhost:${NGINX_PORT:-8080},http://127.0.0.1:${NGINX_PORT:-8080},http://localhost:8000,http://127.0.0.1:8000
     DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,web
   depends_on:
     db: {condition: service_healthy}
@@ -28,6 +27,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-fieldops}
       POSTGRES_USER: ${POSTGRES_USER:-fieldops}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fieldops}
+    ports:
+      - "5432:5432"
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fieldops} -d ${POSTGRES_DB:-fieldops}"]
@@ -42,6 +43,8 @@ services:
     restart: "no"
   web:
     <<: *app
+    ports:
+      - "8000:8000"
     depends_on:
       migrate: {condition: service_completed_successfully}
       db: {condition: service_healthy}
@@ -49,7 +52,6 @@ services:
   worker:
     <<: *app
     command: celery -A config worker -l info
-    # the image HEALTHCHECK probes gunicorn's HTTP port, which does not exist here: ping the worker instead
     healthcheck: {test: ["CMD-SHELL", "celery -A config inspect ping -t 5 >/dev/null 2>&1 || exit 1"], interval: 60s, timeout: 15s, retries: 3, start_period: 20s}
     depends_on:
       migrate: {condition: service_completed_successfully}
@@ -58,7 +60,7 @@ services:
   beat:
     <<: *app
     command: celery -A config beat -l info --schedule /tmp/celerybeat-schedule
-    healthcheck: {disable: true}  # beat has no HTTP port; inherits nothing from the web image check
+    healthcheck: {disable: true}
     depends_on:
       migrate: {condition: service_completed_successfully}
       redis: {condition: service_healthy}
