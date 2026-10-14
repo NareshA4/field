@@ -1,0 +1,26 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}{{ plan.name }} · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div>
+  <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'maintenance:plans' %}">Maintenance plans</a></li><li class="breadcrumb-item active">{{ plan.name }}</li></ol></nav>
+  <h1>{{ plan.name }} {% if plan.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "DISABLED" %}{% endif %}</h1>
+  <div class="text-body-secondary"><a href="{% url 'assets:detail' plan.asset_id %}">{{ plan.asset.asset_tag }} · {{ plan.asset.name }}</a> · site {{ plan.site.code }} · priority {{ plan.priority|lower }}</div></div>
+  {% if can.update %}<div class="d-flex gap-2"><a class="btn btn-outline-primary" href="{% url 'maintenance:plan_edit' plan.pk %}">Edit</a>
+    <form method="post" action="{% url 'maintenance:plan_active' plan.pk %}" class="m-0">{% csrf_token %}<input type="hidden" name="active" value="{% if plan.is_active %}0{% else %}1{% endif %}">
+      <button class="btn btn-outline-secondary" {% if plan.is_active %}data-confirm="Disable this plan? It will stop generating work orders."{% endif %}>{% if plan.is_active %}Disable plan{% else %}Enable plan{% endif %}</button></form></div>{% endif %}</div>
+{% if not plan.is_active %}<div class="alert alert-secondary">This plan is disabled: none of its schedules generates work. Enabling it resumes at the next valid occurrence (nothing is replayed).</div>{% endif %}
+<div class="row g-3 mb-3"><div class="col-lg-5"><div class="fx-card"><div class="fx-card-header">Plan</div><div class="fx-card-body"><dl class="fx-kv">
+  <dt>Description</dt><dd>{{ plan.description|default:"—"|linebreaksbr }}</dd><dt>Estimated hours</dt><dd>{{ plan.estimated_hours|default:"—" }}</dd>
+  <dt>Required checklist</dt><dd>{{ checklist_name|default:"—" }}</dd></dl></div></div></div>
+  <div class="col-lg-7"><div class="fx-card"><div class="fx-card-header"><span>Schedules</span>{% if can.create %}<a class="btn btn-sm btn-primary" href="{% url 'maintenance:schedule_new' plan.pk %}">{% icon 'plus' 14 %} Add schedule</a>{% endif %}</div>
+  <div class="table-responsive"><table class="table fx-table" id="schedules-table"><thead><tr><th>Schedule</th><th>Next due</th><th>State</th><th></th></tr></thead><tbody>
+  {% for r in rows %}<tr><td><a href="{% url 'maintenance:schedule' r.schedule.pk %}">{{ r.schedule.describe }}</a><div class="small text-body-secondary">{{ r.schedule.get_trigger_type_display }}</div></td>
+    <td>{% if r.schedule.trigger_type == "TIME" %}{{ r.schedule.next_due_date|date:"d M Y" }}{% else %}{{ r.schedule.next_due_value|floatformat:"-3" }} {{ r.schedule.meter.unit }}{% endif %}</td>
+    <td>{% status_badge r.state %}</td>
+    <td><div class="d-flex gap-1">{% if can.generate and r.state != "DISABLED" %}<form method="post" action="{% url 'maintenance:schedule_action' r.schedule.pk 'generate' %}" class="m-0">{% csrf_token %}<input type="hidden" name="next" value="/app/maintenance/plans/{{ plan.pk }}/"><button class="btn btn-sm btn-outline-primary">Generate now</button></form>{% endif %}
+      {% if can.update %}{% if r.schedule.is_active %}<form method="post" action="{% url 'maintenance:schedule_action' r.schedule.pk 'disable' %}" class="m-0">{% csrf_token %}<input type="hidden" name="next" value="/app/maintenance/plans/{{ plan.pk }}/"><button class="btn btn-sm btn-outline-secondary">Disable</button></form>
+        {% else %}<form method="post" action="{% url 'maintenance:schedule_action' r.schedule.pk 'enable' %}" class="m-0">{% csrf_token %}<input type="hidden" name="next" value="/app/maintenance/plans/{{ plan.pk }}/"><button class="btn btn-sm btn-outline-success">Enable</button></form>{% endif %}{% endif %}</div></td></tr>
+  {% empty %}<tr><td colspan="4">{% include "components/_empty_state.html" with title="No schedules" text="Add a time-based or meter-based schedule." %}</td></tr>{% endfor %}</tbody></table></div></div></div></div>
+<div class="fx-card"><div class="fx-card-header">Generated work (latest 15)</div>{% include "maintenance/_cycle_table.html" with rows=cycles %}</div>
+{% endblock %}
