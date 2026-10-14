@@ -9,7 +9,7 @@
   </div>
   {% if can_create %}
     <div>
-      <button type="button" class="btn btn-primary" hx-get="{% url 'sites:create' %}" hx-target="#siteModalContent" hx-swap="innerHTML">
+      <button type="button" class="btn btn-primary" id="btn-new-site" hx-get="{% url 'sites:create' %}" hx-target="#siteModalContent" hx-swap="innerHTML">
         {% icon 'plus' 16 %} New site
       </button>
       <noscript><a class="btn btn-primary" href="{% url 'sites:create' %}">{% icon 'plus' 16 %} New site</a></noscript>
