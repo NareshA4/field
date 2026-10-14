@@ -25,10 +25,10 @@ from .models import (
 )
 
 TRANSITIONS = {
-    WorkOrder.Status.DRAFT: {WorkOrder.Status.PLANNED},
-    WorkOrder.Status.PLANNED: {WorkOrder.Status.ASSIGNED},
-    WorkOrder.Status.ASSIGNED: {WorkOrder.Status.DISPATCHED},
-    WorkOrder.Status.DISPATCHED: {WorkOrder.Status.IN_PROGRESS},
+    WorkOrder.Status.DRAFT: {WorkOrder.Status.PLANNED, WorkOrder.Status.CANCELLED},
+    WorkOrder.Status.PLANNED: {WorkOrder.Status.ASSIGNED, WorkOrder.Status.CANCELLED},
+    WorkOrder.Status.ASSIGNED: {WorkOrder.Status.DISPATCHED, WorkOrder.Status.CANCELLED},
+    WorkOrder.Status.DISPATCHED: {WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.CANCELLED},
     WorkOrder.Status.IN_PROGRESS: {WorkOrder.Status.ON_HOLD, WorkOrder.Status.COMPLETED},
     WorkOrder.Status.ON_HOLD: {WorkOrder.Status.IN_PROGRESS},
     WorkOrder.Status.COMPLETED: {WorkOrder.Status.SUPERVISOR_REVIEW},
@@ -806,6 +806,9 @@ def review_work_order(wo, *, membership, actor, approved, notes="", expected_ver
                                              else ClosureApproval.Decision.RETURNED), comment=notes)
     if action == "review_rejected":
         _sync_incident_request(wo, "reworked", actor, request)
+    elif approved:
+        from apps.inventory import services as inventory_services
+        inventory_services.on_work_order_closed(wo, actor=actor, request=request)
     return wo
 
 
@@ -817,6 +820,21 @@ def close_work_order(wo, *, membership, actor, comment, expected_version=None, r
 def return_for_rework(wo, *, membership, actor, comment, expected_version=None, request=None):
     return review_work_order(wo, membership=membership, actor=actor, approved=False, notes=comment,
                              expected_version=expected_version, request=request)
+
+
+@transaction.atomic
+def cancel_work_order(wo, *, membership, actor, reason="", expected_version=None, request=None):
+    reason = (reason or "").strip()
+    if len(reason) < 3:
+        raise ValidationFailed("A reason is required to cancel a work order.", code="reason_required")
+    _need(membership, "work_order.cancel", wo.site)
+    from apps.inventory import services as inventory_services
+    inventory_services.on_work_order_cancelled(wo, actor=actor, request=request)
+    return transition_work_order(
+        wo, WorkOrder.Status.CANCELLED, membership=membership, actor=actor,
+        permission="work_order.cancel", action="cancelled", reason=reason,
+        expected_version=expected_version, request=request,
+    )
 
 
 @transaction.atomic
@@ -950,13 +968,9 @@ def closure_blockers(wo):
     if len((wo.resolution_notes or "").strip()) < 10:
         blockers.append("Resolution notes must contain at least 10 characters.")
     from apps.checklists import services as checklist_services
-    try:
-        blockers.extend(checklist_services.checklist_blockers(wo))
-    except Exception:
-        from .checklist_adapter import get_checklist_status
-        checklist = get_checklist_status(wo)
-        if not checklist.is_valid:
-            blockers.append(checklist.message)
+    blockers.extend(checklist_services.checklist_blockers(wo))
+    from apps.inventory import services as inventory_services
+    blockers.extend(inventory_services.part_blockers(wo))
     if wo.work_type in (WorkOrder.WorkType.CORRECTIVE, WorkOrder.WorkType.INSTALLATION) and not wo.completion_evidence.exists():
         blockers.append("Attach completion evidence before completing this work order.")
     return blockers
@@ -1009,12 +1023,9 @@ def transition(wo, action, *, actor, membership, reason="", request=None, **kwar
         return review_work_order(wo, membership=membership, actor=actor, approved=kwargs.get("approved", True),
                                  notes=kwargs.get("notes", reason), request=request)
     elif action == "close":
-        comment = kwargs.get("comment", kwargs.get("notes", reason or "Closed after review"))
-        return close_work_order(wo, membership=membership, actor=actor, comment=comment, request=request)
-    elif action in ("return_for_rework", "reject_review"):
-        comment = kwargs.get("comment", kwargs.get("notes", reason or "Returned for rework"))
-        return return_for_rework(wo, membership=membership, actor=actor, comment=comment, request=request)
+        return close_work_order(wo, membership=membership, actor=actor,
+                                comment=kwargs.get("comment", "Work order approved."))
     elif action == "cancel":
-        return cancel_work_order(wo, membership=membership, actor=actor, reason=reason, request=request)
-    else:
-        raise ValidationFailed(f"Unknown workflow action '{action}'.", code="invalid_action")
+        return cancel_work_order(wo, membership=membership, actor=actor,
+                                 reason=kwargs.get("reason", "Cancelled"))
+    raise ValueError(f"Unknown action: {action}")
