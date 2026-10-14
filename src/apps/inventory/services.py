@@ -350,6 +350,27 @@ def adjust(warehouse: Warehouse, part: Part, delta, *, reason: str, actor, reque
 
 
 @transaction.atomic
+def scrap(warehouse: Warehouse, part: Part, quantity, *, reason: str, actor, work_order=None,
+          request=None) -> StockMovement:
+    """Scraps damaged, expired, or decommissioned stock.
+    Decreases on-hand without cutting into reserved stock, writing an immutable SCRAP movement."""
+    org = warehouse.organization
+    _same_org(org, part)
+    q = quantity_of(quantity)
+    reason = _reason(reason, required=True)
+    _active_part(part)
+    _active_warehouse(warehouse)
+    bal = _lock_balance(org, warehouse, part, create=False)
+    if bal is None or bal.available < q:
+        raise Conflict("Insufficient available stock to scrap.", code="insufficient_available",
+                       details={"available": str(bal.available if bal else ZERO)})
+    mv = _apply(bal, movement_type=Type.SCRAP, quantity=q, on_hand_delta=-q, actor=actor,
+                work_order=work_order, reason=reason)
+    _audit_movement("stock.scrapped", mv, actor=actor, request=request, reason=reason)
+    return mv
+
+
+@transaction.atomic
 def set_levels(warehouse: Warehouse, part: Part, *, min_level, max_level, reorder_quantity, actor,
                request=None) -> StockBalance:
     """Per-warehouse min / max / reorder override (creates an empty balance row when none exists; no movement

@@ -886,23 +886,29 @@ def record_work_update(wo, *, membership, actor, update, request=None):
     return wo
 
 
+def assert_recordable(wo, membership):
+    _assert_assignee_or_dispatcher(wo, membership)
+
+
 @transaction.atomic
-def record_material(wo, *, membership, actor, item_name, quantity, unit="", part_reference="", notes="", request=None):
+def record_material(wo, *, membership, actor, item_name="", quantity, unit="", part_reference="", notes="", description="", part_number="", part_line=None, request=None):
     _need(membership, "work_order.record", wo.site)
     _assert_assignee_or_dispatcher(wo, membership)
     if wo.status not in (WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD):
         raise Conflict("Materials can only be recorded during active work.")
+    name = (item_name or description or "").strip()
+    ref = (part_reference or part_number or "").strip()
     try:
         quantity = Decimal(str(quantity))
     except Exception as exc:
         raise ValidationFailed("Quantity must be a positive decimal.") from exc
-    if quantity <= 0 or not item_name.strip():
+    if quantity <= 0 or not name:
         raise ValidationFailed("Material name and positive quantity are required.")
     entry = WorkOrderMaterial.objects.create(organization=wo.organization, work_order=wo, entered_by=actor,
-        item_name=item_name.strip(), quantity=quantity, unit=unit.strip(), part_reference=part_reference.strip(),
-        notes=notes.strip())
+        item_name=name, quantity=quantity, unit=unit.strip(), part_reference=ref,
+        part_line=part_line, notes=notes.strip())
     _record(wo, actor=actor, action="material_recorded", metadata={"material_id": str(entry.pk),
-            "quantity": str(quantity), "inventory_movement": False}, request=request)
+            "quantity": str(quantity), "inventory_movement": part_line is not None}, request=request)
     return entry
 
 

@@ -40,7 +40,7 @@ def step(wo, action, p3, who, **data):
         start = data.get("planned_start") or (timezone.now() + timedelta(days=1))
         end = data.get("planned_end") or (start + timedelta(hours=2))
         due = data.get("due_at") or (end + timedelta(days=1))
-        hours = data.get("estimated_hours", 1)
+        hours = data.get("estimated_hours") or 1
         priority = data.get("priority") or wo.priority or "MEDIUM"
         return wos.plan_work_order(wo, membership=membership, actor=actor,
                                    planned_start=start, planned_end=end,
@@ -48,7 +48,7 @@ def step(wo, action, p3, who, **data):
                                    work_type=data.get("work_type", wo.work_type),
                                    priority=priority)
     elif action == "assign":
-        tech = data.get("technician") or p3["tech"]
+        tech = data.get("technician") or p3.get("tech")
         return wos.assign_work_order(wo, membership=membership, actor=actor,
                                      assignee_id=tech.pk)
     elif action == "dispatch":

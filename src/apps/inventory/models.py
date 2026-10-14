@@ -204,6 +204,7 @@ class StockMovement(TenantOwnedModel):
         TRANSFER_OUT = "TRANSFER_OUT", "Transfer out"
         TRANSFER_IN = "TRANSFER_IN", "Transfer in"
         ADJUSTMENT = "ADJUSTMENT", "Adjustment"
+        SCRAP = "SCRAP", "Scrap"
         RESERVE = "RESERVE", "Reserve"
         RELEASE = "RELEASE", "Release reservation"
 
