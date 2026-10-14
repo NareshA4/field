@@ -68,6 +68,9 @@ def step(wo, action, p3, who, **data):
     elif action == "close":
         return wos.close_work_order(wo, membership=membership, actor=actor,
                                     comment=data.get("comment", "Work order approved."))
+    elif action == "cancel":
+        return wos.cancel_work_order(wo, membership=membership, actor=actor,
+                                     reason=data.get("reason", "Cancelled"))
     raise ValueError(f"Unknown action: {action}")
 
 
