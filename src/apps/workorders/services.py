@@ -31,9 +31,11 @@ TRANSITIONS = {
     WorkOrder.Status.DISPATCHED: {WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.CANCELLED},
     WorkOrder.Status.IN_PROGRESS: {WorkOrder.Status.ON_HOLD, WorkOrder.Status.COMPLETED},
     WorkOrder.Status.ON_HOLD: {WorkOrder.Status.IN_PROGRESS},
-    WorkOrder.Status.SUPERVISOR_REVIEW: {WorkOrder.Status.CLOSED, WorkOrder.Status.IN_PROGRESS},
     WorkOrder.Status.COMPLETED: {WorkOrder.Status.SUPERVISOR_REVIEW},
+    WorkOrder.Status.SUPERVISOR_REVIEW: {WorkOrder.Status.CLOSED, WorkOrder.Status.IN_PROGRESS},
 }
+
+EVIDENCE_REQUIRED_TYPES = (WorkOrder.WorkType.CORRECTIVE, WorkOrder.WorkType.INSTALLATION)
 def allowed_actions(wo, membership):
     """Return the current user's actionable workflow controls for this order."""
     def permitted(code):
@@ -234,11 +236,15 @@ def get_work_order(membership, pk):
 
 
 @transaction.atomic
-def create_work_order(organization, *, site_id=None, title=None, actor, membership, request=None, **fields):
+def create_work_order(organization, *, site_id=None, title=None, actor, membership=None, request=None, **fields):
     from django.conf import settings
+    if membership is None and actor is not None:
+        membership = Membership.objects.filter(organization=organization, user=actor, status=Membership.Status.ACTIVE).first()
     source_request = fields.pop("source_request", None)
     source_asset = fields.pop("asset", None)
     component = fields.pop("component", None)
+    if site_id is None and source_asset is not None:
+        site_id = source_asset.site_id
     if source_request is not None:
         from apps.incidents.models import ServiceRequest
         from apps.incidents.workflow import APPROVED
@@ -284,6 +290,7 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
             "source_type": source_type,
             "source_reference": source_reference,
             "source_request": source_request,
+            "source_id": source_request.pk,
             "service_request_reference": (source_reference
                 if source_type == WorkOrder.SourceType.REQUEST else ""),
             "asset_reference": source_asset.asset_tag,
@@ -666,9 +673,19 @@ def start_work_order(wo, *, membership, actor, expected_version=None, request=No
     return wo
 
 
+def assert_can_execute(wo, membership) -> None:
+    """Execution (start / hold / resume / complete) belongs to the assignee; dispatchers may act for them."""
+    if wo.assigned_to_id == membership.pk:
+        return
+    if rbac.has_permission(membership, "work_order.review", wo.site_id):
+        raise PermissionDenied("Only the assigned technician (or a dispatcher) can do this.", code="not_assignee")
+    if rbac.has_permission(membership, "work_order.dispatch", wo.site_id):
+        return
+    raise PermissionDenied("Only the assigned technician (or a dispatcher) can do this.", code="not_assignee")
+
+
 def _assert_assignee_or_dispatcher(wo, membership):
-    if wo.assigned_to_id != membership.pk and not rbac.has_permission(membership, "work_order.dispatch", wo.site):
-        raise PermissionDenied("Only the assigned technician or an authorized dispatcher may execute this work order.")
+    assert_can_execute(wo, membership)
 
 
 assert_can_execute = _assert_assignee_or_dispatcher
@@ -773,7 +790,7 @@ def review_work_order(wo, *, membership, actor, approved, notes="", expected_ver
     if approved:
         blockers = closure_blockers(wo)
         if blockers:
-            raise Conflict("Work order closure is blocked.", code="closure_blocked", details={"blockers": blockers})
+            raise Conflict("; ".join(blockers), code="closure_blocked", details={"blockers": blockers})
         _check_completion(wo, wo.resolution_notes)
         target = WorkOrder.Status.CLOSED
         changes = {"closed_at": timezone.now(), "closed_by": actor, "supervisor_notes": notes}
@@ -870,7 +887,7 @@ def register_checklist_reference(wo, *, membership, actor, template_ref, instanc
 
 
 @transaction.atomic
-def record_labor(wo, *, membership, actor, work_date, hours, description="Labor recorded", technician=None, request=None, **kwargs):
+def record_labor(wo, *, membership, actor, work_date, hours, description="Labor recorded", technician=None, notes="", request=None, **kwargs):
     _need(membership, "work_order.record", wo.site)
     _assert_assignee_or_dispatcher(wo, membership)
     if wo.status not in (WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD):
@@ -879,7 +896,7 @@ def record_labor(wo, *, membership, actor, work_date, hours, description="Labor 
         hours = Decimal(str(hours))
     except Exception as exc:
         raise ValidationFailed("Hours must be a decimal between 0 and 24.") from exc
-    desc = (description or kwargs.get("notes") or "Labor recorded").strip()
+    desc = (description or notes or kwargs.get("notes") or "Labor recorded").strip()
     if hours <= 0 or hours > 24 or work_date > timezone.localdate() or not desc:
         raise ValidationFailed("Labor requires 0 < hours <= 24, a non-future date, and a description.")
     target_tech = technician or membership
@@ -964,41 +981,47 @@ def evidence_for(wo):
 
 
 def checklist_blockers(wo):
-    from apps.checklists import services as checklist_services
-    return checklist_services.checklist_blockers(wo)
+    from apps.checklists.services import checklist_blockers as m08_checklist_blockers
+    return m08_checklist_blockers(wo)
 
 
-def transition(wo, action, *, actor, membership, **kwargs):
+def transition(wo, action, *, actor, membership, reason="", request=None, **kwargs):
+    """Convenience dispatcher for work-order lifecycle transitions."""
     if action == "plan":
-        start = kwargs.get("planned_start") or (timezone.now() + timedelta(days=1))
-        end = kwargs.get("planned_end") or (start + timedelta(hours=2))
-        due = kwargs.get("due_at") or (end + timedelta(days=1))
-        hours = kwargs.get("estimated_hours", 1)
-        priority = kwargs.get("priority") or wo.priority or "MEDIUM"
-        return plan_work_order(wo, membership=membership, actor=actor,
-                               planned_start=start, planned_end=end,
-                               due_at=due, estimated_hours=hours,
-                               work_type=kwargs.get("work_type", wo.work_type),
-                               priority=priority)
+        from datetime import timedelta
+        planned_start = kwargs.get("planned_start")
+        planned_end = kwargs.get("planned_end")
+        due_at = kwargs.get("due_at") or (planned_end + timedelta(days=1) if planned_end else None)
+        estimated_hours = kwargs.get("estimated_hours") or (wo.estimated_hours if wo.estimated_hours and wo.estimated_hours > 0 else Decimal("2.0"))
+        priority = kwargs.get("priority") or wo.priority or WorkOrder.Priority.MEDIUM
+        work_type = kwargs.get("work_type") or wo.work_type or WorkOrder.WorkType.PREVENTIVE
+        return plan_work_order(wo, membership=membership, actor=actor, planned_start=planned_start,
+                               planned_end=planned_end, due_at=due_at, estimated_hours=estimated_hours,
+                               priority=priority, work_type=work_type, request=request,
+                               expected_version=kwargs.get("expected_version"))
     elif action == "assign":
-        tech = kwargs.get("technician")
-        assignee_id = tech.pk if hasattr(tech, "pk") else tech
-        return assign_work_order(wo, membership=membership, actor=actor,
-                                 assignee_id=assignee_id)
+        assignee = kwargs.get("technician", kwargs.get("assignee_id"))
+        assignee_id = assignee.pk if hasattr(assignee, "pk") else assignee
+        scheduled_start = kwargs.get("planned_start", kwargs.get("scheduled_start"))
+        scheduled_end = kwargs.get("planned_end", kwargs.get("scheduled_end"))
+        return assign_work_order(wo, membership=membership, actor=actor, assignee_id=assignee_id,
+                                 scheduled_start=scheduled_start, scheduled_end=scheduled_end, request=request)
     elif action == "dispatch":
-        return dispatch_work_order(wo, membership=membership, actor=actor)
+        return dispatch_work_order(wo, membership=membership, actor=actor, request=request)
     elif action == "start":
-        return start_work_order(wo, membership=membership, actor=actor)
+        return start_work_order(wo, membership=membership, actor=actor, request=request)
     elif action == "hold":
-        return hold_work_order(wo, membership=membership, actor=actor,
-                               reason=kwargs.get("reason", "On hold"))
+        return hold_work_order(wo, membership=membership, actor=actor, reason=reason or kwargs.get("reason", "Hold"), request=request)
     elif action == "resume":
-        return resume_work_order(wo, membership=membership, actor=actor)
+        return resume_work_order(wo, membership=membership, actor=actor, request=request)
     elif action == "complete":
-        return complete_work_order(wo, membership=membership, actor=actor,
-                                   resolution_notes=kwargs.get("resolution_notes", "Work completed successfully."))
-    elif action in ("submit_for_review", "start_review"):
-        return submit_for_review(wo, membership=membership, actor=actor)
+        resolution_notes = kwargs.get("resolution_notes", reason or "Completed work order.")
+        return complete_work_order(wo, membership=membership, actor=actor, resolution_notes=resolution_notes, request=request)
+    elif action in ("start_review", "submit_for_review"):
+        return submit_for_review(wo, membership=membership, actor=actor, request=request)
+    elif action == "review":
+        return review_work_order(wo, membership=membership, actor=actor, approved=kwargs.get("approved", True),
+                                 notes=kwargs.get("notes", reason), request=request)
     elif action == "close":
         return close_work_order(wo, membership=membership, actor=actor,
                                 comment=kwargs.get("comment", "Work order approved."))

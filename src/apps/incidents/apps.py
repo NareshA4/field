@@ -9,12 +9,16 @@ class IncidentsConfig(AppConfig):
         from apps.files import access
         from apps.rbac import services as rbac
 
-        def can_read_request_file(membership, request_obj) -> bool:
-            # Evidence follows the request's site scope. Once inherited by a linked work order,
-            # work-order viewers can also retrieve it from that workflow.
-            if request_obj.reported_by_id == membership.pk:
-                return True
+        def can_read_request_file(membership, request_obj, attachment=None) -> bool:
+            # Evidence follows the request's site scope for internal staff
             if rbac.has_permission(membership, "incident.view", request_obj.site_id):
+                return True
+            # Portal clients may download files they uploaded to their own requests (D-051)
+            if rbac.has_permission(membership, "portal.request.view"):
+                if request_obj.reported_by_id == membership.pk:
+                    if attachment is None or attachment.uploaded_by_id == membership.user_id:
+                        return True
+            elif request_obj.reported_by_id == membership.pk:
                 return True
             try:
                 from apps.workorders.models import WorkOrder

@@ -188,7 +188,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.ViewSet):
         "labor:post": "work_order.record", "materials:get": "work_order.view_assigned",
         "materials:post": "work_order.record", "evidence:get": "work_order.view_assigned",
         "evidence:post": "work_order.attach",
-        "checklist_reference": "work_order.plan",
+        "checklist_reference": "work_order.update",
         "checklist_status": "work_order.view_assigned",
         "validate_checklist": "work_order.view_assigned",
     }
@@ -342,23 +342,28 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.ViewSet):
                                     membership=request.membership, request=request)
         return Response(WorkOrderEvidenceSerializer(att).data, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=["post"], url_path="checklist-reference")
-    def checklist_reference(self, request, pk=None):
-        wo = self._obj(request, pk)
-        template_ref = request.data.get("template_ref", "")
-        instance_ref = request.data.get("instance_ref", "")
-        wo = services.register_checklist_reference(
-            wo, membership=request.membership, actor=request.user,
-            template_ref=template_ref, instance_ref=instance_ref, request=request,
-        )
-        return Response(WorkOrderSerializer(wo).data)
-
+    @extend_schema(responses={200: OpenApiTypes.OBJECT}, description="Return M08 checklist references and validation state.")
     @action(detail=True, methods=["get"], url_path="checklist-status")
     def checklist_status(self, request, pk=None):
         wo = self._obj(request, pk)
         from .checklist_adapter import get_checklist_summary
         return Response(get_checklist_summary(wo))
 
+    @extend_schema(request=OpenApiTypes.OBJECT, responses=OpenApiTypes.OBJECT,
+                   description="Register opaque M08 template and instance references.")
+    @action(detail=True, methods=["post"], url_path="checklist-reference")
+    def checklist_reference(self, request, pk=None):
+        wo = self._obj(request, pk, "work_order.update")
+        from .checklist_adapter import get_checklist_summary
+        template_ref = request.data.get("template_ref", "")
+        instance_ref = request.data.get("instance_ref", "")
+        services.register_checklist_reference(wo, membership=request.membership, actor=request.user,
+                                              template_ref=template_ref, instance_ref=instance_ref,
+                                              request=request)
+        return Response(get_checklist_summary(wo))
+
+    @extend_schema(responses={200: OpenApiTypes.OBJECT, 409: OpenApiTypes.OBJECT},
+                   description="Evaluate checklist validation status.")
     @action(detail=True, methods=["post"], url_path="validate-checklist")
     def validate_checklist(self, request, pk=None):
         wo = self._obj(request, pk)

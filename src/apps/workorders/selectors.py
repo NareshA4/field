@@ -10,17 +10,28 @@ def get_work_order(membership, organization, pk):
         "site", "assigned_to__user", "created_by").filter(pk=pk).first()
     if wo is None:
         raise NotFound("Work order not found.")
-    if not (rbac.has_permission(membership, "work_order.view", wo.site) or
-            (wo.assigned_to_id == membership.pk and
-             rbac.has_permission(membership, "work_order.view_assigned", wo.site))):
+    can_view = (
+        rbac.has_permission(membership, "work_order.view", wo.site) or
+        (rbac.has_permission(membership, "work_order.view_assigned", wo.site) and (
+            wo.assigned_to_id == membership.pk or
+            wo.assigned_to_id is None or
+            (wo.source_request_id and rbac.has_permission(membership, "incident.view", wo.site))
+        ))
+    )
+    if not can_view:
         raise NotFound("Work order not found.")
     return wo
+
+
+def work_orders_for(membership, organization):
+    return work_order_list(membership, organization)
 
 
 def work_order_list(membership, organization, params=None):
     qs = WorkOrder.objects.for_organization(organization).select_related("site", "assigned_to__user")
     if not rbac.has_permission_anywhere(membership, "work_order.view"):
-        qs = qs.filter(assigned_to=membership)
+        from django.db.models import Q
+        qs = qs.filter(Q(assigned_to=membership) | Q(assigned_to__isnull=True))
     site_ids = [sid for sid in qs.values_list("site_id", flat=True).distinct()
                 if rbac.has_permission(membership, "work_order.view", sid) or
                 rbac.has_permission(membership, "work_order.view_assigned", sid)]

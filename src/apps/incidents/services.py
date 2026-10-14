@@ -445,8 +445,10 @@ def _notify_reporter(sr: ServiceRequest, action: str, reason: str):
         return
     from apps.notifications import services as notifications
 
+    is_client = getattr(sr.reported_by.user, "is_client", False)
+    link = f"/portal/requests/{sr.pk}/" if is_client else f"/app/incidents/{sr.pk}/"
     notifications.notify(sr.organization, [sr.reported_by.user], title=f"{sr.number} {texts[action]}",
-                         body=sr.title, link=f"/app/incidents/{sr.pk}/", source="incidents")
+                         body=sr.title, link=link, source="incidents")
 
 
 @transaction.atomic

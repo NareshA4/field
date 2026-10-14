@@ -110,6 +110,56 @@ def get_checklist_status(work_order):
 
     if not work_order.checklist_required:
         return ChecklistResult(False, NOT_REQUIRED, True, message="No checklist is required.")
+    # 1. Direct provider result (for external providers and boundary mock tests)
+    if (work_order.checklist_status == COMPLETED and work_order.checklist_instance_ref
+            and work_order.checklist_validation_state == "VALID"):
+        return ChecklistResult(True, COMPLETED, True, message="Checklist validated.")
+
+    # 2. Check persisted M08 checklist engine if templates or inspections exist for this org
+    try:
+        from apps.checklists.models import ChecklistTemplate, Inspection
+        from apps.checklists.services import checklist_blockers as m08_checklist_blockers
+
+        has_m08 = (
+            Inspection.objects.for_organization(work_order.organization).filter(work_order=work_order).exists()
+            or ChecklistTemplate.objects.for_organization(work_order.organization).exists()
+        )
+        if has_m08:
+            insp = Inspection.objects.for_organization(work_order.organization).filter(
+                work_order=work_order
+            ).select_related("template").order_by("-started_at").first()
+
+            if insp:
+                if not work_order.checklist_instance_ref:
+                    work_order.checklist_instance_ref = str(insp.pk)
+                if insp.status == COMPLETED:
+                    blockers = m08_checklist_blockers(work_order)
+                    if not blockers:
+                        if work_order.checklist_status != COMPLETED or work_order.checklist_validation_state != "VALID":
+                            work_order.checklist_status = COMPLETED
+                            work_order.checklist_validation_state = "VALID"
+                            work_order.checklist_completed_at = insp.completed_at
+                            work_order.checklist_validated_at = timezone.now()
+                            work_order.save(update_fields=["checklist_instance_ref", "checklist_status",
+                                                           "checklist_validation_state", "checklist_completed_at",
+                                                           "checklist_validated_at", "updated_at"])
+                        return ChecklistResult(True, COMPLETED, True, message="Checklist validated.")
+                    else:
+                        return ChecklistResult(True, FAILED, False, message="Checklist has unresolved issues: " + "; ".join(blockers))
+                elif insp.status == IN_PROGRESS:
+                    if work_order.checklist_status != IN_PROGRESS:
+                        work_order.checklist_status = IN_PROGRESS
+                        work_order.save(update_fields=["checklist_instance_ref", "checklist_status", "updated_at"])
+                    return ChecklistResult(True, IN_PROGRESS, False, message="Checklist completion is required before completing this work order.")
+            else:
+                blockers = m08_checklist_blockers(work_order)
+                if not blockers:
+                    return ChecklistResult(False, NOT_REQUIRED, True, message="No checklist is required.")
+                return ChecklistResult(True, PENDING, False, message="Checklist completion is required before completing this work order.")
+    except Exception:
+        pass
+
+    # 3. Default fallback for M06 boundary (when no M08 templates or inspections exist)
     status = work_order.checklist_status if work_order.checklist_status in {
         PENDING, IN_PROGRESS, FAILED, COMPLETED} else PENDING
     return ChecklistResult(True, status, False,
@@ -134,7 +184,7 @@ def get_checklist_summary(work_order):
         "template_ref": work_order.checklist_template_ref,
         "instance_ref": work_order.checklist_instance_ref,
         "validation_state": work_order.checklist_validation_state,
-        "integration_status": "Checklist Engine integration pending.",
+        "integration_status": "Checklist Engine integrated." if result.is_valid else "Checklist Engine integration pending.",
         "provisional_only": bool(work_order.provisional_checklist),
         "provisional_message": ("Provisional checklist only — not valid as completion evidence."
                                 if work_order.provisional_checklist else ""),
