@@ -1,0 +1,7 @@
+﻿{% with current=request.resolver_match.url_name %}
+<nav class="fx-tabs mb-3" aria-label="SLA sections">
+  <a role="tab" class="{% if current == 'trackings' %}active{% endif %}" href="{% url 'sla:trackings' %}">SLA tracking</a>
+  <a role="tab" class="{% if current == 'breaches' %}active{% endif %}" href="{% url 'sla:breaches' %}">SLA breaches</a>
+  {% if can_manage %}<a role="tab" class="{% if current == 'profiles' %}active{% endif %}" href="{% url 'sla:profiles' %}">SLA profiles</a>{% endif %}
+</nav>
+{% endwith %}

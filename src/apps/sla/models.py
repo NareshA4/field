@@ -18,35 +18,36 @@ RESPONSE, RESOLUTION = "RESPONSE", "RESOLUTION"
 
 class SLAProfile(TenantOwnedModel):
     class AppliesTo(models.TextChoices):
-        REQUEST = "REQUEST", "Service requests / incidents (M05)"
-        WORK_ORDER = "WORK_ORDER", "Work orders (M06)"
+        REQUEST = "REQUEST", "Incident / Breakdown"
+        WORK_ORDER = "WORK_ORDER", "Work Order"
 
     name = models.CharField(max_length=120)
     description = models.CharField(max_length=300, blank=True)
     applies_to = models.CharField(max_length=12, choices=AppliesTo.choices)
     site = models.ForeignKey("sites.Site", null=True, blank=True, on_delete=models.PROTECT, related_name="+",
                              help_text="Blank = the whole organization; a site profile wins over it")
+    client = models.ForeignKey("tenancy.Membership", null=True, blank=True, on_delete=models.PROTECT,
+                               related_name="sla_profiles", help_text="Optional client/requester-specific policy")
+    contract = models.ForeignKey("contracts.CoverageAgreement", null=True, blank=True, on_delete=models.PROTECT,
+                                 related_name="sla_policies", help_text="Optional contract or AMC scope")
+    asset = models.ForeignKey("assets.Asset", null=True, blank=True, on_delete=models.PROTECT,
+                              related_name="sla_profiles")
+    asset_category = models.ForeignKey("assets.AssetCategory", null=True, blank=True, on_delete=models.PROTECT,
+                                       related_name="sla_profiles")
+    service_type = models.CharField(max_length=20, blank=True,
+                                    help_text="Incident/request kind or Work Order type")
     work_type = models.CharField(max_length=20, blank=True, help_text="Work-order profiles: only this work type")
     # tokens such as WORK_ORDER:ON_HOLD or REQUEST:RESOLVED; empty = the timers never pause (D-044)
     pause_states = models.JSONField(default=list, blank=True)
     is_active = models.BooleanField(default=True)
     coverage_only = models.BooleanField(
         default=False,
-        help_text="Used only through a warranty / AMC / contract that names it (M10); never resolved by scope.")
+        help_text="Used only through a warranty / AMC / contract that names it; never resolved by scope.")
 
     class Meta:
         ordering = ["name"]
         constraints = [
             models.UniqueConstraint(Lower("name"), "organization", name="uniq_sla_profile_name_per_org"),
-            # at most one ACTIVE profile per scope, so the profile of a request / work order is unambiguous
-            models.UniqueConstraint(
-                fields=["organization", "applies_to", "work_type"],
-                condition=models.Q(is_active=True, site__isnull=True, coverage_only=False),
-                name="uniq_active_sla_profile_org_scope"),
-            models.UniqueConstraint(
-                fields=["organization", "applies_to", "work_type", "site"],
-                condition=models.Q(is_active=True, site__isnull=False, coverage_only=False),
-                name="uniq_active_sla_profile_site_scope"),
         ]
 
     def __str__(self):
@@ -82,12 +83,12 @@ class EscalationRule(TenantOwnedModel):
     per tracking (no chains beyond the rules a profile defines; at most 6 per profile)."""
 
     class Trigger(models.TextChoices):
-        WARNING = "WARNING", "Warning threshold reached"
-        BREACH = "BREACH", "Target breached"
-        ESCALATION = "ESCALATION", "Still unmet after the breach"
+        WARNING = "WARNING", "Warning Alert reached"
+        BREACH = "BREACH", "SLA Breach"
+        ESCALATION = "ESCALATION", "Escalation (still unmet after breach)"
 
     profile = models.ForeignKey(SLAProfile, on_delete=models.CASCADE, related_name="rules")
-    target_kind = models.CharField(max_length=10, choices=[(RESPONSE, "Response"), (RESOLUTION, "Resolution")])
+    target_kind = models.CharField(max_length=10, choices=[(RESPONSE, "Response Target"), (RESOLUTION, "Resolution Target")])
     trigger = models.CharField(max_length=10, choices=Trigger.choices)
     after_minutes = models.PositiveIntegerField(default=0)
     level = models.PositiveSmallIntegerField(default=1)
@@ -114,8 +115,12 @@ class EscalationRule(TenantOwnedModel):
 class SLATracking(TenantOwnedModel):
     class Status(models.TextChoices):
         ACTIVE = "ACTIVE", "Running"
+        AT_RISK = "AT_RISK", "At Risk"
+        BREACHED = "BREACHED", "Breached"
         PAUSED = "PAUSED", "Paused"
+        UNDER_REVIEW = "UNDER_REVIEW", "Under Review"
         COMPLETED = "COMPLETED", "Completed"
+        CLOSED = "CLOSED", "Closed"
         CANCELLED = "CANCELLED", "Cancelled"
 
     class TargetState(models.TextChoices):
@@ -131,6 +136,7 @@ class SLATracking(TenantOwnedModel):
                                    related_name="sla_trackings")
     site = models.ForeignKey("sites.Site", on_delete=models.PROTECT, related_name="+")
     profile = models.ForeignKey(SLAProfile, on_delete=models.PROTECT, related_name="trackings")
+    selection_reason = models.CharField(max_length=120, blank=True)
     priority = models.CharField(max_length=10)
     response_minutes = models.PositiveIntegerField()
     resolution_minutes = models.PositiveIntegerField()
@@ -142,7 +148,7 @@ class SLATracking(TenantOwnedModel):
     resolution_met_at = models.DateTimeField(null=True, blank=True)
     response_state = models.CharField(max_length=14, choices=TargetState.choices, default=TargetState.PENDING)
     resolution_state = models.CharField(max_length=14, choices=TargetState.choices, default=TargetState.PENDING)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE, db_index=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE, db_index=True)
     paused_at = models.DateTimeField(null=True, blank=True)
     paused_seconds = models.PositiveIntegerField(default=0)
     last_checked_at = models.DateTimeField(null=True, blank=True)
@@ -204,6 +210,29 @@ class SLAEvent(TenantOwnedModel):
     def delete(self, *args, **kwargs):
         raise ValueError("SLAEvent is append-only.")
 
+
+class SLAPauseEvent(TenantOwnedModel):
+    """Pause interval created on pause and completed on resume; event history remains in SLAEvent."""
+
+    tracking = models.ForeignKey(SLATracking, on_delete=models.PROTECT, related_name="pause_events")
+    reason = models.CharField(max_length=300)
+    workflow_state = models.CharField(max_length=40)
+    started_at = models.DateTimeField()
+    ended_at = models.DateTimeField(null=True, blank=True)
+    duration_seconds = models.PositiveIntegerField(null=True, blank=True)
+    paused_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+                                  related_name="+")
+    approval_required = models.BooleanField(default=False)
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+                                    related_name="+")
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["started_at", "created_at"]
+        constraints = [models.CheckConstraint(
+            condition=models.Q(ended_at__isnull=True, duration_seconds__isnull=True)
+            | models.Q(ended_at__isnull=False, duration_seconds__isnull=False),
+            name="sla_pause_interval_consistent")]
 
 class SLABreach(TenantOwnedModel):
     class Status(models.TextChoices):
