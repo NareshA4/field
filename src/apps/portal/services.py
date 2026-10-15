@@ -16,6 +16,14 @@ from apps.tenancy.models import Membership, Organization
 from .models import PortalAccount, PortalAssetGrant, PortalClosureConfirmation
 from .selectors import get_linked_work_order, get_portal_account, is_asset_granted_to_client
 
+CLIENT_ALLOWED_INCIDENT_PERMS = {
+    "incident.report_owned",
+    "incident.view_owned",
+    "incident.view_assigned",
+    "incident.attach",
+    "incident.confirm",
+}
+
 
 def _is_uuid(val) -> bool:
     try:
@@ -111,6 +119,8 @@ def create_portal_service_request(
     site: Site | uuid.UUID | str | None = None,
     occurred_at=None,
     attachments=None,
+    override_duplicate: bool = False,
+    override_reason: str = "",
     actor=None,
     request=None,
 ) -> ServiceRequest:
@@ -133,6 +143,8 @@ def create_portal_service_request(
     if isinstance(asset, (str, uuid.UUID)):
         asset_obj = Asset.objects.for_organization(org).filter(pk=asset).first()
         if not asset_obj:
+            if Asset.objects.unscoped().filter(pk=asset).exists():
+                raise ValidationFailed("Asset belongs to a different organization.", code="cross_tenant_asset")
             raise ValidationFailed("Asset not found in this organization.", code="asset_not_found")
         asset = asset_obj
     elif asset.organization_id != org.pk:
@@ -150,6 +162,8 @@ def create_portal_service_request(
         if isinstance(site, (str, uuid.UUID)):
             site_obj = Site.objects.for_organization(org).filter(pk=site).first()
             if not site_obj:
+                if Site.objects.unscoped().filter(pk=site).exists():
+                    raise ValidationFailed("Site belongs to a different organization.", code="cross_tenant_site")
                 raise ValidationFailed("Site not found in this organization.", code="site_not_found")
             site = site_obj
         elif site.organization_id != org.pk:
@@ -179,6 +193,8 @@ def create_portal_service_request(
         service_impact=service_impact,
         impact_notes=impact_notes,
         occurred_at=occurred_at,
+        override_duplicate=override_duplicate,
+        override_reason=override_reason,
         actor=actor or membership.user,
         request=request,
     )
@@ -532,7 +548,10 @@ def create_portal_account(
         raise ValidationFailed("Cannot create a portal account for an inactive membership.")
 
     perms = rbac.membership_permissions(membership)
-    non_client_perms = [p for p in perms if not p.startswith("portal.request.")]
+    non_client_perms = [
+        p for p in perms
+        if not (p.startswith("portal.request.") or p in CLIENT_ALLOWED_INCIDENT_PERMS)
+    ]
     if non_client_perms:
         raise ValidationFailed("Portal accounts may only be provisioned for client-only memberships.", code="not_client_only")
 
@@ -566,7 +585,10 @@ def create_portal_account(
 def enable_portal_account(account: PortalAccount, actor=None) -> PortalAccount:
     """Enables a portal account and records an audit log entry."""
     perms = rbac.membership_permissions(account.membership)
-    non_client_perms = [p for p in perms if not p.startswith("portal.request.")]
+    non_client_perms = [
+        p for p in perms
+        if not (p.startswith("portal.request.") or p in CLIENT_ALLOWED_INCIDENT_PERMS)
+    ]
     if non_client_perms:
         raise Conflict("Only client-only members can have enabled portal accounts.", code="not_client_only")
 

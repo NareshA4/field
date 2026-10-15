@@ -310,9 +310,15 @@ def test_pagination_and_status_filtering(as_user, org_a, asset_a, make_portal_cl
     user, membership, _ = make_portal_client(org_a, "client.filter@acme.test")
     api = as_user(user, org_a)
 
-    sr1 = portal_services.create_portal_service_request(membership, asset=asset_a, title="Request 1")
-    sr2 = portal_services.create_portal_service_request(membership, asset=asset_a, title="Request 2")
-    sr3 = portal_services.create_portal_service_request(membership, asset=asset_a, title="Request 3")
+    sr1 = portal_services.create_portal_service_request(membership, asset=asset_a, title="Request 1", description="First diagnostic check")
+    sr2 = portal_services.create_portal_service_request(
+        membership, asset=asset_a, title="Request 2", description="Second diagnostic check",
+        override_duplicate=True, override_reason="Distinct diagnostic task 2",
+    )
+    sr3 = portal_services.create_portal_service_request(
+        membership, asset=asset_a, title="Request 3", description="Third diagnostic check",
+        override_duplicate=True, override_reason="Distinct diagnostic task 3",
+    )
 
     # Transition sr2 to TRIAGED
     incident_services.transition(sr2, action="triage", actor=user)

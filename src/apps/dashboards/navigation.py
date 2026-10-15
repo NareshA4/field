@@ -16,7 +16,7 @@ register(
     NavItem(
         label="My Work Cockpit",
         url_name="dashboards:my_work",
-        permission=None,  # Available to all active members
+        permission="work_order.view",  # Available to staff with work order permissions
         icon="activity",
         section="Operations",
         order=25,
