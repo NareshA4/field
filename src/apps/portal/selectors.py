@@ -178,3 +178,69 @@ def get_linked_work_order(sr: ServiceRequest):
         .first()
     )
 
+
+def get_portal_dashboard_metrics(membership: Membership | None) -> dict:
+    """Computes real-time client KPI summary and activity for the authenticated client.
+
+    Derived directly from PostgreSQL records, strictly scoped to membership and organization.
+    """
+    if membership is None:
+        return {
+            "total": 0,
+            "open": 0,
+            "in_progress": 0,
+            "awaiting_confirmation": 0,
+            "resolved_closed": 0,
+            "avg_rating": None,
+            "rating_count": 0,
+            "recent_activity": [],
+            "granted_assets_count": 0,
+        }
+
+    from django.db.models import Avg, Count, Q
+    from apps.incidents.models import ServiceRequest, ServiceRequestHistory
+    from apps.portal.models import PortalClosureConfirmation
+
+    org = membership.organization
+    base_qs = ServiceRequest.objects.for_organization(org).filter(reported_by=membership)
+
+    aggregates = base_qs.aggregate(
+        total=Count("id"),
+        open=Count("id", filter=Q(status__in=["NEW", "TRIAGED", "APPROVED"])),
+        in_progress=Count("id", filter=Q(status__in=["WORK_ORDER_CREATED", "IN_SERVICE", "IN_PROGRESS"])),
+        awaiting_confirmation=Count("id", filter=Q(status="RESOLVED")),
+        resolved_closed=Count("id", filter=Q(status__in=["CONFIRMED", "CLOSED"])),
+    )
+
+    account = get_portal_account(membership)
+    rating_data = {"avg": None, "count": 0}
+    if account:
+        rating_data = PortalClosureConfirmation.objects.for_organization(org).filter(
+            portal_account=account,
+            rating__isnull=False,
+        ).aggregate(
+            avg=Avg("rating"),
+            count=Count("id"),
+        )
+
+    recent_activity = list(
+        ServiceRequestHistory.objects.for_organization(org)
+        .filter(request__reported_by=membership)
+        .select_related("request", "changed_by")
+        .order_by("-created_at")[:6]
+    )
+
+    granted_count = granted_assets_for(membership).count()
+
+    return {
+        "total": aggregates["total"] or 0,
+        "open": aggregates["open"] or 0,
+        "in_progress": aggregates["in_progress"] or 0,
+        "awaiting_confirmation": aggregates["awaiting_confirmation"] or 0,
+        "resolved_closed": aggregates["resolved_closed"] or 0,
+        "avg_rating": round(rating_data["avg"], 1) if rating_data["avg"] is not None else None,
+        "rating_count": rating_data["count"] or 0,
+        "recent_activity": recent_activity,
+        "granted_assets_count": granted_count,
+    }
+

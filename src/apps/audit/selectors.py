@@ -151,6 +151,47 @@ def search(qs, params, *, org=None, strict=True):
                 raise ValidationFailed("Unknown category.", code="invalid_category")
         else:
             qs = qs.filter(CATEGORIES[category][2])
+    module = get("module")
+    if module:
+        MODULE_MAP = {
+            "workorders": Q(action__startswith="work_order."),
+            "assets": Q(action__startswith="asset."),
+            "incidents": Q(action__startswith="incident.") | Q(action__startswith="request."),
+            "checklists": Q(action__startswith="inspection.") | Q(action__startswith="template.") | Q(action__startswith="finding."),
+            "inventory": Q(action__startswith="stock.") | Q(action__startswith="part.") | Q(action__startswith="warehouse."),
+            "contracts": Q(action__startswith="contract.") | Q(action__startswith="coverage."),
+            "sla": Q(action__startswith="sla."),
+            "portal": Q(action__startswith="portal."),
+            "security": CATEGORIES["security"][2],
+            "audit": Q(action__startswith="audit.") | Q(action__startswith="file."),
+        }
+        if module in MODULE_MAP:
+            qs = qs.filter(MODULE_MAP[module])
+        elif strict:
+            raise ValidationFailed(f"Unknown module '{module}'.", code="invalid_module")
+    outcome = get("outcome")
+    if outcome == "failed":
+        qs = qs.filter(
+            Q(action__icontains="denied")
+            | Q(action__icontains="failed")
+            | Q(action__icontains="revoked")
+            | Q(action__icontains="unknown")
+            | Q(metadata__outcome="failed")
+            | Q(metadata__success=False)
+            | Q(action="auth.failed")
+        )
+    elif outcome == "success":
+        failed_q = (
+            Q(action__icontains="denied")
+            | Q(action__icontains="failed")
+            | Q(action__icontains="revoked")
+            | Q(action__icontains="unknown")
+            | Q(metadata__outcome="failed")
+            | Q(metadata__success=False)
+            | Q(action="auth.failed")
+        )
+        failed_ids = qs.filter(failed_q).values_list("pk", flat=True)
+        qs = qs.exclude(pk__in=failed_ids)
     if org is not None and (get("asset") or get("work_order")):
         from apps.assets.models import Asset
         from apps.workorders.models import WorkOrder
@@ -170,6 +211,9 @@ def search(qs, params, *, org=None, strict=True):
     if to:
         qs = qs.filter(occurred_at__lt=datetime.datetime.combine(to + datetime.timedelta(days=1), datetime.time.min,
                                                                  tzinfo=tz))
+    sort = get("sort")
+    if sort in ("occurred_at", "-occurred_at", "action", "-action", "actor_email", "-actor_email"):
+        qs = qs.order_by(sort)
     return qs
 
 
@@ -184,3 +228,110 @@ def filter_logs(qs, params):
 
 def entity_types(qs):
     return sorted(set(qs.order_by().values_list("target_type", flat=True).distinct()) - {""})
+
+
+def get_audit_dashboard_metrics(membership, org):
+    """Calculates live audit & compliance overview metrics for the given membership and organization.
+    Respects site scoping (audit.view) and evaluates directly in PostgreSQL.
+    """
+    from django.db.models import Count
+    from django.utils import timezone
+
+    base_qs = visible_logs(membership, org)
+    total_events = base_qs.count()
+
+    now = timezone.now()
+    today_start = datetime.datetime.combine(now.date(), datetime.time.min, tzinfo=datetime.UTC)
+    today_events = base_qs.filter(occurred_at__gte=today_start).count()
+
+    security_q = CATEGORIES["security"][2]
+    security_events = base_qs.filter(security_q).count()
+
+    workflow_q = CATEGORIES["state"][2]
+    workflow_events = base_qs.filter(workflow_q).count()
+
+    record_mods_q = Q(action__endswith=".updated") | Q(action__endswith=".created") | Q(action__endswith=".modified")
+    record_modification_events = base_qs.filter(record_mods_q).count()
+
+    failed_denied_q = (
+        Q(action__icontains="denied")
+        | Q(action__icontains="failed")
+        | Q(action__icontains="revoked")
+        | Q(action__icontains="unknown")
+        | Q(metadata__outcome="failed")
+        | Q(metadata__success=False)
+        | Q(action="auth.failed")
+    )
+    failed_denied_events = base_qs.filter(failed_denied_q).count()
+
+    evidence_q = (
+        Q(action__in=("audit.exported", "audit.evidence_exported", "file.uploaded"))
+        | Q(action__endswith=".evidence_added")
+    )
+    evidence_events = base_qs.filter(evidence_q).count()
+
+    # Module distribution breakdown
+    module_definitions = [
+        ("Work Orders", Q(action__startswith="work_order.")),
+        ("Assets", Q(action__startswith="asset.")),
+        ("Incidents & Requests", Q(action__startswith="incident.") | Q(action__startswith="request.")),
+        ("Checklists", Q(action__startswith="inspection.") | Q(action__startswith="template.") | Q(action__startswith="finding.")),
+        ("Inventory", Q(action__startswith="stock.") | Q(action__startswith="part.") | Q(action__startswith="warehouse.")),
+        ("Contracts & Warranty", Q(action__startswith="contract.") | Q(action__startswith="coverage.")),
+        ("SLA Management", Q(action__startswith="sla.")),
+        ("Client Portal", Q(action__startswith="portal.")),
+        ("Security & Access", security_q),
+        ("Audit & Exports", Q(action__startswith="audit.") | Q(action__startswith="file.")),
+    ]
+
+    module_dist = []
+    for mod_label, mod_q in module_definitions:
+        cnt = base_qs.filter(mod_q).count()
+        if cnt > 0 or total_events == 0:
+            pct = round((cnt / total_events * 100), 1) if total_events > 0 else 0.0
+            module_dist.append({"label": mod_label, "count": cnt, "pct": pct})
+    module_dist.sort(key=lambda x: x["count"], reverse=True)
+
+    # Top action distribution breakdown
+    top_actions = list(base_qs.values("action").annotate(count=Count("id")).order_by("-count")[:6])
+    action_dist = []
+    for item in top_actions:
+        pct = round((item["count"] / total_events * 100), 1) if total_events > 0 else 0.0
+        action_dist.append({"label": item["action"], "count": item["count"], "pct": pct})
+
+    # 7-day activity trend
+    daily_trend = []
+    for i in range(6, -1, -1):
+        day_date = (now - datetime.timedelta(days=i)).date()
+        day_start = datetime.datetime.combine(day_date, datetime.time.min, tzinfo=datetime.UTC)
+        day_end = datetime.datetime.combine(day_date + datetime.timedelta(days=1), datetime.time.min, tzinfo=datetime.UTC)
+        day_count = base_qs.filter(occurred_at__gte=day_start, occurred_at__lt=day_end).count()
+        daily_trend.append({
+            "day": day_date.strftime("%b %d"),
+            "date": day_date.isoformat(),
+            "count": day_count,
+        })
+    max_day = max([d["count"] for d in daily_trend] + [1])
+    for d in daily_trend:
+        d["pct"] = round((d["count"] / max_day * 100), 1)
+
+    # Recent activities
+    recent_activities = list(base_qs.select_related("actor")[:8])
+
+    # Recent exports
+    recent_exports = list(base_qs.filter(action__in=("audit.exported", "audit.evidence_exported"))[:5])
+
+    return {
+        "total_events": total_events,
+        "today_events": today_events,
+        "security_events": security_events,
+        "workflow_events": workflow_events,
+        "record_modification_events": record_modification_events,
+        "failed_denied_events": failed_denied_events,
+        "evidence_events": evidence_events,
+        "module_distribution": module_dist,
+        "action_distribution": action_dist,
+        "daily_trend": daily_trend,
+        "recent_activities": recent_activities,
+        "recent_exports": recent_exports,
+    }

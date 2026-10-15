@@ -305,6 +305,7 @@ def test_required_supervisor_approval_cannot_be_bypassed(as_user, org_a, asset_a
         asset=asset_a,
         source_request=sr,
         source_type=WorkOrder.SourceType.REQUEST,
+        source_id=sr.pk,
         source_reference=sr.number,
         order_number="WO-2026-88001",
         title="WO for Request",

@@ -355,8 +355,17 @@ def test_duplicate_detection_follows_m05_rules(as_user, org_a, asset_a, make_por
     assert res1.status_code == status.HTTP_201_CREATED
     sr1_num = res1.json()["number"]
 
-    # Second request follows M05 rules: gets sequential unique number, persists independently
-    res2 = api.post("/api/v1/portal/requests/", payload, format="json")
+    # Duplicate request without override is rejected per M05 rules (409 Conflict)
+    res_dup = api.post("/api/v1/portal/requests/", payload, format="json")
+    assert res_dup.status_code == status.HTTP_409_CONFLICT
+    assert "duplicate" in str(res_dup.data).lower()
+
+    # Request with valid override follows M05 rules: gets sequential unique number, persists independently
+    res2 = api.post("/api/v1/portal/requests/", {
+        **payload,
+        "override_duplicate": True,
+        "override_reason": "Verified independent failure occurring on secondary pump loop",
+    }, format="json")
     assert res2.status_code == status.HTTP_201_CREATED
     sr2_num = res2.json()["number"]
     assert sr1_num != sr2_num
