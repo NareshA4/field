@@ -18,3 +18,6 @@ htmlcov/
 # Local test tooling installed outside the project environment
 .local/
 uv.lock
+# Test artifacts, screenshots, and visual media
+qa/artifacts/
+*.png

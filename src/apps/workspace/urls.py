@@ -17,10 +17,12 @@ urlpatterns = [
     path("workspace/jobs/<uuid:pk>/notes/", views.JobWorkNoteView.as_view(), name="notes"),
     path("workspace/jobs/<uuid:pk>/labor/", views.JobLaborView.as_view(), name="labor"),
     path("workspace/jobs/<uuid:pk>/materials/", views.JobMaterialView.as_view(), name="material"),
+    path("workspace/jobs/<uuid:pk>/parts/consume/", views.JobPartConsumeView.as_view(), name="consume_part"),
     path("workspace/jobs/<uuid:pk>/evidence/", views.JobEvidenceUploadView.as_view(), name="evidence"),
     # Aliases without workspace/ prefix
     path("my-jobs/", views.MyJobsView.as_view()),
     path("jobs/<uuid:pk>/", views.JobDetailView.as_view()),
+    path("workspace/<uuid:pk>/", views.JobDetailView.as_view()),
     path("jobs/<uuid:pk>/drawer/", views.JobExecutionDrawerView.as_view()),
     path("jobs/<uuid:pk>/start/", views.JobStartView.as_view()),
     path("jobs/<uuid:pk>/pause/", views.JobPauseView.as_view()),
@@ -30,5 +32,6 @@ urlpatterns = [
     path("jobs/<uuid:pk>/notes/", views.JobWorkNoteView.as_view()),
     path("jobs/<uuid:pk>/labor/", views.JobLaborView.as_view()),
     path("jobs/<uuid:pk>/materials/", views.JobMaterialView.as_view()),
+    path("jobs/<uuid:pk>/parts/consume/", views.JobPartConsumeView.as_view()),
     path("jobs/<uuid:pk>/evidence/", views.JobEvidenceUploadView.as_view()),
 ]

@@ -19,6 +19,8 @@ from .serializers import (
     JobLaborWriteSerializer,
     JobMaterialSerializer,
     JobMaterialWriteSerializer,
+    JobPartConsumeSerializer,
+    JobPartLineSerializer,
     PauseJobSerializer,
     TechnicianJobSummarySerializer,
     TravelLogSerializer,
@@ -401,4 +403,38 @@ class JobEvidenceAPIView(TenantAPIMixin, APIView):
             data = {"attachment_id": str(att.pk), "original_name": att.original_name, "size": att.size}
 
         return Response(data, status=status.HTTP_201_CREATED)
+
+
+class JobPartConsumeAPIView(TenantAPIMixin, APIView):
+    """API endpoint for technician to consume reserved/issued inventory parts."""
+
+    permission_map = {"get": "work_order.record", "post": "work_order.record"}
+
+    @extend_schema(responses=JobPartLineSerializer(many=True), summary="List consumable part lines for job")
+    def get(self, request, pk: str):
+        wo = _resolve_job(request, pk)
+        services.assert_can_execute_job(wo, request.membership)
+        parts = selectors.part_lines_for(wo)
+        return Response(JobPartLineSerializer(parts, many=True).data)
+
+    @extend_schema(request=JobPartConsumeSerializer, responses=JobPartLineSerializer, summary="Consume reserved part for job")
+    def post(self, request, pk: str):
+        wo = _resolve_job(request, pk)
+        serializer = JobPartConsumeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        d = serializer.validated_data
+
+        try:
+            line = services.consume_job_part(
+                wo,
+                part_line_id=d["part_line_id"],
+                quantity=d["quantity"],
+                membership=request.membership,
+                actor=request.user,
+                request=request,
+            )
+        except DomainError as exc:
+            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(JobPartLineSerializer(line).data, status=status.HTTP_200_OK)
 

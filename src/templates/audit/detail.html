@@ -1,17 +1,194 @@
 {% extends "shell.html" %}
 {% load ui_tags %}
-{% block title %}Audit entry · FieldOps Nexus{% endblock %}
+{% block title %}Audit Entry · {{ entry.action }} · FieldOps Nexus{% endblock %}
 {% block content %}
-<div class="fx-page-header"><div><nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'audit:list' %}">Audit trail</a></li><li class="breadcrumb-item active">Entry</li></ol></nav><h1><code>{{ entry.action }}</code></h1></div></div>
-<div class="fx-card"><div class="fx-card-body">
-  <dl class="row mb-0">
-    <dt class="col-sm-3">When</dt><dd class="col-sm-9">{{ entry.occurred_at|date:"c" }}</dd>
-    <dt class="col-sm-3">Actor</dt><dd class="col-sm-9">{{ entry.actor_email|default:"system" }}</dd>
-    <dt class="col-sm-3">Target</dt><dd class="col-sm-9">{{ entry.target_repr }} <span class="text-body-secondary small">{{ entry.target_type }} {{ entry.target_id }}</span></dd>
-    <dt class="col-sm-3">Site</dt><dd class="col-sm-9">{% if site %}{{ site.code }} · {{ site.name }}{% else %}—{% endif %}</dd>
-    <dt class="col-sm-3">IP / Request</dt><dd class="col-sm-9">{{ entry.ip_address|default:"-" }} · {{ entry.request_id|default:"-" }}</dd>
-    <dt class="col-sm-3">Before</dt><dd class="col-sm-9"><pre class="mb-0">{{ entry.before|pretty_json }}</pre></dd>
-    <dt class="col-sm-3">After</dt><dd class="col-sm-9"><pre class="mb-0">{{ entry.after|pretty_json }}</pre></dd>
-    <dt class="col-sm-3">Metadata</dt><dd class="col-sm-9"><pre class="mb-0">{{ entry.metadata|pretty_json }}</pre></dd>
-  </dl></div></div>
+<div class="fx-page-header">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item"><a href="{% url 'audit:list' %}">Audit trail</a></li>
+        <li class="breadcrumb-item active">Entry</li>
+      </ol>
+    </nav>
+    <div class="d-flex align-items-center gap-2">
+      <h1 class="h3 mb-0 font-monospace text-primary"><code>{{ entry.action }}</code></h1>
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-1" href="{% url 'audit:list' %}">
+      {% icon 'arrow-left' 14 %} Back to audit trail
+    </a>
+  </div>
+</div>
+
+<div class="fx-card mb-4">
+  <div class="fx-card-header d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">Event Properties</span>
+    <span class="badge bg-light text-secondary border font-monospace small">ID: {{ entry.pk }}</span>
+  </div>
+  <div class="fx-card-body">
+    <dl class="row mb-0">
+      <dt class="col-sm-3 text-body-secondary">When</dt>
+      <dd class="col-sm-9">
+        <span class="fw-semibold">{{ entry.occurred_at|date:"M d, Y · H:i:s" }} UTC</span>
+        <span class="text-body-secondary small ms-2 font-monospace">({{ entry.occurred_at|date:"c" }})</span>
+      </dd>
+
+      <dt class="col-sm-3 text-body-secondary">Actor</dt>
+      <dd class="col-sm-9">
+        {% if entry.actor_email %}
+          <span class="fw-semibold">{{ entry.actor_email }}</span>
+          {% if entry.actor and entry.actor.display_name %}
+            <span class="text-body-secondary small ms-2">({{ entry.actor.display_name }})</span>
+          {% endif %}
+        {% else %}
+          <span class="badge bg-secondary-subtle text-secondary border">system</span>
+        {% endif %}
+      </dd>
+
+      <dt class="col-sm-3 text-body-secondary">Target</dt>
+      <dd class="col-sm-9">
+        {% if entry.target_type == 'assets.asset' %}
+          <a href="{% url 'assets:detail' entry.target_id %}" class="fw-semibold text-decoration-none">
+            {% icon 'box' 14 %} {{ entry.target_repr|default:entry.target_id }}
+          </a>
+        {% elif entry.target_type == 'workorders.workorder' %}
+          <a href="{% url 'workorders:detail' entry.target_id %}" class="fw-semibold text-decoration-none">
+            {% icon 'tool' 14 %} {{ entry.target_repr|default:entry.target_id }}
+          </a>
+        {% elif entry.target_type == 'sites.site' %}
+          <a href="{% url 'sites:detail' entry.target_id %}" class="fw-semibold text-decoration-none">
+            {% icon 'map-pin' 14 %} {{ entry.target_repr|default:entry.target_id }}
+          </a>
+        {% elif entry.target_type == 'incidents.servicerequest' %}
+          <a href="{% url 'incidents:detail' entry.target_id %}" class="fw-semibold text-decoration-none">
+            {% icon 'alert-circle' 14 %} {{ entry.target_repr|default:entry.target_id }}
+          </a>
+        {% else %}
+          <span class="fw-semibold">{{ entry.target_repr|default:"—" }}</span>
+        {% endif %}
+        {% if entry.target_type %}
+          <span class="badge bg-light text-secondary border ms-2">{{ entry.target_type }}</span>
+        {% endif %}
+        {% if entry.target_id %}
+          <span class="text-body-secondary font-monospace small ms-1">{{ entry.target_id }}</span>
+        {% endif %}
+      </dd>
+
+      <dt class="col-sm-3 text-body-secondary">Site</dt>
+      <dd class="col-sm-9">
+        {% if site %}
+          <a href="{% url 'sites:detail' site.pk %}" class="text-decoration-none fw-medium">
+            {{ site.code }} · {{ site.name }}
+          </a>
+        {% else %}
+          <span class="text-body-secondary">—</span>
+        {% endif %}
+      </dd>
+
+      <dt class="col-sm-3 text-body-secondary">IP / Request</dt>
+      <dd class="col-sm-9 font-monospace small">
+        {{ entry.ip_address|default:"-" }} · {{ entry.request_id|default:"-" }}
+      </dd>
+
+      <dt class="col-sm-3 text-body-secondary">Metadata</dt>
+      <dd class="col-sm-9">
+        {% if entry.metadata and entry.metadata.items %}
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle mb-0" style="max-width: 650px;">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 35%;">Key</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for k, v in entry.metadata.items %}
+                <tr>
+                  <td class="font-monospace small text-body-secondary">{{ k }}</td>
+                  <td class="small fw-medium">{{ v }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <span class="text-body-secondary">—</span>
+        {% endif %}
+      </dd>
+    </dl>
+  </div>
+</div>
+
+{% if diff_rows %}
+<div class="fx-card mb-4">
+  <div class="fx-card-header d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">Change Comparison Matrix</span>
+    <span class="badge bg-info-subtle text-info-emphasis border small">Before vs. After</span>
+  </div>
+  <div class="fx-card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 25%;">Property</th>
+            <th style="width: 35%;">State Before</th>
+            <th style="width: 35%;">State After</th>
+            <th style="width: 5%;" class="text-center">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in diff_rows %}
+          <tr {% if row.changed %}class="table-warning bg-opacity-25"{% endif %}>
+            <td class="font-monospace small fw-semibold text-body-secondary">{{ row.key }}</td>
+            <td class="small font-monospace {% if row.changed %}text-danger text-decoration-line-through{% endif %}">
+              {{ row.before|default:"(empty)" }}
+            </td>
+            <td class="small font-monospace {% if row.changed %}text-success fw-bold{% endif %}">
+              {{ row.after|default:"(empty)" }}
+            </td>
+            <td class="text-center">
+              {% if row.changed %}
+                <span class="badge bg-warning text-dark border">Changed</span>
+              {% else %}
+                <span class="text-body-secondary small">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="row">
+  {% if entry.before is not None %}
+  <div class="col-md-6 mb-3">
+    <details class="fx-card" open>
+      <summary class="fx-card-header fw-semibold user-select-none" style="cursor: pointer;">
+        Before Snapshot (JSON)
+      </summary>
+      <div class="fx-card-body p-2">
+        <pre class="mb-0 p-2 bg-light rounded border small font-monospace" style="max-height: 320px; overflow-y: auto;">{{ entry.before|pretty_json }}</pre>
+      </div>
+    </details>
+  </div>
+  {% endif %}
+
+  {% if entry.after is not None %}
+  <div class="col-md-6 mb-3">
+    <details class="fx-card" open>
+      <summary class="fx-card-header fw-semibold user-select-none" style="cursor: pointer;">
+        After Snapshot (JSON)
+      </summary>
+      <div class="fx-card-body p-2">
+        <pre class="mb-0 p-2 bg-light rounded border small font-monospace" style="max-height: 320px; overflow-y: auto;">{{ entry.after|pretty_json }}</pre>
+      </div>
+    </details>
+  </div>
+  {% endif %}
+</div>
 {% endblock %}
+

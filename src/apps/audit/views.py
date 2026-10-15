@@ -58,7 +58,25 @@ class AuditDetailView(TenantPermissionMixin, View):
             raise Http404
         site = Site.objects.for_organization(request.organization).filter(pk=entry.site_id).first() \
             if entry.site_id else None
-        return render(request, "audit/detail.html", {"entry": entry, "site": site})
+
+        diff_rows = []
+        if isinstance(entry.before, dict) and isinstance(entry.after, dict):
+            all_keys = sorted(set(entry.before.keys()) | set(entry.after.keys()))
+            for key in all_keys:
+                b_val = entry.before.get(key)
+                a_val = entry.after.get(key)
+                diff_rows.append({
+                    "key": key,
+                    "before": b_val,
+                    "after": a_val,
+                    "changed": b_val != a_val,
+                })
+
+        return render(request, "audit/detail.html", {
+            "entry": entry,
+            "site": site,
+            "diff_rows": diff_rows,
+        })
 
 
 class ReportsView(TenantPermissionMixin, View):

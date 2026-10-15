@@ -316,3 +316,32 @@ class JobEvidenceUploadView(TenantPermissionMixin, View):
 
         return redirect("workspace:job_detail", pk=wo.pk)
 
+
+class JobPartConsumeView(TenantPermissionMixin, View):
+    required_permission = "work_order.record"
+
+    def post(self, request, pk):
+        wo = _get_job(request, pk)
+        part_line_id = request.POST.get("part_line_id", "").strip()
+        quantity = request.POST.get("quantity", "").strip()
+
+        try:
+            line = services.consume_job_part(
+                wo,
+                part_line_id=part_line_id,
+                quantity=quantity,
+                membership=request.membership,
+                actor=request.user,
+                request=request,
+            )
+            messages.success(request, f"Consumed {quantity} {line.part.unit} of {line.part.name} ({line.part.part_number}).")
+        except DomainError as exc:
+            messages.error(request, exc.message)
+
+        if request.headers.get("HX-Request"):
+            wo.refresh_from_db()
+            summary = services.get_drawer_summary(wo, membership=request.membership)
+            return render(request, "workspace/_drawer.html", summary)
+
+        return redirect("workspace:job_detail", pk=wo.pk)
+
