@@ -167,18 +167,66 @@ If the technician needs to step away for lunch or wait for an overhead crane:
 
 ---
 
-### Step 5: Finishing the Job & Closing Out
+### Step 5: Job Completion & Customer Digital Sign-off (M15)
 
-Once the machine passes test runs:
-1. The technician clicks **Complete Job**.
-2. **System Safety Gate:** The system verifies in the background that all required checklists and safety items were certified.
-3. **Closing Summary:** The technician enters a final note:  
-   *"Replaced mechanical seal and bearing set. Ran machine at full load for 20 minutes. Vibration levels normal, zero fluid leakage."*
-4. **Submit:**
-   - The live labor timer stops.
-   - The work order moves into **Completed** status.
-   - The machine's status in the equipment tree turns back to **Healthy / In Service**.
-   - The plant supervisor receives an immediate notification, and the technician's screen brings up their next scheduled assignment.
+Once on-site repair and testing are complete, field technicians tap **"Complete Job"** in the top action bar or execution drawer. This navigates to the dedicated, mobile-optimized **Job Completion & Customer Sign-off Screen** (`/app/workspace/jobs/<pk>/complete/`).
+
+```
+┌────────────────────────────────────────────────────────┐
+│        JOB COMPLETION & CUSTOMER SIGN-OFF SCREEN       │
+├────────────────────────────────────────────────────────┤
+│ 1. Executive Work Summary                              │
+│    [ Labor Logged ] [ Parts Consumed ] [ Checklist ]   │
+│    - Review hours, consumed materials, & audit records │
+│                                                        │
+│ 2. Final Photo Evidence (Dropzone)                     │
+│    - Drag-and-drop or tap phone camera to upload       │
+│    - Instant live thumbnail preview with file size     │
+│                                                        │
+│ 3. Customer Digital Sign-off                           │
+│    - Work Resolution Notes (min 10 characters)         │
+│    - Customer / Representative Full Name & Title       │
+│    - Customer Acceptance Remarks (Optional)           │
+│    - High-DPI Digital Signature Canvas Pad             │
+│      [ ✍️ Please sign in box ] -> [ ✓ Captured ]       │
+│                                                        │
+│ [ Sign & Confirm Job Completion ]                      │
+└────────────────────────────────────────────────────────┘
+```
+
+#### A. Executive Work Summary & Completion Gates
+The system automatically compiles all job metrics for customer review:
+- **Recorded Labor Hours:** Total diagnostic and repair time logged.
+- **Parts Consumed Ledger:** Itemized inventory parts and materials used.
+- **Checklist Engine:** Real-time confirmation that all mandatory safety items are certified.
+- **Evidence Files:** Count and thumbnails of on-site diagnostic photos.
+
+> **System Safety Gate:** If mandatory checklists or labor hours are missing, an alert banner identifies the blocker with direct links to resolve it, and submission remains disabled until requirements are met.
+
+#### B. Final Photo Evidence Upload
+Technicians can upload a final verification photo of the clean work site and operational equipment:
+- Tap the **Dropzone** to trigger mobile camera capture or select a photo.
+- Instant client-side preview displays the thumbnail and size in KB before upload.
+- One-click **Remove** button to re-take if needed.
+
+#### C. Customer Digital Sign-off Pad
+Hand the phone or tablet to the facility representative or customer:
+1. **Resolution Notes:** Authoritative summary of the root cause, repairs performed, and tests completed.
+2. **Customer Details:** Representative full name (e.g. *Eleanor Rodriguez*) and Title/Role (*Facility Operations Director*).
+3. **Acceptance Remarks:** Optional client feedback (e.g. *"System tested under full load and running smoothly"*).
+4. **Digital Signature Canvas:**
+   - Draw directly with a finger, stylus pen, or mouse.
+   - High-DPI auto-scaling ensures sharp, legally defensible signature rendering.
+   - Real-time indicator toggles from `✍️ Please sign in box` to green `✓ Signature Captured`.
+   - **Clear Signature** button allows easy re-signing if needed.
+
+#### D. Confirmation & Verified Read-Only Certificate
+Upon tapping **"Sign & Confirm Job Completion"**:
+1. The canvas signature is cryptographically converted into a timestamped PNG attachment.
+2. An immutable `WorkOrderSignoff` audit record is created with timestamp and signer credentials.
+3. The work order atomically transitions to **`COMPLETED`** status.
+4. The equipment in the plant hierarchy turns back to **Healthy / In Service**.
+5. Re-visiting `/complete/` permanently locks the screen into a **Customer Sign-off Verified & Completed** summary, preventing any further edits.
 
 ---
 
@@ -195,7 +243,7 @@ Once the machine passes test runs:
 | **Quick-Consume in Drawer** | Enter Qty & tap `Consume Part` in Drawer | Updates allocated inventory stock via real-time HTMX swap. |
 | **Pause Timer for Lunch** | Tap `Pause Job` in drawer | Halts clock until you tap `Resume Job`. |
 | **Attach Photo Proof** | Tap `Upload Evidence` in drawer | Attaches phone camera photos directly to job. |
-| **Finalize & Close Job** | Tap `Complete Job` | Validates safety checklist, stops clock, marks machine operational. |
+| **Finalize & Close Job** | Tap `Complete Job` | Opens completion screen for executive summary, photo proof, and customer digital sign-off. |
 
 ---
 

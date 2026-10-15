@@ -6,3 +6,5 @@ STORAGES = {  # no manifest build step needed in development
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
+DATABASES["default"]["CONN_MAX_AGE"] = 0
+

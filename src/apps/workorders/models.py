@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F, Q
+from django.utils import timezone
 
 from apps.core.models import TenantOwnedModel
 from apps.core.tenant import TenantQuerySet
@@ -177,6 +178,10 @@ class WorkOrder(TenantOwnedModel):
     def completion_evidence(self):
         return WorkOrderEvidence.objects.filter(work_order=self).select_related("attachment")
 
+    @property
+    def signoff(self):
+        return getattr(self, "customer_signoff", None)
+
     def __str__(self):
         return f"{self.order_number} · {self.title}"
 
@@ -339,3 +344,28 @@ class ClosureApproval(TenantOwnedModel):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Closure decisions are append-only.")
+
+
+class WorkOrderSignoff(TenantOwnedModel):
+    """Customer digital sign-off and acceptance record for completed work orders."""
+
+    work_order = models.OneToOneField(WorkOrder, on_delete=models.CASCADE, related_name="customer_signoff")
+    signer_name = models.CharField(max_length=150)
+    signer_title = models.CharField(max_length=100, blank=True)
+    signed_at = models.DateTimeField(default=timezone.now)
+    signature_attachment = models.ForeignKey(
+        "files.Attachment", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    customer_notes = models.TextField(blank=True, max_length=1000)
+    technician_notes = models.TextField(blank=True, max_length=1000)
+
+    class Meta:
+        ordering = ["-signed_at"]
+        indexes = [models.Index(fields=["organization", "work_order"])]
+
+    def __str__(self):
+        return f"Signoff for {self.work_order.order_number} by {self.signer_name} at {self.signed_at}"
+
+    def clean(self):
+        if self.work_order_id and self.organization_id != self.work_order.organization_id:
+            raise ValidationError("Signoff and work order must belong to the same organization.")

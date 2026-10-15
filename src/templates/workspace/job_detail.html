@@ -102,10 +102,15 @@
           </form>
           {% endif %}
 
-          {% if drawer.can_complete %}
-          <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#completeJobModal">
-            {% icon 'clipboard-check' 16 %} Complete Job
-          </button>
+          {% if drawer.can_complete or work_order.status == 'IN_PROGRESS' %}
+          <a href="{% url 'workspace:complete' work_order.pk %}" class="btn btn-primary d-inline-flex align-items-center gap-1 shadow-sm" id="completeJobBtn">
+            {% icon 'clipboard-check' 16 %} Complete & Sign-off
+          </a>
+          {% endif %}
+          {% if work_order.signoff %}
+          <a href="{% url 'workspace:complete' work_order.pk %}" class="btn btn-outline-success d-inline-flex align-items-center gap-1" id="viewSignoffBtn">
+            {% icon 'check-circle' 16 %} View Sign-off
+          </a>
           {% endif %}
 
           <button class="btn btn-outline-secondary"
