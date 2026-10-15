@@ -25,10 +25,10 @@ from .models import (
 )
 
 TRANSITIONS = {
-    WorkOrder.Status.DRAFT: {WorkOrder.Status.PLANNED, WorkOrder.Status.CANCELLED},
-    WorkOrder.Status.PLANNED: {WorkOrder.Status.ASSIGNED, WorkOrder.Status.CANCELLED},
-    WorkOrder.Status.ASSIGNED: {WorkOrder.Status.DISPATCHED, WorkOrder.Status.CANCELLED},
-    WorkOrder.Status.DISPATCHED: {WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.CANCELLED},
+    WorkOrder.Status.DRAFT: {WorkOrder.Status.PLANNED},
+    WorkOrder.Status.PLANNED: {WorkOrder.Status.ASSIGNED},
+    WorkOrder.Status.ASSIGNED: {WorkOrder.Status.DISPATCHED},
+    WorkOrder.Status.DISPATCHED: {WorkOrder.Status.IN_PROGRESS},
     WorkOrder.Status.IN_PROGRESS: {WorkOrder.Status.ON_HOLD, WorkOrder.Status.COMPLETED},
     WorkOrder.Status.ON_HOLD: {WorkOrder.Status.IN_PROGRESS},
     WorkOrder.Status.COMPLETED: {WorkOrder.Status.SUPERVISOR_REVIEW},
@@ -90,6 +90,11 @@ def _need(membership, code, site):
 
 
 def _transition(work_order, target):
+    if target == WorkOrder.Status.CANCELLED:
+        if work_order.status not in (WorkOrder.Status.DRAFT, WorkOrder.Status.PLANNED, WorkOrder.Status.ASSIGNED, WorkOrder.Status.DISPATCHED):
+            raise InvalidTransition(f"Cannot move work order from {work_order.status} to {target}.",
+                                    code="invalid_work_order_transition")
+        return
     if target not in TRANSITIONS.get(work_order.status, set()):
         raise InvalidTransition(f"Cannot move work order from {work_order.status} to {target}.",
                                 code="invalid_work_order_transition")
@@ -126,6 +131,8 @@ def transition_work_order(work_order, target_status, *, membership, actor, permi
         del wo._workflow_transition_write
     _record(wo, actor=actor, action=action, before=before, notes=reason,
             metadata=metadata, request=request)
+    from apps.sla import services as sla_services
+    sla_services.on_work_order_changed(wo, previous=before.get("status", ""), new=target_status, actor=actor)
     return wo
 
 
@@ -326,13 +333,14 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
                                code="source_type_mismatch")
     source_reference = (fields.get("source_reference") or "").strip()
     is_pm = source_type in (WorkOrder.SourceType.PM, WorkOrder.SourceType.PREVENTIVE_MAINTENANCE)
-    if is_pm and not fields.get("source_id"):
-        raise ValidationFailed("A work-order source needs both a type and an id.", code="invalid_source")
     if is_pm and not source_reference and fields.get("source_id"):
         source_reference = f"PM-{fields['source_id']}"
         fields["source_reference"] = source_reference
     if is_pm and not source_reference:
         raise ValidationFailed("A preventive-maintenance schedule reference is required.", code="pm_reference_required")
+    if is_pm and not fields.get("source_id") and source_reference:
+        import uuid
+        fields["source_id"] = uuid.uuid5(uuid.NAMESPACE_DNS, f"{organization.pk}:pm:{source_reference}")
     if is_pm and WorkOrder.objects.for_organization(organization).filter(
             source_type__in=(WorkOrder.SourceType.PM, WorkOrder.SourceType.PREVENTIVE_MAINTENANCE),
             source_reference=source_reference).exclude(
@@ -397,16 +405,21 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
         msg = exc.message_dict if hasattr(exc, "message_dict") else exc.messages
         raise ValidationFailed(f"Work order is invalid: {msg}", details={"fields": msg}) from exc
     _record(wo, actor=actor, action="created", request=request)
+    from apps.sla import services as sla_services
+    sla_services.on_work_order_created(wo)
     return wo
 
 
 @transaction.atomic
-def update_work_order(wo, *, membership, actor, request=None, **values):
+def update_work_order(wo, *, membership=None, actor, request=None, **values):
     """Edit mutable work-order details; lifecycle status is changed only by workflow services."""
     # Lock only the work-order row: assigned_to is nullable, and PostgreSQL
     # rejects FOR UPDATE on the nullable side of a select_related join.
     wo = WorkOrder.objects.select_for_update(of=("self",)).select_related("site", "assigned_to").get(pk=wo.pk)
-    _need(membership, "work_order.update", wo.site)
+    if membership is None and actor is not None:
+        membership = Membership.objects.filter(organization=wo.organization, user=actor, status=Membership.Status.ACTIVE).first()
+    if actor is not None or membership is not None:
+        _need(membership, "work_order.update", wo.site)
     if wo.status not in (WorkOrder.Status.DRAFT, WorkOrder.Status.PLANNED):
         raise Conflict("Only Draft or Planned work orders can be edited here.", code="work_order_locked")
     unknown = set(values) - {
@@ -511,6 +524,9 @@ def update_work_order(wo, *, membership, actor, request=None, **values):
     except ValidationError as exc:
         raise ValidationFailed("Work order is invalid.", details={"fields": exc.message_dict if hasattr(exc, "message_dict") else exc.messages}) from exc
     _record(wo, actor=actor, action="updated", before=before, request=request)
+    if before.get("priority") != wo.priority:
+        from apps.sla import services as sla_services
+        sla_services.on_work_order_updated(wo, previous_priority=before.get("priority"), actor=actor, request=request)
     return wo
 
 
@@ -563,9 +579,14 @@ def plan_work_order(wo, *, membership=None, actor=None, planned_start=None, plan
         changes["due_at"] = due_at
     if estimated_hours is not None:
         changes["estimated_hours"] = estimated_hours
-    return transition_work_order(wo, WorkOrder.Status.PLANNED, membership=membership, actor=actor,
+    before_priority = wo.priority
+    result = transition_work_order(wo, WorkOrder.Status.PLANNED, membership=membership, actor=actor,
         permission="work_order.plan", action="planned", changes=changes,
         expected_version=expected_version, request=request)
+    if before_priority != result.priority:
+        from apps.sla import services as sla_services
+        sla_services.on_work_order_updated(result, previous_priority=before_priority, actor=actor, request=request)
+    return result
 
 
 @transaction.atomic
@@ -654,6 +675,63 @@ def reschedule_assigned_work_order(wo, *, membership, actor, scheduled_start, sc
     _record(wo, actor=actor, action="rescheduled", before=before,
             metadata={"scheduled_start": scheduled_start.isoformat(), "scheduled_end": scheduled_end.isoformat(),
                       "technician_id": str(technician.pk), "warnings": warnings}, request=request)
+    return wo
+
+
+@transaction.atomic
+def reassign(wo, *, technician, reason="", actor, membership=None, request=None, expected_version=None):
+    """Reassign an active or scheduled work order to a different technician without changing lifecycle state."""
+    wo = WorkOrder.objects.select_for_update(of=("self",)).select_related("site", "assigned_to__user").get(pk=wo.pk)
+    if membership is None and actor is not None:
+        membership = Membership.objects.filter(organization=wo.organization, user=actor, status=Membership.Status.ACTIVE).first()
+    if actor is not None or membership is not None:
+        _need(membership, "work_order.assign", wo.site)
+    if wo.status == WorkOrder.Status.PLANNED:
+        tech_id = technician.pk if hasattr(technician, "pk") else technician
+        return assign_work_order(wo, membership=membership, actor=actor, assignee_id=tech_id,
+                                 expected_version=expected_version, request=request)
+    if wo.status not in (WorkOrder.Status.ASSIGNED, WorkOrder.Status.DISPATCHED, WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD):
+        raise Conflict("Only planned, assigned, or active work orders can be reassigned.", code="work_order_not_reassignable")
+    if expected_version is not None and int(expected_version) != wo.version:
+        raise Conflict("This work order changed since you loaded it. Refresh and retry.",
+                       code="work_order_version_conflict")
+
+    tech_membership = technician
+    if not isinstance(tech_membership, Membership):
+        tech_membership = Membership.objects.select_for_update().select_related("user").filter(
+            organization=wo.organization, pk=technician).first()
+    if tech_membership is None:
+        raise NotFound("Technician not found.")
+    if tech_membership.status != Membership.Status.ACTIVE or not tech_membership.user.is_active:
+        raise ValidationFailed("The selected technician is inactive.", code="technician_inactive")
+
+    scheduled_start = wo.planned_start or timezone.now()
+    scheduled_end = wo.planned_end or (scheduled_start + timezone.timedelta(hours=2))
+    candidate = WorkOrder.objects.select_related("site").get(pk=wo.pk)
+    candidate.planned_start, candidate.planned_end = scheduled_start, scheduled_end
+    warnings = validate_assignment(candidate, tech_membership)
+
+    before = _snapshot(wo)
+    wo.assigned_to = tech_membership
+    wo.save(update_fields=("assigned_to", "updated_at"))
+
+    assignment = WorkOrderAssignment.objects.select_for_update().filter(work_order=wo).first()
+    if assignment:
+        assignment.technician = tech_membership
+        assignment.assigned_by = actor
+        assignment.save(update_fields=("technician", "assigned_by", "updated_at"))
+    else:
+        WorkOrderAssignment.objects.create(
+            organization=wo.organization,
+            work_order=wo,
+            technician=tech_membership,
+            scheduled_start=scheduled_start,
+            scheduled_end=scheduled_end,
+            assigned_by=actor,
+        )
+    _record(wo, actor=actor, action="reassigned", before=before, notes=reason,
+            metadata={"technician_id": str(tech_membership.pk), "reason": reason, "warnings": warnings},
+            request=request)
     return wo
 
 
@@ -846,11 +924,13 @@ def cancel_work_order(wo, *, membership, actor, reason="", expected_version=None
     _need(membership, "work_order.cancel", wo.site)
     from apps.inventory import services as inventory_services
     inventory_services.on_work_order_cancelled(wo, actor=actor, request=request)
-    return transition_work_order(
+    result = transition_work_order(
         wo, WorkOrder.Status.CANCELLED, membership=membership, actor=actor,
         permission="work_order.cancel", action="cancelled", reason=reason,
         expected_version=expected_version, request=request,
     )
+    _sync_incident_request(wo, "cancelled", actor, request)
+    return result
 
 
 @transaction.atomic
@@ -964,8 +1044,35 @@ def record_material(wo, *, membership, actor, item_name="", quantity, unit="", p
 
 
 @transaction.atomic
-def add_evidence(wo, *, membership, actor, attachment_id, request=None):
-    _need(membership, "work_order.attach", wo.site)
+def add_evidence(wo, uploaded=None, *, membership=None, actor=None, attachment_id=None, description="", request=None):
+    if membership is None and actor is not None:
+        membership = Membership.objects.filter(organization=wo.organization, user=actor, status=Membership.Status.ACTIVE).first()
+    if actor is not None or membership is not None:
+        _need(membership, "work_order.attach", wo.site)
+
+    if attachment_id is None and uploaded is not None:
+        import uuid
+        if isinstance(uploaded, (str, uuid.UUID)):
+            attachment_id = uploaded
+        else:
+            from apps.files import services as file_services
+            attachment = file_services.attach(
+                uploaded,
+                target=wo,
+                organization=wo.organization,
+                user=actor,
+                description=description,
+                read_permission="work_order.view",
+                request=request,
+            )
+            attachment_id = attachment.pk
+            before = _snapshot(wo)
+            WorkOrderEvidence.objects.get_or_create(organization=wo.organization, work_order=wo, attachment=attachment,
+                                                    defaults={"linked_by": actor})
+            _record(wo, actor=actor, action="evidence_linked", before=before,
+                    metadata={"attachment_id": str(attachment.pk)}, request=request)
+            return attachment
+
     attachment = Attachment.objects.for_organization(wo.organization).filter(pk=attachment_id).first()
     if attachment is None:
         raise NotFound("Evidence file not found.")

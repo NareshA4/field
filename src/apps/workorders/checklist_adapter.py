@@ -98,16 +98,6 @@ def get_checklist_status(work_order):
         return ChecklistResult(True, status, False,
             message="Checklist completion is required before completing this work order.")
 
-    try:
-        from apps.checklists import services as checklist_services
-        blockers = checklist_services.checklist_blockers(work_order)
-        if not blockers:
-            return ChecklistResult(bool(work_order.checklist_required), COMPLETED, True, message="Checklist validated.")
-        return ChecklistResult(True, PENDING, False,
-                               message=blockers[0] if blockers else "Checklist completion is required before completing this work order.")
-    except Exception:
-        pass
-
     if not work_order.checklist_required:
         return ChecklistResult(False, NOT_REQUIRED, True, message="No checklist is required.")
     # 1. Direct provider result (for external providers and boundary mock tests)

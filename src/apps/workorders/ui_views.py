@@ -34,6 +34,7 @@ from .forms import (
     LaborForm,
     MaterialForm,
     PlanForm,
+    ReassignForm,
     ReasonForm,
     ReviewForm,
     WorkUpdateForm,
@@ -866,6 +867,7 @@ def _work_order_tab_context(wo, membership, tab):
             "actor", "assigned_to__user")
     elif tab == "parts":
         context["material_entries"] = wo.material_entries.all()
+        context["part_lines"] = wo.part_lines.select_related("part", "warehouse", "reservation").all()
     elif tab == "labor":
         context["labor_entries"] = wo.labor_entries.select_related("technician__user")
         context["labor_total"] = wo.labor_entries.aggregate(total=Sum("hours"))["total"] or 0
@@ -1006,16 +1008,17 @@ class WorkOrderTabView(TenantPermissionMixin, View):
 
 
 ACTION_PERMISSION = {
-    "plan": "work_order.plan", "assign": "work_order.assign", "dispatch": "work_order.dispatch",
+    "plan": "work_order.plan", "assign": "work_order.assign", "reassign": "work_order.assign", "dispatch": "work_order.dispatch",
     "start": "work_order.start", "hold": "work_order.hold", "resume": "work_order.start",
     "complete": "work_order.complete", "submit_for_review": "work_order.complete",
     "review": "work_order.review",
     "close": "work_order.close", "return_for_rework": "work_order.review",
+    "cancel": "work_order.cancel",
     "checklist": "work_order.update", "work_update": "work_order.record",
     "labor": "work_order.record", "materials": "work_order.record",
     "evidence": "work_order.attach",
 }
-ACTION_FORMS = {"plan": PlanForm, "assign": AssignForm, "hold": ReasonForm,
+ACTION_FORMS = {"plan": PlanForm, "assign": AssignForm, "reassign": ReassignForm, "hold": ReasonForm, "cancel": ReasonForm,
                 "complete": CompleteForm, "review": ReviewForm, "checklist": ChecklistForm,
                 "close": ClosureCommentForm, "return_for_rework": ClosureCommentForm,
                 "work_update": WorkUpdateForm, "labor": LaborForm, "materials": MaterialForm, "evidence": EvidenceForm}
@@ -1049,16 +1052,19 @@ class WorkOrderActionView(TenantPermissionMixin, View):
         if not form_type:
             raise Http404
         kwargs = {}
-        if self.operation == "assign":
+        if self.operation in ("assign", "reassign"):
             kwargs = {"membership": request.membership, "site": wo.site,
                       "work_order": wo,
-                      "initial": {"expected_version": wo.version}}
+                      "initial": {"expected_version": wo.version,
+                                  "assigned_to": wo.assigned_to_id,
+                                  "scheduled_start": wo.planned_start,
+                                  "scheduled_end": wo.planned_end}}
         elif self.operation == "plan":
             kwargs = {"work_order": wo, "initial": {"work_type": wo.work_type, "priority": wo.priority,
                                    "planned_start": wo.planned_start, "planned_end": wo.planned_end,
                                    "due_at": wo.due_at,
                                    "estimated_hours": wo.estimated_hours if wo.estimated_hours and wo.estimated_hours > 0 else ""}}
-        elif self.operation in ("plan", "hold", "complete", "review", "labor", "materials", "evidence", "checklist", "work_update"):
+        elif self.operation in ("plan", "hold", "complete", "review", "labor", "materials", "evidence", "checklist", "work_update", "cancel"):
             kwargs = {}
         form = form_type(**kwargs)
         return render(request, "workorder/action.html", self._action_context(request, wo, form) | {
@@ -1066,8 +1072,8 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                        "operation": self.operation.replace("_", " ").title(),
                        "expected_version": wo.version,
                        "is_close_action": self.operation == "close",
-                       "scheduled_start": wo.planned_start if self.operation == "assign" else None,
-                       "scheduled_end": wo.planned_end if self.operation == "assign" else None,
+                       "scheduled_start": wo.planned_start if self.operation in ("assign", "reassign") else None,
+                       "scheduled_end": wo.planned_end if self.operation in ("assign", "reassign") else None,
                        "labor_entries": wo.labor_entries.all(), "material_entries": wo.material_entries.all(),
                        "evidence_count": wo.evidence_links.count()})
 
@@ -1083,9 +1089,9 @@ class WorkOrderActionView(TenantPermissionMixin, View):
     def post(self, request, pk, operation):
         wo = self._get_order(request, pk)
         form_type = ACTION_FORMS.get(self.operation)
-        form_kwargs = {"membership": request.membership, "site": wo.site, "work_order": wo} if self.operation == "assign" else {}
+        form_kwargs = {"membership": request.membership, "site": wo.site, "work_order": wo} if self.operation in ("assign", "reassign") else {}
         action_data = request.POST
-        if (self.operation == "assign" and "scheduled_start" not in request.POST and
+        if (self.operation in ("assign", "reassign") and "scheduled_start" not in request.POST and
                 wo.planned_start and wo.planned_end):
             action_data = request.POST.copy()
             action_data["scheduled_start"] = timezone.localtime(wo.planned_start).strftime("%Y-%m-%dT%H:%M")
@@ -1100,8 +1106,8 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                            "operation": self.operation.replace("_", " ").title(),
                            "expected_version": wo.version,
                            "is_close_action": self.operation == "close",
-                           "scheduled_start": wo.planned_start if self.operation == "assign" else None,
-                           "scheduled_end": wo.planned_end if self.operation == "assign" else None,
+                           "scheduled_start": wo.planned_start if self.operation in ("assign", "reassign") else None,
+                           "scheduled_end": wo.planned_end if self.operation in ("assign", "reassign") else None,
                            "labor_entries": wo.labor_entries.all(),
                            "material_entries": wo.material_entries.all(),
                            "evidence_count": wo.evidence_links.count()}, status=400)
@@ -1122,6 +1128,13 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                 result = services.assign_work_order(wo, membership=request.membership, actor=request.user,
                     assignee_id=data["assigned_to"].pk, scheduled_start=data["scheduled_start"],
                     scheduled_end=data["scheduled_end"], expected_version=expected_version, request=request)
+            elif self.operation == "reassign":
+                result = services.reassign(wo, technician=data["assigned_to"],
+                    reason=data.get("reason", "Reassigned"), actor=request.user,
+                    membership=request.membership, expected_version=expected_version, request=request)
+            elif self.operation == "cancel":
+                result = services.cancel_work_order(wo, membership=request.membership,
+                    actor=request.user, reason=data["reason"], expected_version=expected_version, request=request)
             elif self.operation == "dispatch": result = services.dispatch_work_order(wo, membership=request.membership, actor=request.user, expected_version=expected_version, request=request)
             elif self.operation == "start": result = services.start_work_order(wo, membership=request.membership, actor=request.user, expected_version=expected_version, request=request)
             elif self.operation == "hold": result = services.hold_work_order(wo, membership=request.membership, actor=request.user, reason=data["reason"], expected_version=expected_version, request=request)
@@ -1177,7 +1190,7 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                 }, status=400)
             messages.error(request, exc.message)
             return redirect("workorders:detail", pk=wo.pk)
-        if self.operation == "assign":
+        if self.operation in ("assign", "reassign"):
             event = result.events.order_by("-created_at").first()
             for warning in (event.metadata.get("warnings", []) if event else []):
                 messages.warning(request, warning)

@@ -1,3 +1,86 @@
-<section class="wo-detail-card"><div class="d-flex justify-content-between align-items-center"><h2>Parts and materials</h2>{% if can_record_work %}<a class="wo-view-button" href="{% url 'workorders:action' wo.pk 'materials' %}">Record material</a>{% endif %}</div>
-  <div class="table-responsive"><table class="wo-table"><thead><tr><th>Item</th><th>Part reference</th><th>Quantity</th><th>Notes</th></tr></thead><tbody>{% for item in material_entries %}<tr><td>{{ item.item_name }}</td><td>{{ item.part_reference|default:"—" }}</td><td>{{ item.quantity }} {{ item.unit }}</td><td>{{ item.notes|default:"—" }}</td></tr>{% empty %}<tr><td colspan="4" class="wo-empty">No materials recorded.</td></tr>{% endfor %}</tbody></table></div>
+<section class="wo-detail-card mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h2 class="h5 mb-1">Required Spare Parts (Inventory)</h2>
+      <p class="small text-secondary mb-0">Spare parts requested from warehouse inventory and their reservation / issuance status.</p>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="wo-table">
+      <thead>
+        <tr>
+          <th>Part #</th>
+          <th>Description</th>
+          <th>Warehouse</th>
+          <th>Status</th>
+          <th class="text-end">Requested</th>
+          <th class="text-end">Reserved</th>
+          <th class="text-end">Issued</th>
+          <th class="text-end">Consumed</th>
+          <th class="text-end">Returned</th>
+          <th class="text-end">Outstanding</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in part_lines %}
+          <tr>
+            <td><strong>{{ line.part.part_number }}</strong></td>
+            <td>{{ line.part.name }}</td>
+            <td>{{ line.warehouse.name|default:"—" }}</td>
+            <td>
+              <span class="badge bg-secondary">{{ line.get_status_display }}</span>
+            </td>
+            <td class="text-end">{{ line.quantity_requested }} {{ line.part.unit_of_measure }}</td>
+            <td class="text-end">{% if line.reservation and line.reservation.quantity %}{{ line.reservation.quantity }}{% else %}0{% endif %}</td>
+            <td class="text-end">{{ line.quantity_issued }}</td>
+            <td class="text-end">{{ line.quantity_consumed }}</td>
+            <td class="text-end">{{ line.quantity_returned }}</td>
+            <td class="text-end"><strong>{{ line.outstanding }}</strong></td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="10" class="wo-empty">No inventory spare parts requested for this work order.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="wo-detail-card">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h2 class="h5 mb-1">Field Materials &amp; Ad-hoc Parts</h2>
+      <p class="small text-secondary mb-0">Materials and miscellaneous consumables logged directly by technicians.</p>
+    </div>
+    {% if can_record_work %}
+      <a class="wo-view-button" href="{% url 'workorders:action' wo.pk 'materials' %}">Record material</a>
+    {% endif %}
+  </div>
+  <div class="table-responsive">
+    <table class="wo-table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Part reference</th>
+          <th>Quantity</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in material_entries %}
+          <tr>
+            <td>{{ item.item_name }}</td>
+            <td>{{ item.part_reference|default:"—" }}</td>
+            <td>{{ item.quantity }} {{ item.unit }}</td>
+            <td>{{ item.notes|default:"—" }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="4" class="wo-empty">No field materials recorded.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>

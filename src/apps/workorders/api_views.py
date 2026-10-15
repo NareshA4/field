@@ -222,7 +222,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.ViewSet):
         d = dict(_validated(WorkOrderWriteSerializer, request))
         asset = asset_selectors.get_asset(request.membership, request.organization, d.pop("asset"))
         require_permission(request.membership, "work_order.create", asset.site_id)
-        wo = services.create_work_order(request.organization, asset=asset, actor=request.user, request=request,
+        wo = services.create_work_order(request.organization, asset=asset, actor=request.user, membership=request.membership, request=request,
                                         **d)
         return Response(WorkOrderSerializer(self._obj(request, wo.pk)).data, status=status.HTTP_201_CREATED)
 
@@ -230,7 +230,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.ViewSet):
     def partial_update(self, request, pk=None):
         wo = self._obj(request, pk, "work_order.update")
         d = _validated(WorkOrderPatchSerializer, request, partial=True)
-        services.update_work_order(wo, actor=request.user, request=request, **d)
+        services.update_work_order(wo, actor=request.user, membership=request.membership, request=request, **d)
         return Response(WorkOrderSerializer(self._obj(request, pk)).data)
 
     @extend_schema(request=WorkOrderTransitionSerializer, responses=WorkOrderSerializer)
@@ -282,7 +282,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.ViewSet):
         wo = self._obj(request, pk, "work_order.assign")
         d = _validated(ReassignSerializer, request)
         tech = _member(request.organization, d["technician"])
-        services.reassign(wo, technician=tech, reason=d["reason"], actor=request.user, request=request)
+        services.reassign(wo, technician=tech, reason=d["reason"], actor=request.user, membership=request.membership, request=request)
         return Response(WorkOrderSerializer(self._obj(request, pk)).data)
 
     @extend_schema(responses=EventSerializer(many=True))
@@ -338,7 +338,8 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.ViewSet):
             return paginate(request, services.evidence_for(wo).select_related("uploaded_by"), WorkOrderEvidenceSerializer)
         require_permission(request.membership, "work_order.attach", wo.site_id)
         d = _validated(WorkOrderEvidenceUploadSerializer, request)
-        att = services.add_evidence(wo, d["file"], description=d.get("description", ""), actor=request.user,
+        uploaded = request.FILES.get("file") or d.get("file")
+        att = services.add_evidence(wo, uploaded=uploaded, description=d.get("description", ""), actor=request.user,
                                     membership=request.membership, request=request)
         return Response(WorkOrderEvidenceSerializer(att).data, status=status.HTTP_201_CREATED)
 

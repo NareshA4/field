@@ -45,6 +45,40 @@ def work_order_list(membership, organization, params=None):
     return qs
 
 
+def filter_work_orders(qs, params=None, membership=None):
+    from django.db.models import Q
+    params = params or {}
+    if params.get("site"):
+        qs = qs.filter(site_id=params["site"])
+    if params.get("asset"):
+        qs = qs.filter(asset_id=params["asset"])
+    if params.get("status"):
+        qs = qs.filter(status=params["status"])
+    if params.get("priority"):
+        qs = qs.filter(priority=params["priority"])
+    if params.get("work_type"):
+        qs = qs.filter(work_type=params["work_type"])
+    if params.get("assigned_to"):
+        qs = qs.filter(assigned_to_id=params["assigned_to"])
+    if params.get("mine") and membership:
+        if str(params.get("mine")).lower() in ("1", "true", "yes"):
+            qs = qs.filter(assigned_to=membership)
+    if params.get("q"):
+        q = str(params["q"]).strip()
+        qs = qs.filter(Q(order_number__icontains=q) | Q(title__icontains=q) | Q(asset_reference__icontains=q))
+    ordering = params.get("ordering")
+    if ordering:
+        allowed = {"created_at", "-created_at", "priority", "-priority", "due_at", "-due_at", "order_number", "-order_number", "status", "-status"}
+        if ordering in allowed:
+            qs = qs.order_by(ordering)
+    return qs
+
+
+def events_for(organization, wo):
+    from .models import WorkOrderEvent
+    return WorkOrderEvent.objects.filter(organization=organization, work_order=wo).select_related("actor", "assigned_to__user").order_by("created_at", "id")
+
+
 work_orders_for = work_order_list
 
 

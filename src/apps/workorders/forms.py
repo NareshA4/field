@@ -312,8 +312,16 @@ class AssignForm(BootstrapFormMixin, forms.Form):
         return cleaned
 
 
+class ReassignForm(AssignForm):
+    reason = forms.CharField(max_length=500, required=False, label="Reassignment reason",
+                             help_text="Optional reason for changing technician assignment.",
+                             widget=forms.Textarea(attrs={"rows": 3}))
+
+
 class ReasonForm(BootstrapFormMixin, forms.Form):
-    reason = forms.CharField(max_length=500)
+    reason = forms.CharField(min_length=3, max_length=500, label="Reason",
+                             help_text="Provide a clear reason for this action (at least 3 characters).",
+                             widget=forms.Textarea(attrs={"rows": 3}))
 
 
 class WorkUpdateForm(BootstrapFormMixin, forms.Form):

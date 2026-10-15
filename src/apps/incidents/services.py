@@ -480,7 +480,7 @@ def create_work_order_for_request(sr: ServiceRequest, *, actor, membership, requ
     wo = work_orders.create_work_order(
         sr.organization, asset=sr.asset, actor=actor, membership=membership, request=request, source_request=sr,
         component=component,
-        work_type=plan.pop("work_type", "CORRECTIVE"), title=plan.pop("title", None) or sr.title,
+        work_type=plan.pop("work_type", None), title=plan.pop("title", None) or sr.title,
         description=plan.pop("description", None) or sr.description,
         priority=plan.pop("priority", None) or _SEVERITY_TO_PRIORITY[sr.severity], **plan)
     linked_ids = []
