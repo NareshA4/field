@@ -688,8 +688,6 @@ def _assert_assignee_or_dispatcher(wo, membership):
     assert_can_execute(wo, membership)
 
 
-assert_can_execute = _assert_assignee_or_dispatcher
-
 
 def _assert_assignee_or_authorized(wo, membership, permission):
     if (wo.assigned_to_id != membership.pk and

@@ -805,3 +805,42 @@ body.fx-app {
     transform: translateY(0);
   }
 }
+
+/* ==========================================================================
+   Print Styles & Utility Classes
+   ========================================================================== */
+@media print {
+  .d-print-none,
+  .fx-sidebar,
+  .fx-topbar,
+  .fx-sidebar-backdrop,
+  .fx-toast-container,
+  dialog {
+    display: none !important;
+  }
+
+  .d-print-block {
+    display: block !important;
+  }
+
+  .d-print-inline {
+    display: inline !important;
+  }
+
+  .d-print-inline-block {
+    display: inline-block !important;
+  }
+
+  body, body.fx-app, .fx-layout, .fx-main, .fx-content {
+    background: #ffffff !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    width: 100% !important;
+  }
+}
+

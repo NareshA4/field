@@ -326,7 +326,7 @@ class AssetDetailView(AssetBase):
             ("history", "History"),
             ("hierarchy", "Hierarchy"),
         ]
-        if rbac.catalog.is_registered("contract.view"):
+        if rbac.catalog.is_registered("contract.view") and rbac.has_permission(m, "contract.view", asset.site_id):
             available_tabs.append(("coverage", "Coverage"))
         available_tabs.append(("labels", "Labels"))
 

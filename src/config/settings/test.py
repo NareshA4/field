@@ -3,7 +3,7 @@ import os
 import secrets
 
 os.environ.setdefault("DJANGO_SECRET_KEY", secrets.token_urlsafe(50))  # ephemeral, never persisted
-_pg_pass = os.environ.get("POSTGRES_PASSWORD", "McEXD9PVj4TKfk31GaBHYlAA14pXAhFLvlhJZuYA0BU")
+_pg_pass = os.environ.get("POSTGRES_PASSWORD", "fieldops")
 os.environ.setdefault("DATABASE_URL", f"postgres://fieldops:{_pg_pass}@localhost:5432/fieldops")
 
 from .base import *  # noqa: E402,F401,F403
