@@ -1,25 +1,22 @@
 {% extends "shell.html" %}
 {% load ui_tags %}
-
-{% block title %}Audit Event {{ entry.action }} · FieldOps Nexus{% endblock %}
-
+{% block title %}Audit Entry · {{ entry.action }} · FieldOps Nexus{% endblock %}
 {% block content %}
-<div class="fx-page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+<div class="fx-page-header">
   <div>
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb mb-1 small">
-        <li class="breadcrumb-item"><a href="{% url 'audit:list' %}">Audit Dashboard</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Event Details</li>
+        <li class="breadcrumb-item"><a href="{% url 'audit:list' %}">Audit trail</a></li>
+        <li class="breadcrumb-item active">Entry</li>
       </ol>
     </nav>
     <div class="d-flex align-items-center gap-2">
-      <h1 class="h3 fw-bold mb-0"><code>{{ entry.action }}</code></h1>
-      <span class="badge bg-light text-dark border small">Immutable ID: {{ entry.pk }}</span>
+      <h1 class="h3 mb-0 font-monospace text-primary"><code>{{ entry.action }}</code></h1>
     </div>
   </div>
-  <div>
-    <a class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" href="{% url 'audit:list' %}">
-      {% icon 'shield' 14 %} Return to Audit Trail
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-1" href="{% url 'audit:list' %}">
+      {% icon 'arrow-left' 14 %} Back to audit trail
     </a>
   </div>
 </div>
@@ -69,9 +66,11 @@
     <div class="d-flex flex-column gap-3 h-100">
       <!-- Metadata & Context -->
       <div class="fx-card p-3 shadow-sm">
-        <h6 class="fw-bold text-uppercase text-body-secondary small mb-2 border-bottom pb-2">Operational Context &amp; Details</h6>
+        <h6 class="fw-bold text-uppercase text-body-secondary small mb-2 border-bottom pb-2">Operational Context &amp;
+          Details</h6>
         {% if entry.metadata %}
-        <pre class="bg-light p-2 rounded small mb-0 font-monospace" style="max-height: 200px; overflow-y: auto;">{{ entry.metadata|pretty_json }}</pre>
+        <pre class="bg-light p-2 rounded small mb-0 font-monospace"
+          style="max-height: 200px; overflow-y: auto;">{{ entry.metadata|pretty_json }}</pre>
         {% else %}
         <div class="text-body-secondary small">No additional metadata recorded for this event.</div>
         {% endif %}
@@ -79,12 +78,14 @@
 
       <!-- State Changes (Before & After) -->
       <div class="fx-card p-3 shadow-sm flex-fill">
-        <h6 class="fw-bold text-uppercase text-body-secondary small mb-2 border-bottom pb-2">Change History (Before vs After)</h6>
+        <h6 class="fw-bold text-uppercase text-body-secondary small mb-2 border-bottom pb-2">Change History (Before vs
+          After)</h6>
         <div class="row g-2">
           <div class="col-12 col-md-6">
             <label class="form-label small fw-semibold text-body-secondary mb-1">State Before</label>
             {% if entry.before %}
-            <pre class="bg-light p-2 rounded small mb-0 font-monospace text-danger" style="max-height: 250px; overflow-y: auto;">{{ entry.before|pretty_json }}</pre>
+            <pre class="bg-light p-2 rounded small mb-0 font-monospace text-danger"
+              style="max-height: 250px; overflow-y: auto;">{{ entry.before|pretty_json }}</pre>
             {% else %}
             <div class="text-body-secondary small p-2 border rounded bg-light">None (Creation or stateless action)</div>
             {% endif %}
@@ -92,7 +93,8 @@
           <div class="col-12 col-md-6">
             <label class="form-label small fw-semibold text-body-secondary mb-1">State After</label>
             {% if entry.after %}
-            <pre class="bg-light p-2 rounded small mb-0 font-monospace text-success" style="max-height: 250px; overflow-y: auto;">{{ entry.after|pretty_json }}</pre>
+            <pre class="bg-light p-2 rounded small mb-0 font-monospace text-success"
+              style="max-height: 250px; overflow-y: auto;">{{ entry.after|pretty_json }}</pre>
             {% else %}
             <div class="text-body-secondary small p-2 border rounded bg-light">None (Deletion or stateless action)</div>
             {% endif %}

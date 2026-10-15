@@ -458,7 +458,22 @@ def line_ops(membership, wo, line) -> dict:
 
 
 class WorkOrderPartsView(TenantPermissionMixin, View):
-    required_permission = "work_order.view_assigned"
+    required_permission = "work_order.view"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        if request.membership is None:
+            return redirect("ui:choose_org")
+        m = request.membership
+        if not (
+            rbac.has_permission_anywhere(m, "work_order.view")
+            or rbac.has_permission_anywhere(m, "work_order.view_assigned")
+            or rbac.has_permission_anywhere(m, "inventory.view")
+        ):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        return super(TenantPermissionMixin, self).dispatch(request, *args, **kwargs)
 
     def get(self, request, pk):
         m, org = request.membership, request.organization
@@ -503,8 +518,28 @@ class PartRequestView(TenantPermissionMixin, View):
 
 
 class LineActionView(TenantPermissionMixin, View):
-    required_permission = "work_order.view_assigned"
+    required_permission = "work_order.view"
     http_method_names = ["post"]
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        if request.membership is None:
+            return redirect("ui:choose_org")
+        m = request.membership
+        if not (
+            rbac.has_permission_anywhere(m, "work_order.view")
+            or rbac.has_permission_anywhere(m, "work_order.view_assigned")
+            or rbac.has_permission_anywhere(m, "inventory.view")
+            or rbac.has_permission_anywhere(m, "inventory.reserve")
+            or rbac.has_permission_anywhere(m, "inventory.issue")
+            or rbac.has_permission_anywhere(m, "inventory.consume")
+            or rbac.has_permission_anywhere(m, "inventory.return")
+            or rbac.has_permission_anywhere(m, "inventory.reconcile")
+        ):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        return super(TenantPermissionMixin, self).dispatch(request, *args, **kwargs)
 
     def post(self, request, pk, action):
         m, org = request.membership, request.organization

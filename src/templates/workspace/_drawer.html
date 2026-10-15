@@ -146,6 +146,47 @@
       </div>
     </div>
 
+    <!-- Allocated Parts Consumption (Drawer Quick-Action) -->
+    <div class="card mb-3 shadow-sm border">
+      <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+        <span class="fw-bold small text-uppercase">{% icon 'box' 14 %} Allocated Parts</span>
+        {% if consumable_parts_count > 0 %}
+          <span class="badge bg-success-subtle text-success border border-success-subtle">{{ consumable_parts_count }} available</span>
+        {% else %}
+          <span class="badge bg-light text-secondary border">0 pending</span>
+        {% endif %}
+      </div>
+      <div class="card-body p-3">
+        {% if consumable_parts %}
+          <form method="post" action="{% url 'workspace:consume_part' work_order.pk %}"
+                hx-post="{% url 'workspace:consume_part' work_order.pk %}"
+                hx-target="#jobDrawer"
+                hx-swap="outerHTML">
+            {% csrf_token %}
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Select Part to Consume</label>
+              <select name="part_line_id" class="form-select form-select-sm" required>
+                {% for line in consumable_parts %}
+                  <option value="{{ line.pk }}">
+                    {{ line.part.part_number }} (Rem: {{ line.outstanding|floatformat:"-3" }} {{ line.part.unit }})
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Quantity</label>
+              <input type="number" step="0.001" min="0.001" name="quantity" class="form-control form-control-sm" required placeholder="Quantity used">
+            </div>
+            <button type="submit" class="btn btn-sm btn-outline-primary w-100 fw-semibold">
+              {% icon 'check' 14 %} Consume Part
+            </button>
+          </form>
+        {% else %}
+          <p class="small text-muted mb-0">No outstanding warehouse parts pending consumption.</p>
+        {% endif %}
+      </div>
+    </div>
+
     <!-- Site & Route Navigation -->
     <div class="card mb-3 shadow-sm border">
       <div class="card-header bg-white py-2">

@@ -152,3 +152,23 @@ class JobEvidenceUploadSerializer(serializers.Serializer):
     file = serializers.FileField()
     description = serializers.CharField(max_length=200, required=False, allow_blank=True)
 
+
+class JobPartConsumeSerializer(serializers.Serializer):
+    part_line_id = serializers.UUIDField()
+    quantity = serializers.DecimalField(max_digits=10, decimal_places=3, min_value=Decimal("0.001"))
+
+
+class JobPartLineSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    part_id = serializers.UUIDField()
+    part_number = serializers.CharField(source="part.part_number")
+    part_name = serializers.CharField(source="part.name")
+    unit = serializers.CharField(source="part.unit")
+    warehouse_id = serializers.UUIDField(allow_null=True)
+    warehouse_code = serializers.CharField(source="warehouse.code", allow_null=True)
+    quantity_requested = serializers.DecimalField(max_digits=10, decimal_places=3)
+    quantity_issued = serializers.DecimalField(max_digits=10, decimal_places=3)
+    quantity_consumed = serializers.DecimalField(max_digits=10, decimal_places=3)
+    outstanding = serializers.DecimalField(max_digits=10, decimal_places=3)
+    status = serializers.CharField()
+
