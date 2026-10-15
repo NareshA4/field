@@ -1,4 +1,4 @@
-"""M11 REST API (``/api/v1/sla-profiles|sla-trackings|sla-breaches|sla-metrics``).
+"""SLA & Escalation REST API (``/api/v1/sla-profiles|sla-trackings|sla-breaches|sla-metrics``).
 
 ``TenantAPIMixin`` + ``permission_map`` (unmapped = denied) -> object lookup restricted to organization AND site
 scope (404) -> permission for the object's site (403) -> service. Configuration needs ``sla.manage``; running the
@@ -15,11 +15,10 @@ from rest_framework.views import APIView
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
 from apps.core.exceptions import NotFound, ValidationFailed
 from apps.rbac.models import Role
-from apps.sites import selectors as site_selectors
 from apps.tenancy.api import TenantAPIMixin
 
 from . import selectors, services
-from .models import EscalationRule, SLABreach, SLAEvent, SLAProfile, SLATarget, SLATracking
+from .models import EscalationRule, SLABreach, SLAEvent, SLAProfile, SLAPauseEvent, SLATarget, SLATracking
 
 # --- serializers -------------------------------------------------------------------------------------------------
 
@@ -43,13 +42,18 @@ class RuleSerializer(serializers.ModelSerializer):
 
 class ProfileSerializer(serializers.ModelSerializer):
     site_code = serializers.CharField(source="site.code", read_only=True, default=None)
+    client_name = serializers.CharField(source="client.user.display_name", read_only=True, default=None)
+    asset_tag = serializers.CharField(source="asset.asset_tag", read_only=True, default=None)
+    asset_category_name = serializers.CharField(source="asset_category.name", read_only=True, default=None)
     targets = TargetSerializer(many=True, read_only=True)
     rules = RuleSerializer(many=True, read_only=True)
 
     class Meta:
         model = SLAProfile
-        fields = ["id", "name", "description", "applies_to", "site", "site_code", "work_type", "pause_states",
-                  "is_active", "coverage_only", "targets", "rules", "created_at", "updated_at"]
+        fields = ["id", "name", "description", "applies_to", "site", "site_code", "client", "client_name",
+                  "contract", "asset", "asset_tag", "asset_category", "asset_category_name", "service_type",
+                  "work_type", "pause_states", "is_active", "coverage_only", "targets", "rules",
+                  "created_at", "updated_at"]
         read_only_fields = fields
 
 
@@ -58,6 +62,11 @@ class ProfileWriteSerializer(serializers.Serializer):
     applies_to = serializers.ChoiceField(choices=SLAProfile.AppliesTo.choices)
     description = serializers.CharField(max_length=300, required=False, allow_blank=True)
     site = serializers.UUIDField(required=False, allow_null=True)
+    client = serializers.UUIDField(required=False, allow_null=True)
+    contract = serializers.UUIDField(required=False, allow_null=True)
+    asset = serializers.UUIDField(required=False, allow_null=True)
+    asset_category = serializers.UUIDField(required=False, allow_null=True)
+    service_type = serializers.CharField(max_length=20, required=False, allow_blank=True)
     work_type = serializers.CharField(max_length=20, required=False, allow_blank=True)
     coverage_only = serializers.BooleanField(required=False)
     pause_states = serializers.ListField(child=serializers.CharField(), required=False)
@@ -67,6 +76,15 @@ class ProfilePatchSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=120, required=False)
     description = serializers.CharField(max_length=300, required=False, allow_blank=True)
     pause_states = serializers.ListField(child=serializers.CharField(), required=False)
+    applies_to = serializers.ChoiceField(choices=SLAProfile.AppliesTo.choices, required=False)
+    site = serializers.UUIDField(required=False, allow_null=True)
+    client = serializers.UUIDField(required=False, allow_null=True)
+    contract = serializers.UUIDField(required=False, allow_null=True)
+    asset = serializers.UUIDField(required=False, allow_null=True)
+    asset_category = serializers.UUIDField(required=False, allow_null=True)
+    service_type = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    work_type = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    coverage_only = serializers.BooleanField(required=False)
 
 
 class TargetWriteSerializer(serializers.Serializer):
@@ -97,13 +115,15 @@ class TrackingSerializer(serializers.ModelSerializer):
     subject_title = serializers.SerializerMethodField()
     profile_name = serializers.CharField(source="profile.name", read_only=True)
     site_code = serializers.CharField(source="site.code", read_only=True)
+    pause_history = serializers.SerializerMethodField()
 
     class Meta:
         model = SLATracking
         fields = ["id", "subject_type", "subject_id", "subject_number", "subject_title", "profile", "profile_name",
                   "site", "site_code", "priority", "response_minutes", "resolution_minutes", "warning_percent",
                   "started_at", "response_due_at", "resolution_due_at", "response_met_at", "resolution_met_at",
-                  "response_state", "resolution_state", "status", "paused_at", "paused_seconds", "last_checked_at"]
+                  "response_state", "resolution_state", "status", "selection_reason", "paused_at", "paused_seconds",
+                  "last_checked_at", "pause_history"]
         read_only_fields = fields
 
     def get_subject_id(self, obj) -> str:
@@ -114,6 +134,22 @@ class TrackingSerializer(serializers.ModelSerializer):
 
     def get_subject_title(self, obj) -> str:
         return obj.subject.title
+
+    def get_pause_history(self, obj):
+        return SLAPauseEventSerializer(obj.pause_events.select_related("paused_by", "approved_by").all(),
+                                       many=True).data
+
+
+class SLAPauseEventSerializer(serializers.ModelSerializer):
+    paused_by_name = serializers.CharField(source="paused_by.display_name", read_only=True, default=None)
+    approved_by_name = serializers.CharField(source="approved_by.display_name", read_only=True, default=None)
+
+    class Meta:
+        model = SLAPauseEvent
+        fields = ["id", "reason", "workflow_state", "started_at", "ended_at", "duration_seconds",
+                  "paused_by", "paused_by_name", "approval_required", "approved_by", "approved_by_name",
+                  "approved_at"]
+        read_only_fields = fields
 
 
 class SLAEventSerializer(serializers.ModelSerializer):
@@ -151,6 +187,35 @@ def _validated(serializer_cls, request, partial=False):
     return dict(ser.validated_data)
 
 
+def _resolve_profile_scope(request, values):
+    from apps.assets.models import Asset, AssetCategory
+    from apps.contracts.models import CoverageAgreement
+    from apps.rbac.models import MembershipRole
+    from apps.sites.models import Site
+    from apps.tenancy.models import Membership
+
+    lookups = {"site": Site.objects.for_organization(request.organization),
+               "asset": Asset.objects.for_organization(request.organization),
+               "asset_category": AssetCategory.objects.for_organization(request.organization),
+               "contract": CoverageAgreement.objects.for_organization(request.organization),
+               "client": Membership.objects.for_organization(request.organization)}
+    for field, queryset in lookups.items():
+        if field not in values:
+            continue
+        pk = values[field]
+        if pk is None:
+            values[field] = None
+            continue
+        obj = queryset.filter(pk=pk).first()
+        if obj is None:
+            raise NotFound(f"{field.replace('_', ' ').title()} not found.")
+        if field == "client" and not MembershipRole.objects.filter(
+                membership=obj, role__system_key="client_requester").exists():
+            raise ValidationFailed("Select a client requester membership.", code="invalid_client")
+        values[field] = obj
+    return values
+
+
 # --- viewsets ------------------------------------------------------------------------------------------------------
 
 
@@ -178,17 +243,13 @@ class SLAProfileViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     @extend_schema(request=ProfileWriteSerializer, responses={201: ProfileSerializer})
     def create(self, request):
-        d = _validated(ProfileWriteSerializer, request)
-        site = None
-        if d.get("site"):
-            site = site_selectors.get_site(request.membership, request.organization, d.pop("site"))
-        d.pop("site", None)
-        profile = services.create_profile(request.organization, site=site, actor=request.user, request=request, **d)
+        d = _resolve_profile_scope(request, _validated(ProfileWriteSerializer, request))
+        profile = services.create_profile(request.organization, actor=request.user, request=request, **d)
         return Response(ProfileSerializer(profile).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(request=ProfilePatchSerializer, responses=ProfileSerializer)
     def partial_update(self, request, pk=None):
-        d = _validated(ProfilePatchSerializer, request, partial=True)
+        d = _resolve_profile_scope(request, _validated(ProfilePatchSerializer, request, partial=True))
         services.update_profile(self._profile(request, pk), actor=request.user, request=request, **d)
         return self._out(request, pk)
 

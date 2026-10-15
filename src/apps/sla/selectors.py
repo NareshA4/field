@@ -45,7 +45,8 @@ def get_profile(org, pk) -> SLAProfile:
 
 def trackings_for(membership, org):
     scope = rbac.site_scope(membership, "sla.view")
-    qs = SLATracking.objects.for_organization(org).select_related("profile", "request", "work_order", "site")
+    qs = SLATracking.objects.for_organization(org).select_related("profile", "request", "work_order", "site").prefetch_related(
+        "pause_events__paused_by", "pause_events__approved_by")
     return scope.filter(qs, "site_id")
 
 
@@ -73,8 +74,12 @@ def filter_trackings(qs, params):
         qs = qs.filter(Q(response_state__in=("BREACHED", "MET_LATE")) | Q(resolution_state__in=("BREACHED", "MET_LATE")))
     q = (params.get("q") or "").strip()
     if q:
-        qs = qs.filter(Q(request__number__icontains=q) | Q(work_order__number__icontains=q)
-                       | Q(request__title__icontains=q) | Q(work_order__title__icontains=q))
+        qs = qs.filter(
+            Q(request__number__icontains=q)
+            | Q(work_order__order_number__icontains=q)
+            | Q(request__title__icontains=q)
+            | Q(work_order__title__icontains=q)
+        )
     return qs.order_by("-started_at", "-id")
 
 
@@ -88,7 +93,11 @@ def tracking_for_request(membership, org, request_obj):
 
 
 def tracking_for_work_order(membership, org, wo):
-    return trackings_for(membership, org).filter(work_order=wo).first()
+    qs = trackings_for(membership, org)
+    direct = qs.filter(work_order=wo).first()
+    if direct is not None or not wo.source_request_id:
+        return direct
+    return qs.filter(request_id=wo.source_request_id).first()
 
 
 # --- breaches -------------------------------------------------------------------------------------------------------------
@@ -145,6 +154,8 @@ def metrics(membership, org, *, since: datetime | None = None, until: datetime |
     return {
         "trackings": qs.count(),
         "active": qs.filter(status="ACTIVE").count(),
+        "at_risk": qs.filter(status="AT_RISK").count(),
+        "breached": qs.filter(status="BREACHED").count(),
         "paused": qs.filter(status="PAUSED").count(),
         "response": _bucket(qs, "response_state"),
         "resolution": _bucket(qs, "resolution_state"),
