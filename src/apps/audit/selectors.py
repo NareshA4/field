@@ -172,7 +172,7 @@ def search(qs, params, *, org=None, strict=True):
         from apps.workorders.models import WorkOrder
 
         asset = _resolve(Asset, org, get("asset"), "asset_tag") if get("asset") else None
-        wo = _resolve(WorkOrder, org, get("work_order"), "number") if get("work_order") else None
+        wo = _resolve(WorkOrder, org, get("work_order"), "order_number") if get("work_order") else None
         if (get("asset") and asset is None) or (get("work_order") and wo is None):
             qs = qs.none()
         else:

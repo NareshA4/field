@@ -131,9 +131,6 @@ def create_portal_service_request(
 
     # Resolve and validate asset
     if isinstance(asset, (str, uuid.UUID)):
-        foreign = Asset.objects.unscoped().filter(pk=asset).first()
-        if foreign and foreign.organization_id != org.pk:
-            raise ValidationFailed("Asset belongs to a different organization.", code="cross_tenant_asset")
         asset_obj = Asset.objects.for_organization(org).filter(pk=asset).first()
         if not asset_obj:
             raise ValidationFailed("Asset not found in this organization.", code="asset_not_found")
@@ -151,9 +148,6 @@ def create_portal_service_request(
     # Resolve and validate optional site
     if site is not None:
         if isinstance(site, (str, uuid.UUID)):
-            foreign_site = Site.objects.unscoped().filter(pk=site).first()
-            if foreign_site and foreign_site.organization_id != org.pk:
-                raise ValidationFailed("Site belongs to a different organization.", code="cross_tenant_site")
             site_obj = Site.objects.for_organization(org).filter(pk=site).first()
             if not site_obj:
                 raise ValidationFailed("Site not found in this organization.", code="site_not_found")

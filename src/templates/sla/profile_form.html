@@ -1,0 +1,66 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}{{ title }} &middot; FieldOps Nexus{% endblock %}
+{% block content %}
+<style>
+  #id_pause_states {
+    list-style: none;
+    padding-left: 0;
+    margin-bottom: 0.5rem;
+  }
+  #id_pause_states div,
+  #id_pause_states label {
+    font-size: 0.88rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.35rem;
+  }
+</style>
+
+{% include "components/_page_header.html" %}
+
+<div class="fx-card" style="max-width: 720px;">
+  <div class="fx-card-body p-4">
+    <form method="post" novalidate>{% csrf_token %}
+      {% if form.non_field_errors %}
+      <div class="alert alert-danger py-2 mb-3" role="alert">{{ form.non_field_errors.0 }}</div>
+      {% endif %}
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-4">
+          {% include "components/_form_field.html" with field=form.name %}
+        </div>
+        <div class="col-md-4">
+          {% include "components/_form_field.html" with field=form.description %}
+        </div>
+        <div class="col-md-4">
+          {% include "components/_form_field.html" with field=form.applies_to %}
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-4">
+          {% include "components/_form_field.html" with field=form.site %}
+        </div>
+        <div class="col-md-4">
+          {% include "components/_form_field.html" with field=form.work_type %}
+        </div>
+        <div class="col-md-4">
+          {% include "components/_form_field.html" with field=form.coverage_only %}
+        </div>
+      </div>
+
+      <div class="mb-4">
+        {% include "components/_form_field.html" with field=form.pause_states %}
+      </div>
+
+      <div class="d-flex align-items-center gap-3">
+        <button type="submit" class="btn btn-primary px-3">{{ submit|default:"Create profile" }}</button>
+        <a class="btn btn-link text-decoration-none px-0" href="{{ cancel_url }}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

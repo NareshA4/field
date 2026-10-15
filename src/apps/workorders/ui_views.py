@@ -789,7 +789,19 @@ def _work_order_tab_context(wo, membership, tab):
     """Build each detail tab from the same scoped work-order record."""
     can_execute = wo.assigned_to_id == membership.pk or rbac.has_permission(
         membership, "work_order.dispatch", wo.site)
-    context = {"wo": wo, "permissions": {
+    pm_cycle = None
+    can_view_pm = False
+    if wo.source_type in ("PREVENTIVE_MAINTENANCE", "PM"):
+        from apps.maintenance.models import MaintenanceCycle
+        pm_cycle = (
+            MaintenanceCycle.objects.for_organization(wo.organization)
+            .filter(work_order=wo)
+            .select_related("schedule__plan")
+            .first()
+        )
+        if pm_cycle:
+            can_view_pm = rbac.has_permission(membership, "maintenance.view", wo.site)
+    context = {"wo": wo, "pm_cycle": pm_cycle, "can_view_pm": can_view_pm, "permissions": {
         "update": rbac.has_permission(membership, "work_order.update", wo.site),
         "record": rbac.has_permission(membership, "work_order.record", wo.site),
         "attach": rbac.has_permission(membership, "work_order.attach", wo.site),

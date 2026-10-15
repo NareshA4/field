@@ -16,7 +16,7 @@
     </div>
     <div class="d-flex gap-2 flex-wrap">
       {% if perms.site_update %}
-        <button type="button" class="btn btn-outline-primary" hx-get="{% url 'sites:edit' site.pk %}" hx-target="#siteModalContent" hx-swap="innerHTML">Edit</button>
+        <button type="button" class="btn btn-outline-primary" id="btn-edit-site" hx-get="{% url 'sites:edit' site.pk %}" hx-target="#siteModalContent" hx-swap="innerHTML">Edit</button>
         <noscript><a class="btn btn-outline-primary" href="{% url 'sites:edit' site.pk %}">Edit</a></noscript>
       {% endif %}
       {% if perms.site_deactivate and site.status == 'ACTIVE' %}
@@ -45,7 +45,7 @@
   <div class="fx-card" id="zone-tree-card" hx-get="{% url 'sites:detail' site.pk %}?tab=locations" hx-trigger="zoneSaved from:body" hx-target="#zone-tree-card" hx-select="#zone-tree-card" hx-swap="outerHTML" hx-disinherit="*">
     <div class="fx-card-header">Buildings, zones &amp; service areas
       {% if perms.zone_create and site.status == 'ACTIVE' %}
-        <button type="button" class="btn btn-sm btn-primary" hx-get="{% url 'sites:zone_create' site.pk %}" hx-target="#zoneModalContent" hx-swap="innerHTML">
+        <button type="button" class="btn btn-sm btn-primary" id="btn-add-location" hx-get="{% url 'sites:zone_create' site.pk %}" hx-target="#zoneModalContent" hx-swap="innerHTML">
           {% icon 'plus' 14 %} Add location
         </button>
         <noscript><a class="btn btn-sm btn-primary" href="{% url 'sites:zone_create' site.pk %}">{% icon 'plus' 14 %} Add location</a></noscript>

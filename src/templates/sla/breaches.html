@@ -3,7 +3,7 @@
 {% block title %}SLA breaches · FieldOps Nexus{% endblock %}
 {% block content %}
 <div class="fx-page-header"><div><h1>SLA breaches</h1><div class="text-body-secondary">One row per missed target, persisted when the monitor detects it.</div></div></div>
-{% include "components/_section_tabs.html" with section="Service levels" %}
+{% include "sla/_tabs.html" %}
 <div class="fx-card">
   <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
     <select class="form-select form-select-sm" style="max-width:150px" name="site" aria-label="Site"><option value="">All sites</option>

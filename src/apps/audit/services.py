@@ -75,15 +75,16 @@ def record(
     before: dict | None = None,
     after: dict | None = None,
     metadata: dict | None = None,
+    site_id=None,
     request=None,
 ) -> AuditLog:
     target_type = target_id = ""
-    site_id = None
     if target is not None:
         target_type = target._meta.label_lower
         target_id = str(target.pk)
         target_repr = target_repr or str(target)[:300]
-        site_id = site_of(target)
+        if site_id is None:
+            site_id = site_of(target)
     if actor is not None and not getattr(actor, "is_authenticated", True):
         actor = None
     return AuditLog.objects.create(
