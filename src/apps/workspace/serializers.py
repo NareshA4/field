@@ -172,3 +172,34 @@ class JobPartLineSerializer(serializers.Serializer):
     outstanding = serializers.DecimalField(max_digits=10, decimal_places=3)
     status = serializers.CharField()
 
+
+class WorkOrderSignoffSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    signer_name = serializers.CharField()
+    signer_title = serializers.CharField(allow_blank=True)
+    signed_at = serializers.DateTimeField()
+    signature_url = serializers.SerializerMethodField()
+    customer_notes = serializers.CharField(allow_blank=True)
+    technician_notes = serializers.CharField(allow_blank=True)
+
+    def get_signature_url(self, obj):
+        if obj.signature_attachment and obj.signature_attachment.file:
+            return obj.signature_attachment.file.url
+        return None
+
+
+class JobCompleteWithSignoffSerializer(serializers.Serializer):
+    resolution_notes = serializers.CharField(min_length=10, max_length=2000)
+    signer_name = serializers.CharField(max_length=150)
+    signer_title = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    signature_data = serializers.CharField(required=False, allow_blank=True)
+    signature_file = serializers.FileField(required=False, allow_null=True)
+    final_photo = serializers.FileField(required=False, allow_null=True)
+    customer_notes = serializers.CharField(max_length=1000, required=False, allow_blank=True)
+    technician_notes = serializers.CharField(max_length=1000, required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        if not attrs.get("signature_data") and not attrs.get("signature_file"):
+            raise serializers.ValidationError({"signature_data": "A customer digital signature is required."})
+        return attrs
+

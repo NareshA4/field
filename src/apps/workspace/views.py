@@ -185,20 +185,61 @@ class JobDetailView(TenantPermissionMixin, View):
 class JobCompleteView(TenantPermissionMixin, View):
     required_permission = "work_order.complete"
 
+    def get(self, request, pk):
+        wo = _get_job(request, pk)
+        try:
+            context = selectors.get_job_completion_context(request.membership, pk)
+        except DomainError as exc:
+            messages.error(request, exc.message)
+            return redirect("workspace:job_detail", pk=pk)
+
+        return render(request, "workspace/job_complete.html", context)
+
     def post(self, request, pk):
         wo = _get_job(request, pk)
         resolution_notes = request.POST.get("resolution_notes", "").strip()
+        signer_name = request.POST.get("signer_name", "").strip()
+        signer_title = request.POST.get("signer_title", "").strip()
+        signature_data = request.POST.get("signature_data", "").strip()
+        customer_notes = request.POST.get("customer_notes", "").strip()
+        technician_notes = request.POST.get("technician_notes", "").strip()
+        final_photo = request.FILES.get("final_photo") or request.FILES.get("evidence_file")
+
         try:
-            services.complete_job(
-                wo,
-                resolution_notes=resolution_notes,
-                membership=request.membership,
-                actor=request.user,
-                request=request,
-            )
-            messages.success(request, f"Work order {wo.order_number} marked as completed.")
+            if signer_name or signature_data or request.FILES.get("signature_file"):
+                services.complete_job_with_signoff(
+                    wo,
+                    resolution_notes=resolution_notes,
+                    signer_name=signer_name,
+                    signer_title=signer_title,
+                    signature_data_base64=signature_data or None,
+                    signature_file=request.FILES.get("signature_file"),
+                    final_photo_file=final_photo,
+                    customer_notes=customer_notes,
+                    technician_notes=technician_notes,
+                    membership=request.membership,
+                    actor=request.user,
+                    request=request,
+                )
+                messages.success(request, f"Work order {wo.order_number} marked as completed and customer sign-off recorded.")
+            else:
+                services.complete_job(
+                    wo,
+                    resolution_notes=resolution_notes,
+                    membership=request.membership,
+                    actor=request.user,
+                    request=request,
+                )
+                messages.success(request, f"Work order {wo.order_number} marked as completed.")
         except DomainError as exc:
             messages.error(request, exc.message)
+            if not request.headers.get("HX-Request") and request.POST.get("is_completion_screen"):
+                context = selectors.get_job_completion_context(request.membership, pk)
+                context["initial_resolution_notes"] = resolution_notes
+                context["initial_signer_name"] = signer_name
+                context["initial_signer_title"] = signer_title
+                context["initial_customer_notes"] = customer_notes
+                return render(request, "workspace/job_complete.html", context, status=422)
 
         if request.headers.get("HX-Request"):
             wo.refresh_from_db()

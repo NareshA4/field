@@ -1529,3 +1529,88 @@ body.fx-app {
 .modal-dialog-scrollable .modal-footer {
   flex-shrink: 0;
 }
+
+/* ==========================================================================
+   Technician Job Completion & Digital Signature Pad
+   ========================================================================== */
+
+.signature-pad-wrapper {
+  position: relative;
+  background-color: #ffffff;
+  border: 2px dashed #cbd5e1;
+  border-radius: 10px;
+  overflow: hidden;
+  touch-action: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.signature-pad-wrapper:hover,
+.signature-pad-wrapper:focus-within {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.signature-pad-wrapper.signed {
+  border-style: solid;
+  border-color: #10b981;
+}
+
+.signature-canvas {
+  display: block;
+  width: 100%;
+  height: 200px;
+  cursor: crosshair;
+  background: transparent;
+}
+
+.signature-pad-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+}
+
+.signature-verified-card {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+}
+
+.completion-kpi-card {
+  border-radius: 10px;
+  padding: 16px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.completion-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
+}
+
+.evidence-dropzone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 24px 16px;
+  text-align: center;
+  background-color: #f8fafc;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.evidence-dropzone:hover {
+  border-color: #3b82f6;
+  background-color: #f0f9ff;
+}
+
+.photo-preview-thumbnail {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+}

@@ -1,4 +1,5 @@
-from django.conf.urls.static import static  # noqa: F401
+from django.conf import settings
+from django.conf.urls.static import static
 from django.urls import include, path
 from django.views.generic import RedirectView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
@@ -140,6 +141,9 @@ urlpatterns = [
     path("app/", include("apps.dashboards.urls")),
     path("", include("apps.ui.urls")),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(f"/{settings.MEDIA_URL.lstrip('/')}", document_root=settings.MEDIA_ROOT)
 
 handler403 = "apps.ui.views.forbidden"
 handler404 = "apps.ui.views.not_found"

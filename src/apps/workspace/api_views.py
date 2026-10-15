@@ -21,12 +21,14 @@ from .serializers import (
     JobMaterialWriteSerializer,
     JobPartConsumeSerializer,
     JobPartLineSerializer,
+    JobCompleteWithSignoffSerializer,
     PauseJobSerializer,
     TechnicianJobSummarySerializer,
     TravelLogSerializer,
     TravelLogWriteSerializer,
     WorkNoteSerializer,
     WorkNoteWriteSerializer,
+    WorkOrderSignoffSerializer,
 )
 
 
@@ -437,4 +439,81 @@ class JobPartConsumeAPIView(TenantAPIMixin, APIView):
             return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(JobPartLineSerializer(line).data, status=status.HTTP_200_OK)
+
+
+class JobCompleteAPIView(TenantAPIMixin, APIView):
+    """API endpoint to retrieve completion summary and execute job completion with customer digital sign-off."""
+
+    permission_map = {"get": "work_order.complete", "post": "work_order.complete"}
+
+    @extend_schema(summary="Get job completion summary context")
+    def get(self, request, pk: str):
+        wo = _resolve_job(request, pk)
+        services.assert_can_execute_job(wo, request.membership)
+        ctx = selectors.get_job_completion_context(request.membership, str(wo.pk))
+
+        signoff_data = None
+        if ctx["signoff"]:
+            signoff_data = WorkOrderSignoffSerializer(ctx["signoff"]).data
+
+        data = {
+            "work_order_id": str(wo.pk),
+            "order_number": wo.order_number,
+            "title": wo.title,
+            "status": wo.status,
+            "total_labor_hours": str(ctx["total_labor_hours"]),
+            "labor_entries_count": len(ctx["labor_entries"]),
+            "parts_lines_count": len(ctx["part_lines"]),
+            "consumed_parts_count": len(ctx["consumed_parts"]),
+            "has_unconsumed_parts": ctx["has_unconsumed_parts"],
+            "evidence_count": len(ctx["evidence"]),
+            "evidence_required": ctx["evidence_required"],
+            "evidence_is_ready": ctx["evidence_is_ready"],
+            "checklist_required": ctx["checklist_required"],
+            "checklist_status": ctx["checklist_status"],
+            "checklist_is_ready": ctx["checklist_is_ready"],
+            "checklist_blockers": ctx["checklist_blockers"],
+            "can_complete": ctx["can_complete"],
+            "blockers": ctx["blockers"],
+            "signoff": signoff_data,
+            "is_completed": ctx["is_completed"],
+        }
+        return Response(data, status=status.HTTP_200_OK)
+
+    @extend_schema(request=JobCompleteWithSignoffSerializer, summary="Complete job with customer digital signature")
+    def post(self, request, pk: str):
+        wo = _resolve_job(request, pk)
+        serializer = JobCompleteWithSignoffSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        d = serializer.validated_data
+
+        final_photo = request.FILES.get("final_photo") or d.get("final_photo")
+        sig_file = request.FILES.get("signature_file") or d.get("signature_file")
+
+        try:
+            order, signoff = services.complete_job_with_signoff(
+                wo,
+                resolution_notes=d["resolution_notes"],
+                signer_name=d["signer_name"],
+                signer_title=d.get("signer_title", ""),
+                signature_data_base64=d.get("signature_data") or None,
+                signature_file=sig_file,
+                final_photo_file=final_photo,
+                customer_notes=d.get("customer_notes", ""),
+                technician_notes=d.get("technician_notes", ""),
+                membership=request.membership,
+                actor=request.user,
+                request=request,
+            )
+        except DomainError as exc:
+            return Response({"error": {"code": exc.code, "message": exc.message}}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            {
+                "status": order.status,
+                "order_number": order.order_number,
+                "signoff": WorkOrderSignoffSerializer(signoff).data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
