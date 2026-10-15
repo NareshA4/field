@@ -51,6 +51,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         ctx["org"] = self.request.organization
         ctx["company_name"] = self.account.company_name or self.request.organization.name
         ctx["created_ref"] = self.request.GET.get("created")
+        ctx["metrics"] = selectors.get_portal_dashboard_metrics(self.request.membership)
         ctx["recent_requests"] = (
             ServiceRequest.objects.for_organization(self.request.organization)
             .filter(reported_by=self.request.membership)

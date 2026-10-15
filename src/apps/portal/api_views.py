@@ -218,6 +218,8 @@ class PortalServiceRequestCreateSerializer(serializers.Serializer):
     )
     impact_notes = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
     occurred_at = serializers.DateTimeField(required=False, allow_null=True)
+    override_duplicate = serializers.BooleanField(required=False, default=False)
+    override_reason = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
 
     def to_internal_value(self, data):
         if hasattr(data, "dict"):
@@ -473,6 +475,8 @@ class PortalRequestListCreateView(TenantAPIMixin, APIView):
                 site=data.get("site"),
                 occurred_at=data.get("occurred_at"),
                 attachments=attachments,
+                override_duplicate=data.get("override_duplicate", False),
+                override_reason=data.get("override_reason", ""),
                 actor=request.user,
                 request=request,
             )

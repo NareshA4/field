@@ -21,174 +21,87 @@
   </div>
 </div>
 
-<div class="fx-card mb-4">
-  <div class="fx-card-header d-flex justify-content-between align-items-center">
-    <span class="fw-semibold">Event Properties</span>
-    <span class="badge bg-light text-secondary border font-monospace small">ID: {{ entry.pk }}</span>
-  </div>
-  <div class="fx-card-body">
-    <dl class="row mb-0">
-      <dt class="col-sm-3 text-body-secondary">When</dt>
-      <dd class="col-sm-9">
-        <span class="fw-semibold">{{ entry.occurred_at|date:"M d, Y · H:i:s" }} UTC</span>
-        <span class="text-body-secondary small ms-2 font-monospace">({{ entry.occurred_at|date:"c" }})</span>
-      </dd>
+<div class="row g-3">
+  <!-- Core Event Metadata Card -->
+  <div class="col-12 col-lg-5">
+    <div class="fx-card p-3 shadow-sm h-100">
+      <h6 class="fw-bold text-uppercase text-body-secondary small mb-3 border-bottom pb-2">Event Metadata</h6>
+      <dl class="row mb-0 small">
+        <dt class="col-sm-4 text-body-secondary">Timestamp</dt>
+        <dd class="col-sm-8 fw-semibold text-dark">{{ entry.occurred_at|date:"d M Y H:i:s" }} UTC</dd>
 
-      <dt class="col-sm-3 text-body-secondary">Actor</dt>
-      <dd class="col-sm-9">
-        {% if entry.actor_email %}
-          <span class="fw-semibold">{{ entry.actor_email }}</span>
-          {% if entry.actor and entry.actor.display_name %}
-            <span class="text-body-secondary small ms-2">({{ entry.actor.display_name }})</span>
+        <dt class="col-sm-4 text-body-secondary">Actor Email</dt>
+        <dd class="col-sm-8">{{ entry.actor_email|default:"system (automated)" }}</dd>
+
+        <dt class="col-sm-4 text-body-secondary">Actor User ID</dt>
+        <dd class="col-sm-8 font-monospace">{{ entry.actor_id|default:"system" }}</dd>
+
+        <dt class="col-sm-4 text-body-secondary">Site Scope</dt>
+        <dd class="col-sm-8">
+          {% if site %}
+          <span class="badge bg-light text-dark border">{{ site.code }}</span> {{ site.name }}
+          {% else %}
+          <span class="text-body-secondary">Organization-level (Global)</span>
           {% endif %}
+        </dd>
+
+        <dt class="col-sm-4 text-body-secondary">IP Address</dt>
+        <dd class="col-sm-8 font-monospace">{{ entry.ip_address|default:"—" }}</dd>
+
+        <dt class="col-sm-4 text-body-secondary">Request ID</dt>
+        <dd class="col-sm-8 font-monospace">{{ entry.request_id|default:"—" }}</dd>
+
+        <dt class="col-sm-4 text-body-secondary">Target Entity</dt>
+        <dd class="col-sm-8">
+          <div class="fw-semibold text-dark">{{ entry.target_repr|default:"—" }}</div>
+          <div class="text-body-secondary font-monospace">{{ entry.target_type }}</div>
+          <div class="text-body-secondary font-monospace">{{ entry.target_id }}</div>
+        </dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- State Diff & Context -->
+  <div class="col-12 col-lg-7">
+    <div class="d-flex flex-column gap-3 h-100">
+      <!-- Metadata & Context -->
+      <div class="fx-card p-3 shadow-sm">
+        <h6 class="fw-bold text-uppercase text-body-secondary small mb-2 border-bottom pb-2">Operational Context &amp;
+          Details</h6>
+        {% if entry.metadata %}
+        <pre class="bg-light p-2 rounded small mb-0 font-monospace"
+          style="max-height: 200px; overflow-y: auto;">{{ entry.metadata|pretty_json }}</pre>
         {% else %}
-          <span class="badge bg-secondary-subtle text-secondary border">system</span>
+        <div class="text-body-secondary small">No additional metadata recorded for this event.</div>
         {% endif %}
-      </dd>
+      </div>
 
-      <dt class="col-sm-3 text-body-secondary">Target</dt>
-      <dd class="col-sm-9">
-        {% if entry.target_type == 'assets.asset' %}
-          <a href="{% url 'assets:detail' entry.target_id %}" class="fw-semibold text-decoration-none">
-            {% icon 'box' 14 %} {{ entry.target_repr|default:entry.target_id }}
-          </a>
-        {% elif entry.target_type == 'workorders.workorder' %}
-          <a href="{% url 'workorders:detail' entry.target_id %}" class="fw-semibold text-decoration-none">
-            {% icon 'tool' 14 %} {{ entry.target_repr|default:entry.target_id }}
-          </a>
-        {% elif entry.target_type == 'sites.site' %}
-          <a href="{% url 'sites:detail' entry.target_id %}" class="fw-semibold text-decoration-none">
-            {% icon 'map-pin' 14 %} {{ entry.target_repr|default:entry.target_id }}
-          </a>
-        {% elif entry.target_type == 'incidents.servicerequest' %}
-          <a href="{% url 'incidents:detail' entry.target_id %}" class="fw-semibold text-decoration-none">
-            {% icon 'alert-circle' 14 %} {{ entry.target_repr|default:entry.target_id }}
-          </a>
-        {% else %}
-          <span class="fw-semibold">{{ entry.target_repr|default:"—" }}</span>
-        {% endif %}
-        {% if entry.target_type %}
-          <span class="badge bg-light text-secondary border ms-2">{{ entry.target_type }}</span>
-        {% endif %}
-        {% if entry.target_id %}
-          <span class="text-body-secondary font-monospace small ms-1">{{ entry.target_id }}</span>
-        {% endif %}
-      </dd>
-
-      <dt class="col-sm-3 text-body-secondary">Site</dt>
-      <dd class="col-sm-9">
-        {% if site %}
-          <a href="{% url 'sites:detail' site.pk %}" class="text-decoration-none fw-medium">
-            {{ site.code }} · {{ site.name }}
-          </a>
-        {% else %}
-          <span class="text-body-secondary">—</span>
-        {% endif %}
-      </dd>
-
-      <dt class="col-sm-3 text-body-secondary">IP / Request</dt>
-      <dd class="col-sm-9 font-monospace small">
-        {{ entry.ip_address|default:"-" }} · {{ entry.request_id|default:"-" }}
-      </dd>
-
-      <dt class="col-sm-3 text-body-secondary">Metadata</dt>
-      <dd class="col-sm-9">
-        {% if entry.metadata and entry.metadata.items %}
-          <div class="table-responsive">
-            <table class="table table-sm table-bordered align-middle mb-0" style="max-width: 650px;">
-              <thead class="table-light">
-                <tr>
-                  <th style="width: 35%;">Key</th>
-                  <th>Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for k, v in entry.metadata.items %}
-                <tr>
-                  <td class="font-monospace small text-body-secondary">{{ k }}</td>
-                  <td class="small fw-medium">{{ v }}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+      <!-- State Changes (Before & After) -->
+      <div class="fx-card p-3 shadow-sm flex-fill">
+        <h6 class="fw-bold text-uppercase text-body-secondary small mb-2 border-bottom pb-2">Change History (Before vs
+          After)</h6>
+        <div class="row g-2">
+          <div class="col-12 col-md-6">
+            <label class="form-label small fw-semibold text-body-secondary mb-1">State Before</label>
+            {% if entry.before %}
+            <pre class="bg-light p-2 rounded small mb-0 font-monospace text-danger"
+              style="max-height: 250px; overflow-y: auto;">{{ entry.before|pretty_json }}</pre>
+            {% else %}
+            <div class="text-body-secondary small p-2 border rounded bg-light">None (Creation or stateless action)</div>
+            {% endif %}
           </div>
-        {% else %}
-          <span class="text-body-secondary">—</span>
-        {% endif %}
-      </dd>
-    </dl>
-  </div>
-</div>
-
-{% if diff_rows %}
-<div class="fx-card mb-4">
-  <div class="fx-card-header d-flex justify-content-between align-items-center">
-    <span class="fw-semibold">Change Comparison Matrix</span>
-    <span class="badge bg-info-subtle text-info-emphasis border small">Before vs. After</span>
-  </div>
-  <div class="fx-card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th style="width: 25%;">Property</th>
-            <th style="width: 35%;">State Before</th>
-            <th style="width: 35%;">State After</th>
-            <th style="width: 5%;" class="text-center">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in diff_rows %}
-          <tr {% if row.changed %}class="table-warning bg-opacity-25"{% endif %}>
-            <td class="font-monospace small fw-semibold text-body-secondary">{{ row.key }}</td>
-            <td class="small font-monospace {% if row.changed %}text-danger text-decoration-line-through{% endif %}">
-              {{ row.before|default:"(empty)" }}
-            </td>
-            <td class="small font-monospace {% if row.changed %}text-success fw-bold{% endif %}">
-              {{ row.after|default:"(empty)" }}
-            </td>
-            <td class="text-center">
-              {% if row.changed %}
-                <span class="badge bg-warning text-dark border">Changed</span>
-              {% else %}
-                <span class="text-body-secondary small">—</span>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          <div class="col-12 col-md-6">
+            <label class="form-label small fw-semibold text-body-secondary mb-1">State After</label>
+            {% if entry.after %}
+            <pre class="bg-light p-2 rounded small mb-0 font-monospace text-success"
+              style="max-height: 250px; overflow-y: auto;">{{ entry.after|pretty_json }}</pre>
+            {% else %}
+            <div class="text-body-secondary small p-2 border rounded bg-light">None (Deletion or stateless action)</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
-{% endif %}
-
-<div class="row">
-  {% if entry.before is not None %}
-  <div class="col-md-6 mb-3">
-    <details class="fx-card" open>
-      <summary class="fx-card-header fw-semibold user-select-none" style="cursor: pointer;">
-        Before Snapshot (JSON)
-      </summary>
-      <div class="fx-card-body p-2">
-        <pre class="mb-0 p-2 bg-light rounded border small font-monospace" style="max-height: 320px; overflow-y: auto;">{{ entry.before|pretty_json }}</pre>
-      </div>
-    </details>
-  </div>
-  {% endif %}
-
-  {% if entry.after is not None %}
-  <div class="col-md-6 mb-3">
-    <details class="fx-card" open>
-      <summary class="fx-card-header fw-semibold user-select-none" style="cursor: pointer;">
-        After Snapshot (JSON)
-      </summary>
-      <div class="fx-card-body p-2">
-        <pre class="mb-0 p-2 bg-light rounded border small font-monospace" style="max-height: 320px; overflow-y: auto;">{{ entry.after|pretty_json }}</pre>
-      </div>
-    </details>
-  </div>
-  {% endif %}
-</div>
 {% endblock %}
-
