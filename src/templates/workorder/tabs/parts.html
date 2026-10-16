@@ -70,7 +70,7 @@
       <tbody>
         {% for item in material_entries %}
           <tr>
-            <td>{{ item.item_name }}</td>
+            <td>{{ item.item_name }}{% if item.part_line_id %} <span class="badge bg-info-subtle text-info">stock</span>{% endif %}</td>
             <td>{{ item.part_reference|default:"—" }}</td>
             <td>{{ item.quantity }} {{ item.unit }}</td>
             <td>{{ item.notes|default:"—" }}</td>

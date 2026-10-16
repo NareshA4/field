@@ -77,7 +77,7 @@
     <div class="col-12"><button class="btn btn-primary btn-sm">Record labor</button></div></form></div>{% endif %}</div></div>
 <div class="col-lg-6"><div class="fx-card"><div class="fx-card-header"><span>Material used</span><a class="small" href="{% url 'inventory:wo_parts' wo.pk %}">Spare parts &amp; stock</a></div>
   <div class="table-responsive"><table class="table fx-table" id="material-table"><thead><tr><th>Item</th><th>Part no.</th><th>Qty</th></tr></thead><tbody>
-  {% for mt in materials %}<tr><td>{{ mt.description }}{% if mt.part_line_id %} <span class="badge fx-badge fx-badge-info">stock</span>{% endif %}</td><td>{{ mt.part_number|default:"â€”" }}</td><td>{{ mt.quantity|floatformat:"-3" }} {{ mt.unit }}</td></tr>
+  {% for mt in materials %}<tr><td>{{ mt.item_name|default:mt.description }}{% if mt.part_line_id %} <span class="badge fx-badge fx-badge-info">stock</span>{% endif %}</td><td>{{ mt.part_reference|default:mt.part_number|default:"—" }}</td><td>{{ mt.quantity|floatformat:"-3" }} {{ mt.unit }}</td></tr>
   {% empty %}<tr><td colspan="3">{% include "components/_empty_state.html" with title="No material recorded" text="List parts and consumables used." %}</td></tr>{% endfor %}</tbody></table></div>
   {% if recordable %}<div class="fx-card-body border-top"><form method="post" action="{% url 'workorders:materials' wo.pk %}" class="row g-2 align-items-end">{% csrf_token %}
     <div class="col-sm-6"><label class="form-label small" for="id_description">Item</label>{{ material_form.description }}</div>

@@ -97,7 +97,6 @@ def get_checklist_status(work_order):
             PENDING, IN_PROGRESS, FAILED, COMPLETED} else PENDING
         return ChecklistResult(True, status, False,
             message="Checklist completion is required before completing this work order.")
-
     if not work_order.checklist_required:
         return ChecklistResult(False, NOT_REQUIRED, True, message="No checklist is required.")
     # 1. Direct provider result (for external providers and boundary mock tests)

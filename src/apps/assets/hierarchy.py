@@ -111,7 +111,16 @@ def add_component(parent: Asset, child: Asset, *, relationship_type: str = "COMP
                           part_number=(part_number or "").strip(), notes=(notes or "").strip())
     link.save()
     audit.record("asset.component_added", actor=actor, organization=parent.organization, target=parent,
-                 after=audit.snapshot(link, COMPONENT_FIELDS), request=request)
+                 after=audit.snapshot(link, COMPONENT_FIELDS),
+                 metadata={
+                     "child": child.asset_tag,
+                     "child_tag": child.asset_tag,
+                     "child_name": child.name,
+                     "child_id": str(child.pk),
+                     "parent_tag": parent.asset_tag,
+                     "parent_name": parent.name,
+                 },
+                 request=request)
     return link
 
 
@@ -125,11 +134,23 @@ def move_component(link: AssetComponent, new_parent: Asset, *, actor, request=No
     if new_parent.pk == link.parent_id:
         raise Conflict("The component is already under that parent.", code="no_change")
     check_link(new_parent, child, moving=True)
+    before_parent = link.parent
     before = audit.snapshot(link, COMPONENT_FIELDS)
     link.parent = new_parent
     link.save()
     audit.record("asset.component_moved", actor=actor, organization=link.organization, target=child,
-                 before=before, after=audit.snapshot(link, COMPONENT_FIELDS), request=request)
+                 before=before, after=audit.snapshot(link, COMPONENT_FIELDS),
+                 metadata={
+                     "child_tag": child.asset_tag,
+                     "child_name": child.name,
+                     "old_parent_id": str(before_parent.pk),
+                     "old_parent_tag": before_parent.asset_tag,
+                     "old_parent_name": before_parent.name,
+                     "new_parent_id": str(new_parent.pk),
+                     "new_parent_tag": new_parent.asset_tag,
+                     "new_parent_name": new_parent.name,
+                 },
+                 request=request)
     return link
 
 
@@ -154,7 +175,16 @@ def update_component(link: AssetComponent, *, actor, request=None, relationship_
     after = audit.snapshot(link, COMPONENT_FIELDS)
     if before != after:
         audit.record("asset.component_updated", actor=actor, organization=link.organization, target=link.parent,
-                     before=before, after=after, request=request)
+                     before=before, after=after,
+                     metadata={
+                         "child": link.child.asset_tag,
+                         "child_tag": link.child.asset_tag,
+                         "child_name": link.child.name,
+                         "child_id": str(link.child.pk),
+                         "parent_tag": link.parent.asset_tag,
+                         "parent_name": link.parent.name,
+                     },
+                     request=request)
     return link
 
 
@@ -165,7 +195,15 @@ def remove_component(link: AssetComponent, *, actor, request=None):
     snap, parent, child, org = audit.snapshot(link, COMPONENT_FIELDS), link.parent, link.child, link.organization
     link.delete()
     audit.record("asset.component_removed", actor=actor, organization=org, target=parent, before=snap,
-                 metadata={"child": child.asset_tag}, request=request)
+                 metadata={
+                     "child": child.asset_tag,
+                     "child_tag": child.asset_tag,
+                     "child_name": child.name,
+                     "child_id": str(child.pk),
+                     "parent_tag": parent.asset_tag,
+                     "parent_name": parent.name,
+                 },
+                 request=request)
 
 
 @transaction.atomic

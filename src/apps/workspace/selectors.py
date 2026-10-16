@@ -104,6 +104,25 @@ def my_jobs(
     return qs.order_by(order_by, "-created_at")
 
 
+def part_lines_for(work_order: WorkOrder):
+    """Return all inventory part requirement lines associated with a work order."""
+    from django.apps import apps
+    if not apps.is_installed("apps.inventory"):
+        return []
+    from apps.inventory.models import WorkOrderPart
+    return list(
+        WorkOrderPart.objects.filter(
+            organization=work_order.organization,
+            work_order=work_order,
+        ).select_related("part", "warehouse").order_by("created_at")
+    )
+
+
+def consumable_parts_for(work_order: WorkOrder):
+    """Return issued part lines that have outstanding quantity available to consume."""
+    return [ln for ln in part_lines_for(work_order) if ln.quantity_issued > 0 and ln.outstanding > 0]
+
+
 def get_job_detail(membership: Membership, pk: str) -> dict:
     """Retrieve full job detail including route, checklists, logs, notes, and actions."""
     from apps.core.exceptions import NotFound
@@ -123,6 +142,12 @@ def get_job_detail(membership: Membership, pk: str) -> dict:
     notes = list(work_notes_for(wo))
     travel_logs = list(travel_logs_for(wo))
     drawer_summary = get_drawer_summary(wo, membership=membership)
+    from apps.inventory.models import WorkOrderPart
+    part_lines = list(WorkOrderPart.objects.for_organization(membership.organization).filter(work_order=wo).select_related("part", "warehouse"))
+
+    all_parts = part_lines_for(wo)
+    consumable_parts = [ln for ln in all_parts if ln.quantity_issued > 0 and ln.outstanding > 0]
+    consumed_parts = [ln for ln in all_parts if ln.quantity_consumed > 0]
 
     return {
         "work_order": wo,
@@ -132,6 +157,7 @@ def get_job_detail(membership: Membership, pk: str) -> dict:
         "drawer": drawer_summary,
         "labor_entries": list(wo.labor_entries.select_related("technician__user").order_by("-work_date", "-created_at")),
         "materials": list(wo.material_entries.order_by("item_name")),
+        "part_lines": part_lines,
         "evidence": list(wo.completion_evidence.order_by("-created_at")),
         "allowed_actions": wo_services.allowed_actions(wo, membership),
     }

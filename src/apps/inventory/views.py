@@ -158,9 +158,11 @@ class PartActiveView(InvBase):
 class WarehouseListView(InvBase):
     def get(self, request):
         m, org = request.membership, request.organization
-        qs = selectors.filter_warehouses(selectors.warehouses_for(m, org), request.GET)
+        wh_list = selectors.warehouses_with_summary(m, org, request.GET)
+        metrics = selectors.warehouse_overview_metrics(m, org)
         return render(request, "inventory/warehouses.html", {
-            "page": _paged(request, qs), "filters": request.GET,
+            "page": _paged(request, wh_list), "filters": request.GET,
+            "metrics": metrics,
             "sites": site_selectors.sites_for(m, org, "inventory.view").order_by("code"),
             "can_manage": rbac.has_permission_anywhere(m, "inventory.warehouse.manage")})
 
@@ -228,8 +230,20 @@ class WarehouseDetailView(InvBase):
     def get(self, request, pk):
         m, org = request.membership, request.organization
         wh = or404(selectors.get_warehouse, m, org, pk)
+        balances = selectors.balances_for(m, org).filter(warehouse=wh)
+        from django.db.models import Sum
+        totals = balances.aggregate(on_hand=Sum("on_hand"), reserved=Sum("reserved"))
+        on_hand = totals["on_hand"] or 0
+        reserved = totals["reserved"] or 0
+        wh_stats = {
+            "skus": balances.count(),
+            "on_hand": on_hand,
+            "reserved": reserved,
+            "available": on_hand - reserved,
+            "low_count": sum(1 for b in balances if b.is_low),
+        }
         return render(request, "inventory/warehouse_detail.html", {
-            "wh": wh, "balances": selectors.balances_for(m, org).filter(warehouse=wh),
+            "wh": wh, "balances": balances, "wh_stats": wh_stats,
             "movements": selectors.movements_for(m, org).filter(warehouse=wh)[:15],
             "can_manage": rbac.has_permission(m, "inventory.warehouse.manage", wh.site_id),
             "can_receive": rbac.has_permission(m, "inventory.receive", wh.site_id)})
@@ -458,7 +472,22 @@ def line_ops(membership, wo, line) -> dict:
 
 
 class WorkOrderPartsView(TenantPermissionMixin, View):
-    required_permission = "work_order.view_assigned"
+    required_permission = "work_order.view"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        if request.membership is None:
+            return redirect("ui:choose_org")
+        m = request.membership
+        if not (
+            rbac.has_permission_anywhere(m, "work_order.view")
+            or rbac.has_permission_anywhere(m, "work_order.view_assigned")
+            or rbac.has_permission_anywhere(m, "inventory.view")
+        ):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        return super(TenantPermissionMixin, self).dispatch(request, *args, **kwargs)
 
     def get(self, request, pk):
         m, org = request.membership, request.organization
@@ -503,8 +532,28 @@ class PartRequestView(TenantPermissionMixin, View):
 
 
 class LineActionView(TenantPermissionMixin, View):
-    required_permission = "work_order.view_assigned"
+    required_permission = "work_order.view"
     http_method_names = ["post"]
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        if request.membership is None:
+            return redirect("ui:choose_org")
+        m = request.membership
+        if not (
+            rbac.has_permission_anywhere(m, "work_order.view")
+            or rbac.has_permission_anywhere(m, "work_order.view_assigned")
+            or rbac.has_permission_anywhere(m, "inventory.view")
+            or rbac.has_permission_anywhere(m, "inventory.reserve")
+            or rbac.has_permission_anywhere(m, "inventory.issue")
+            or rbac.has_permission_anywhere(m, "inventory.consume")
+            or rbac.has_permission_anywhere(m, "inventory.return")
+            or rbac.has_permission_anywhere(m, "inventory.reconcile")
+        ):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        return super(TenantPermissionMixin, self).dispatch(request, *args, **kwargs)
 
     def post(self, request, pk, action):
         m, org = request.membership, request.organization

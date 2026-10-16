@@ -104,4 +104,9 @@ def finish_work(wo, p3, tech="tech", notes="Replaced the seal and tested for lea
         wos.add_evidence(wo, attachment_id=att.pk, actor=p3[tech].user, membership=p3[tech])
     wos.record_labor(wo, work_date=timezone.localdate(), hours="1.5", description="Completed servicing",
                      actor=p3[tech].user, membership=p3[tech])
+    if wo.checklist_required and wo.checklist_status != "COMPLETED":
+        wo.checklist_status = "COMPLETED"
+        wo.checklist_instance_ref = "test-completed"
+        wo.checklist_validation_state = "VALID"
+        wo.save(update_fields=["checklist_status", "checklist_instance_ref", "checklist_validation_state", "updated_at"])
     return step(wo, "complete", p3, tech, resolution_notes=notes)

@@ -3,7 +3,7 @@
 {% block body_class %}fx-app{% if '/work-orders' in request.path %} fx-workorder-app{% endif %}{% endblock %}
 {% block body %}
 <div class="fx-layout" id="fx-layout">
-  <aside class="fx-sidebar" id="fx-sidebar" aria-label="Primary navigation">
+  <aside class="fx-sidebar d-print-none" id="fx-sidebar" aria-label="Primary navigation">
     <div class="fx-sidebar-header">
       <a href="{% url 'ui:home' %}" class="fx-brand px-3 py-3 text-decoration-none">
         <span class="fx-brand-mark">FX</span> FieldOps Nexus
@@ -21,7 +21,7 @@
   </aside>
   <div class="fx-sidebar-backdrop" data-fx-toggle-nav aria-hidden="true"></div>
   <div class="fx-main">
-    <header class="fx-topbar">
+    <header class="fx-topbar d-print-none">
       <button class="btn btn-sm btn-outline-secondary d-lg-none" type="button" aria-label="Toggle navigation"
               data-fx-toggle-nav>{% icon 'menu' %}</button>
       {% if shell_org %}

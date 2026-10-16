@@ -300,7 +300,18 @@ def _apply(balance: StockBalance, *, movement_type, quantity: Decimal, on_hand_d
         reserved_delta=reserved_delta, on_hand_after=new_on, reserved_after=new_res, work_order=work_order,
         part_line=line, transfer_ref=transfer_ref, reference=(reference or "")[:100], reason=reason, actor=actor)
     movement.save()
+    if (on_hand_delta < 0 or reserved_delta > 0) and balance.is_low:
+        _trigger_reorder_check_on_commit(balance.organization_id)
     return movement
+
+
+def _trigger_reorder_check_on_commit(org_id) -> None:
+    try:
+        from apps.inventory.tasks import check_reorder_alerts_for_org
+        oid = str(org_id)
+        transaction.on_commit(lambda: check_reorder_alerts_for_org.delay(oid))
+    except Exception:
+        pass
 
 
 def _audit_movement(action: str, movement: StockMovement, *, actor, request, **extra):

@@ -38,6 +38,8 @@ CATEGORIES = {
     "approvals": ("Approvals", "Triage, approval, rejection, supervisor review, confirmation.",
                   _meta_action("triage", "approve", "reject", "confirm", "reopen", "review", "start_review")),
     "closures": ("Closures", "Closure of requests and work orders.", _meta_action("close")),
+    "equipment": ("Assets & components", "Asset creation, updates, location, component hierarchy and meters.",
+                  Q(action__startswith="asset.")),
     "inventory": ("Inventory", "Stock receipts, issues, returns, transfers, adjustments and part lines.",
                   Q(action__startswith="stock.") | Q(action__startswith="part") | Q(action__startswith="warehouse.")),
     "sla": ("SLA events", "Timers, warnings, breaches and escalations.", Q(action__startswith="sla.")),
@@ -101,13 +103,27 @@ def entity_q(org, asset=None, work_order=None):
 
     q = Q(pk__in=[])
     if asset is not None:
+        from apps.assets.models import Asset
         wo_ids = [str(i) for i in WorkOrder.objects.for_organization(org).filter(asset_id=asset).values_list(
             "pk", flat=True)]
         sr_ids = [str(i) for i in ServiceRequest.objects.for_organization(org).filter(asset_id=asset).values_list(
             "pk", flat=True)]
-        q = (Q(target_type="assets.asset", target_id=str(asset))
+        asset_str = str(asset)
+        asset_obj = Asset.objects.for_organization(org).filter(pk=asset).first()
+        asset_tag = asset_obj.asset_tag if asset_obj else ""
+
+        q = (Q(target_type="assets.asset", target_id=asset_str)
              | Q(target_type="workorders.workorder", target_id__in=wo_ids)
-             | Q(target_type="incidents.servicerequest", target_id__in=sr_ids))
+             | Q(target_type="incidents.servicerequest", target_id__in=sr_ids)
+             | Q(before__child_id=asset_str)
+             | Q(after__child_id=asset_str)
+             | Q(before__parent_id=asset_str)
+             | Q(after__parent_id=asset_str)
+             | Q(metadata__child_id=asset_str)
+             | Q(metadata__old_parent_id=asset_str)
+             | Q(metadata__new_parent_id=asset_str))
+        if asset_tag:
+            q |= Q(metadata__child=asset_tag) | Q(metadata__child_tag=asset_tag) | Q(metadata__old_parent_tag=asset_tag) | Q(metadata__new_parent_tag=asset_tag)
     if work_order is not None:
         wo = WorkOrder.objects.for_organization(org).filter(pk=work_order).first()
         line_ids = [str(i) for i in WorkOrderPart.objects.for_organization(org).filter(

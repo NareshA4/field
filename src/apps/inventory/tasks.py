@@ -29,13 +29,13 @@ def check_reorder_alerts_for_org(self, organization_id: str) -> dict:
 
     with tenant_context(org):
         # Find store managers, operations managers, and owners to notify
-        recipient_memberships = MembershipRole.objects.filter(
+        recipient_user_ids = MembershipRole.objects.filter(
             membership__organization=org,
             membership__status="ACTIVE",
             role__system_key__in=("stores_manager", "operations_manager", "owner", "admin"),
-        ).values_list("membership_id", flat=True).distinct()
+        ).values_list("membership__user_id", flat=True).distinct()
 
-        if not recipient_memberships:
+        if not recipient_user_ids:
             return {"organization": organization_id, "alerts": 0, "reason": "no_recipients"}
 
         low_balances = []
@@ -61,7 +61,7 @@ def check_reorder_alerts_for_org(self, organization_id: str) -> dict:
             if not recent:
                 notifications.notify(
                     org,
-                    recipient_memberships,
+                    recipient_user_ids,
                     title=title,
                     body=body,
                     link=f"/app/inventory/warehouses/{bal.warehouse_id}/",

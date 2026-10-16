@@ -184,18 +184,14 @@ class RequestCreateView(IncidentBase):
                     "subtitle": "Review the report details before linking it.",
                     "detected_duplicates": None,
                 }, status=400)
-            matches = services.find_duplicate_incidents(
-                request.organization, asset_id=d["asset"].pk, kind=d["kind"],
-                description=d["description"], title=d["title"],
-            )
-            if str(existing_sr.pk) not in {item["id"] for item in matches}:
-                form.add_error(None, "Select one of the matching active incidents shown above.")
+            if existing_sr.status not in services.ACTIVE_INCIDENT_STATUSES or existing_sr.duplicate_of_id is not None:
+                form.add_error(None, "The selected incident is no longer open for linking.")
                 return render(request, "incidents/create.html", {
                     "title": "Report an incident / request", "form": form,
                     "owned_asset_reporter": selectors.is_owned_asset_reporter(request.membership),
                     "cancel_url": "/app/incidents/", "crumbs": self.crumbs,
                     "subtitle": "Review the matching incident before linking this report.",
-                    "detected_duplicates": matches,
+                    "detected_duplicates": None,
                 }, status=400)
             try:
                 linked = services.link_duplicate_request(
@@ -294,7 +290,7 @@ class RequestEditView(IncidentBase):
 
 
 class RequestDetailView(IncidentBase):
-    required_permission = "incident.view"
+    required_permission = ("incident.view", "incident.view_assigned")
 
     def dispatch(self, request, *args, **kwargs):
         if request.GET.get("duplicate_review") == "1":
@@ -349,7 +345,10 @@ class RequestDetailView(IncidentBase):
         # Diagnostic and guidance context
         user_roles = [mr.role.name for mr in m.membership_roles.select_related("role").all()]
         user_roles_str = ", ".join(user_roles) if user_roles else "No roles assigned"
-        is_client = hasattr(m, "portal_account") and m.portal_account.is_enabled
+        is_client = bool(
+            (hasattr(m, "portal_account") and getattr(m, "portal_account", None) and m.portal_account.is_enabled)
+            or selectors.is_owned_asset_reporter(m)
+        )
 
         if sr.status == "NEW":
             next_action_title = "Triage Request"
@@ -415,7 +414,7 @@ class RequestDetailView(IncidentBase):
 
 class _Post(IncidentBase):
     http_method_names = ["post"]
-    required_permission = "incident.view"
+    required_permission = ("incident.view", "incident.view_assigned")
     tab = "overview"
 
     def done(self, request, sr, ok: str | None = None):
@@ -427,7 +426,7 @@ class _Post(IncidentBase):
 class RequestTransitionView(_Post):
     def post(self, request, pk, action):
         sr = _req(request, pk)
-        if hasattr(request.membership, "portal_account") and request.membership.portal_account.is_enabled:
+        if (hasattr(request.membership, "portal_account") and getattr(request.membership, "portal_account", None) and request.membership.portal_account.is_enabled) or selectors.is_owned_asset_reporter(request.membership):
             from django.core.exceptions import PermissionDenied
             raise PermissionDenied("Clients cannot perform internal service request actions.")
         if action not in ACTION_PERMISSIONS:
@@ -453,7 +452,7 @@ class RequestWorkOrderView(_Post):
 
     def post(self, request, pk):
         sr = _req(request, pk)
-        if hasattr(request.membership, "portal_account") and request.membership.portal_account.is_enabled:
+        if (hasattr(request.membership, "portal_account") and getattr(request.membership, "portal_account", None) and request.membership.portal_account.is_enabled) or selectors.is_owned_asset_reporter(request.membership):
             from django.core.exceptions import PermissionDenied
             raise PermissionDenied("Clients cannot convert service requests into work orders.")
 

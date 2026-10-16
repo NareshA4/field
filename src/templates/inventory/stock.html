@@ -14,8 +14,23 @@
     <button class="btn btn-sm btn-outline-secondary">Filter</button></form>
   <div class="table-responsive"><table class="table fx-table" id="stock-table"><thead><tr><th>Warehouse</th><th>Part</th><th>On hand</th><th>Reserved</th><th>Available</th><th>Min / Max</th><th>Reorder</th></tr></thead><tbody>
   {% for b in page %}<tr><td><div class="fw-medium">{{ b.warehouse.code }}</div><div class="fx-sub">{{ b.warehouse.site.code }}</div></td><td><a href="{% url 'inventory:stock_detail' b.pk %}">{{ b.part.part_number }}</a> · {{ b.part.name }}</td>
-    <td>{{ b.on_hand|floatformat:"-3" }} {{ b.part.unit }}</td><td>{{ b.reserved|floatformat:"-3" }}</td><td>{{ b.available|floatformat:"-3" }}{% if b.is_low %} <span class="badge fx-badge fx-badge-warning">Low</span>{% endif %}</td>
-    <td>{{ b.effective_min|floatformat:"-3"|default:"—" }} / {{ b.effective_max|floatformat:"-3"|default:"—" }}</td><td>{{ b.effective_reorder_quantity|floatformat:"-3"|default:"—" }}</td></tr>
+    <td>{{ b.on_hand|floatformat:"-3" }} {{ b.part.unit }}</td><td>{{ b.reserved|floatformat:"-3" }}</td>
+    <td>
+      <strong>{{ b.available|floatformat:"-3" }}</strong>
+      {% if b.available <= 0 %}
+        <span class="badge bg-danger ms-1">Out of Stock</span>
+      {% elif b.is_low %}
+        <span class="badge fx-badge fx-badge-warning ms-1">Low</span>
+      {% endif %}
+    </td>
+    <td>{{ b.effective_min|floatformat:"-3"|default:"—" }} / {{ b.effective_max|floatformat:"-3"|default:"—" }}</td>
+    <td>
+      {% if b.is_low and b.effective_reorder_quantity %}
+        <span class="fw-bold text-warning-emphasis">{{ b.effective_reorder_quantity|floatformat:"-3" }}</span>
+      {% else %}
+        {{ b.effective_reorder_quantity|floatformat:"-3"|default:"—" }}
+      {% endif %}
+    </td></tr>
   {% empty %}<tr><td colspan="7">{% include "components/_empty_state.html" with title="No stock" text="Receive stock into a warehouse." %}</td></tr>{% endfor %}</tbody></table></div>
   {% include "components/_pagination.html" %}
 </div>

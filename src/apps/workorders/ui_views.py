@@ -760,11 +760,13 @@ class WorkOrderDetailView(TenantPermissionMixin, View):
 
 
 TAB_TEMPLATES = {key: f"workorder/tabs/{key}.html" for key, _ in DETAIL_TABS}
+TAB_TEMPLATES["work"] = "workorder/tabs/parts.html"
 
 
 def _work_order_detail_context(request, wo, active_tab="overview"):
     if active_tab not in TAB_TEMPLATES:
         active_tab = "overview"
+    lookup_tab = "parts" if active_tab == "work" else active_tab
     can_record = rbac.has_permission(request.membership, "work_order.record", wo.site)
     can_execute = (wo.assigned_to_id == request.membership.pk or
                    rbac.has_permission(request.membership, "work_order.dispatch", wo.site))
@@ -865,7 +867,7 @@ def _work_order_tab_context(wo, membership, tab):
     if tab == "assignment":
         context["assignment_events"] = wo.events.filter(action="assigned").select_related(
             "actor", "assigned_to__user")
-    elif tab == "parts":
+    elif tab in ("parts", "work"):
         context["material_entries"] = wo.material_entries.all()
         context["part_lines"] = wo.part_lines.select_related("part", "warehouse", "reservation").all()
     elif tab == "labor":

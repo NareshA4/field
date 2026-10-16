@@ -456,17 +456,178 @@
         </div>
       </div>
 
-      <!-- Parts Used & Materials Card (M09 Boundary Compliant) -->
-      <div class="card mb-4 border-0 shadow-sm" id="materials-section">
-        <div class="card-header bg-white py-3">
-          <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
-            {% icon 'archive' 18 %} Parts Used &amp; Materials
-          </h5>
-          <div class="text-muted small mt-1" style="font-size: 0.75rem;">
-            Usage record only · Stock movements managed by M09 Inventory
+      <!-- Allocated Inventory Parts (M09 Reserved/Issued Stock Consumption) -->
+      <div class="card mb-4 border-0 shadow-sm" id="parts-consumption-section">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+          <div>
+            <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
+              {% icon 'box' 18 %} Allocated Inventory Parts
+            </h5>
+            <div class="text-muted small mt-1" style="font-size: 0.75rem;">
+              Select warehouse-issued parts and confirm quantity consumed on site · Updates M09 inventory ledger
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'inventory:wo_parts' work_order.pk %}" class="btn btn-sm btn-outline-primary" id="btn-request-part">
+              {% icon 'plus' 14 %} Request part
+            </a>
+            {% if has_consumable_parts %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle">
+                {{ consumable_parts|length }} available to consume
+              </span>
+            {% else %}
+              <span class="badge bg-light text-secondary border">0 pending consumption</span>
+            {% endif %}
           </div>
         </div>
         <div class="card-body">
+          {% if has_consumable_parts %}
+          <form method="post" action="{% url 'workspace:consume_part' work_order.pk %}" id="parts-consumption-form" class="mb-4">
+            {% csrf_token %}
+            <div class="mb-2">
+              <label for="part-line-select" class="form-label small fw-semibold">Select Reserved / Issued Part *</label>
+              <select name="part_line_id" id="part-line-select" class="form-select form-select-sm" required>
+                {% for line in consumable_parts %}
+                <option value="{{ line.pk }}"
+                        data-max="{{ line.outstanding }}"
+                        data-unit="{{ line.part.unit }}"
+                        data-name="{{ line.part.name }}"
+                        data-code="{{ line.part.part_number }}"
+                        data-wh="{{ line.warehouse.name|default:line.warehouse.code }}"
+                        {% if forloop.first %}selected{% endif %}>
+                  {{ line.part.part_number }} — {{ line.part.name }} (Outstanding: {{ line.outstanding|floatformat:"-3" }} {{ line.part.unit }})
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="p-2 mb-3 bg-light rounded border small" id="part-selection-summary">
+              <div class="d-flex justify-content-between">
+                <span class="text-secondary">Warehouse:</span>
+                <span class="fw-semibold" id="summary-wh">{% with first_part=consumable_parts.0 %}{{ first_part.warehouse.name|default:first_part.warehouse.code|default:"-" }}{% endwith %}</span>
+              </div>
+              <div class="d-flex justify-content-between mt-1">
+                <span class="text-secondary">Available Outstanding:</span>
+                <span class="fw-bold text-primary" id="summary-outstanding">{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:"-3" }} {{ first_part.part.unit }}{% endwith %}</span>
+              </div>
+            </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-8">
+                <label for="part-quantity-input" class="form-label small fw-semibold">Quantity Used *</label>
+                <div class="input-group input-group-sm">
+                  <input type="number" step="0.001" min="0.001" name="quantity" id="part-quantity-input" class="form-control form-control-sm" required placeholder="0.000" value="{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:'-3' }}{% endwith %}">
+                  <span class="input-group-text" id="part-unit-label">{{ consumable_parts.0.part.unit|default:"ea" }}</span>
+                </div>
+              </div>
+              <div class="col-4 d-flex align-items-end">
+                <button type="button" class="btn btn-sm btn-outline-secondary w-100" id="btn-use-all">
+                  Use All
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold" id="btn-confirm-consumption">
+              {% icon 'check' 14 %} Confirm Quantity Used
+            </button>
+          </form>
+          {% elif part_lines %}
+            <div class="alert alert-light border small text-muted mb-3 d-flex align-items-center gap-2">
+              {% icon 'check-circle' 16 %} All warehouse parts allocated for this job have been consumed or returned.
+            </div>
+          {% else %}
+            <div class="alert alert-light border small text-muted mb-3 d-flex align-items-center gap-2">
+              {% icon 'info' 16 %} No spare parts have been requested or issued for this work order.
+            </div>
+          {% endif %}
+
+          <!-- Consumed / Issued Parts Table Summary -->
+          {% if part_lines %}
+          <div class="border-top pt-3">
+            <div class="small fw-bold text-uppercase text-secondary mb-2">Allocated Parts Ledger</div>
+            <div class="table-responsive">
+              <table class="table table-sm table-borderless align-middle mb-0" style="font-size: 0.82rem;">
+                <thead class="table-light">
+                  <tr>
+                    <th>Part</th>
+                    <th class="text-end">Req</th>
+                    <th class="text-end">Issued</th>
+                    <th class="text-end">Used</th>
+                    <th class="text-end">Outstanding</th>
+                    <th class="text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for ln in part_lines %}
+                  <tr class="border-bottom">
+                    <td>
+                      <div class="fw-semibold text-truncate" style="max-width: 140px;" title="{{ ln.part.name }}">{{ ln.part.name }}</div>
+                      <span class="text-muted font-monospace" style="font-size: 0.72rem;">{{ ln.part.part_number }}</span>
+                    </td>
+                    <td class="text-end">{{ ln.quantity_requested|floatformat:"-3" }}</td>
+                    <td class="text-end">{{ ln.quantity_issued|floatformat:"-3" }}</td>
+                    <td class="text-end text-success fw-bold">{{ ln.quantity_consumed|floatformat:"-3" }}</td>
+                    <td class="text-end {% if ln.outstanding > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">{{ ln.outstanding|floatformat:"-3" }}</td>
+                    <td class="text-center">
+                      <span class="badge {% if ln.status == 'CONSUMED' %}bg-success{% elif ln.status == 'ISSUED' %}bg-primary{% elif ln.status == 'RESERVED' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+                        {{ ln.status }}
+                      </span>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Parts Used & Materials Card (M09 Boundary Compliant) -->
+      <div class="card mb-4 border-0 shadow-sm" id="materials-section">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+          <div>
+            <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
+              {% icon 'archive' 18 %} Parts Used &amp; Materials
+            </h5>
+            <div class="text-muted small mt-1" style="font-size: 0.75rem;">
+              Usage record only · Stock movements managed by M09 Inventory
+            </div>
+          </div>
+          <a class="btn btn-sm btn-outline-primary" href="{% url 'inventory:wo_parts' work_order.pk %}">Request part</a>
+        </div>
+        <div class="card-body">
+          {% if part_lines %}
+          <div class="mb-4">
+            <div class="small fw-bold text-uppercase text-secondary mb-2">Warehouse Part Requirements</div>
+            <div class="table-responsive">
+              <table class="table table-sm fx-table">
+                <thead><tr><th>Part</th><th>Requested</th><th>Issued</th><th>Used</th><th>Action</th></tr></thead>
+                <tbody>
+                  {% for pl in part_lines %}
+                  <tr>
+                    <td>{{ pl.part.part_number }} · {{ pl.part.name }}</td>
+                    <td>{{ pl.quantity_requested }} {{ pl.part.unit }}</td>
+                    <td>{{ pl.quantity_issued }}</td>
+                    <td>{{ pl.quantity_consumed }}</td>
+                    <td>
+                      {% if pl.quantity_issued > pl.quantity_consumed %}
+                      <form method="post" action="/app/workspace/{{ work_order.pk }}/parts/{{ pl.pk }}/consume/" class="d-inline-flex gap-1 align-items-center">
+                        {% csrf_token %}
+                        <input type="number" step="0.001" name="quantity" class="form-control form-control-sm" style="width:75px" value="{{ pl.quantity_issued|floatformat:'-3' }}">
+                        <button class="btn btn-sm btn-primary">Consume</button>
+                      </form>
+                      {% else %}
+                      <span class="badge bg-secondary-subtle text-secondary">{{ pl.status }}</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endif %}
           <form method="post" action="{% url 'workspace:material' work_order.pk %}" class="mb-4">
             {% csrf_token %}
             <div class="mb-2">
@@ -596,4 +757,50 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var partSelect = document.getElementById('part-line-select');
+  var qtyInput = document.getElementById('part-quantity-input');
+  var unitLabel = document.getElementById('part-unit-label');
+  var btnUseAll = document.getElementById('btn-use-all');
+  var summaryWh = document.getElementById('summary-wh');
+  var summaryOutstanding = document.getElementById('summary-outstanding');
+
+  function updateSelectedPart() {
+    if (!partSelect) return;
+    var opt = partSelect.options[partSelect.selectedIndex];
+    if (!opt) return;
+    var maxVal = opt.getAttribute('data-max') || '1';
+    var unit = opt.getAttribute('data-unit') || 'ea';
+    var wh = opt.getAttribute('data-wh') || '-';
+
+    if (qtyInput) {
+      qtyInput.max = maxVal;
+      if (!qtyInput.value || parseFloat(qtyInput.value) > parseFloat(maxVal)) {
+        qtyInput.value = maxVal;
+      }
+    }
+    if (unitLabel) unitLabel.textContent = unit;
+    if (summaryWh) summaryWh.textContent = wh;
+    if (summaryOutstanding) summaryOutstanding.textContent = maxVal + ' ' + unit;
+  }
+
+  if (partSelect) {
+    partSelect.addEventListener('change', updateSelectedPart);
+    updateSelectedPart();
+  }
+
+  if (btnUseAll && partSelect && qtyInput) {
+    btnUseAll.addEventListener('click', function() {
+      var opt = partSelect.options[partSelect.selectedIndex];
+      if (opt) {
+        qtyInput.value = opt.getAttribute('data-max') || '';
+      }
+    });
+  }
+});
+</script>
 {% endblock %}

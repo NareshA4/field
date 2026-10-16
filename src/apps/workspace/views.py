@@ -316,3 +316,88 @@ class JobEvidenceUploadView(TenantPermissionMixin, View):
 
         return redirect("workspace:job_detail", pk=wo.pk)
 
+
+class WorkspacePartRequestView(TenantPermissionMixin, View):
+    required_permission = "work_order.view_assigned"
+    http_method_names = ["post"]
+
+    def post(self, request, pk):
+        m, org = request.membership, request.organization
+        wo = _get_job(request, pk)
+        if wo.assigned_to_id != m.pk:
+            raise Http404("Work order not assigned to you.")
+        from apps.inventory import services as inv_services, selectors as inv_selectors
+        from apps.inventory.forms import RequestPartForm
+        form = RequestPartForm(request.POST, parts=inv_selectors.parts_for(org).order_by("part_number"))
+        if not form.is_valid():
+            messages.error(request, "Choose a part and enter a quantity above zero.")
+        else:
+            d = form.cleaned_data
+            try:
+                inv_services.request_part(wo, d["part"], d["quantity"], actor=request.user, membership=m,
+                                          notes=d.get("notes", ""), request=request)
+                messages.success(request, "Part requested.")
+            except DomainError as exc:
+                messages.error(request, exc.message)
+        return redirect("workspace:job_detail", pk=wo.pk)
+
+
+class WorkspacePartConsumeView(TenantPermissionMixin, View):
+    required_permission = "work_order.view_assigned"
+    http_method_names = ["post"]
+
+    def post(self, request, pk, line_pk):
+        m, org = request.membership, request.organization
+        wo = _get_job(request, pk)
+        if wo.assigned_to_id != m.pk:
+            raise Http404("Work order not assigned to you.")
+        from apps.inventory.models import WorkOrderPart
+        from apps.inventory import services as inv_services
+        from apps.inventory.forms import QuantityForm
+        line = WorkOrderPart.objects.for_organization(org).filter(pk=line_pk, work_order=wo).first()
+        if not line:
+            raise Http404("Part line not found for this work order.")
+        form = QuantityForm(request.POST)
+        if not form.is_valid() or form.cleaned_data.get("quantity") is None:
+            messages.error(request, "Enter the quantity used.")
+        else:
+            q = form.cleaned_data["quantity"]
+            if q > 0:
+                try:
+                    inv_services.consume(line, q, actor=request.user, membership=m, request=request)
+                    messages.success(request, "Consumption recorded.")
+                except DomainError as exc:
+                    messages.error(request, exc.message)
+            else:
+                messages.info(request, "Zero quantity specified.")
+        return redirect("workspace:job_detail", pk=wo.pk)
+
+
+class JobPartConsumeView(TenantPermissionMixin, View):
+    required_permission = "work_order.record"
+
+    def post(self, request, pk):
+        wo = _get_job(request, pk)
+        part_line_id = request.POST.get("part_line_id", "").strip()
+        quantity = request.POST.get("quantity", "").strip()
+
+        try:
+            line = services.consume_job_part(
+                wo,
+                part_line_id=part_line_id,
+                quantity=quantity,
+                membership=request.membership,
+                actor=request.user,
+                request=request,
+            )
+            messages.success(request, f"Consumed {quantity} {line.part.unit} of {line.part.name} ({line.part.part_number}).")
+        except DomainError as exc:
+            messages.error(request, exc.message)
+
+        if request.headers.get("HX-Request"):
+            wo.refresh_from_db()
+            summary = services.get_drawer_summary(wo, membership=request.membership)
+            return render(request, "workspace/_drawer.html", summary)
+
+        return redirect("workspace:job_detail", pk=wo.pk)
+

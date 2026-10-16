@@ -191,6 +191,8 @@ def get_drawer_summary(work_order: WorkOrder, *, membership: Membership) -> dict
     can_resume = "resume" in action_ops
     can_complete = "complete" in action_ops
 
+    consumable_parts = selectors.consumable_parts_for(work_order)
+
     return {
         "work_order": work_order,
         "status": work_order.status,
@@ -207,6 +209,8 @@ def get_drawer_summary(work_order: WorkOrder, *, membership: Membership) -> dict
         "total_travel_hours": total_travel_hours,
         "labor_entries": labor_entries,
         "total_labor_hours": total_labor_hours,
+        "consumable_parts": consumable_parts,
+        "consumable_parts_count": len(consumable_parts),
     }
 
 
@@ -383,4 +387,43 @@ def upload_job_evidence(
         request=request,
     )
     return att
+
+
+@transaction.atomic
+def consume_job_part(
+    work_order: WorkOrder,
+    *,
+    part_line_id: str,
+    quantity: str | Decimal,
+    membership: Membership,
+    actor: User,
+    request: HttpRequest | None = None,
+):
+    """Technician consumes reserved/issued inventory parts on their assigned job."""
+    from apps.inventory import services as inventory_services
+    from apps.inventory.models import WorkOrderPart
+
+    assert_can_execute_job(work_order, membership)
+
+    if not (
+        rbac.has_permission(membership, "inventory.consume", work_order.site)
+        or rbac.has_permission(membership, "work_order.record", work_order.site)
+    ):
+        raise PermissionDenied("You do not have permission to consume inventory parts for this work order.")
+
+    part_line = WorkOrderPart.objects.filter(
+        organization=work_order.organization,
+        work_order=work_order,
+        pk=part_line_id,
+    ).first()
+    if part_line is None:
+        raise ValidationFailed("Part requirement line not found on this work order.", code="part_line_not_found")
+
+    return inventory_services.consume(
+        part_line,
+        quantity,
+        actor=actor,
+        membership=membership,
+        request=request,
+    )
 
