@@ -5,7 +5,7 @@
 <div class="fx-layout" id="fx-layout">
   <aside class="fx-sidebar d-print-none" id="fx-sidebar" aria-label="Primary navigation">
     <div class="fx-sidebar-header">
-      <a href="{% url 'ui:home' %}" class="fx-brand px-3 py-3 text-decoration-none">
+      <a href="{% if is_client %}{% url 'portal:dashboard' %}{% else %}{% url 'ui:home' %}{% endif %}" class="fx-brand px-3 py-3 text-decoration-none">
         <span class="fx-brand-mark">FX</span> FieldOps Nexus
       </a>
       {% if shell_org %}<div class="fx-org-chip" title="{{ shell_org.name }}">{{ shell_org.name }}</div>{% endif %}
@@ -24,7 +24,7 @@
     <header class="fx-topbar d-print-none">
       <button class="btn btn-sm btn-outline-secondary d-lg-none" type="button" aria-label="Toggle navigation"
               data-fx-toggle-nav>{% icon 'menu' %}</button>
-      {% if shell_org %}
+      {% if shell_org and not is_client %}
       <form class="fx-search" role="search" autocomplete="off">
         {% icon 'search' 16 %}
         <input type="search" name="q" placeholder="Search users, roles…" aria-label="Search"

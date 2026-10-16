@@ -194,3 +194,19 @@ def test_regression_defect_6_client_navigation_and_cockpit_protection(client, or
     html = r_dash.content.decode()
     assert "/app/incidents/dashboard/" not in html
     assert "/app/dashboards/my-work" not in html
+
+    # Client sidebar only contains Portal sub-modules
+    sections = r_dash.context["shell_nav_sections"]
+    assert "Portal" in sections
+    assert "Administration" not in sections
+    assert "Analytics" not in sections
+    assert "Assets & Locations" not in sections
+    assert "Compliance" not in sections
+    assert "Coverage" not in sections
+    assert "Operations" not in sections
+    assert "Overview" not in sections
+    portal_items = [item["label"] for item in sections["Portal"]]
+    assert "Client Portal" in portal_items
+    assert "My Requests" in portal_items
+    assert "New Request" in portal_items
+    assert "Portal Accounts" not in portal_items
