@@ -131,6 +131,15 @@ class Command(BaseCommand):
                 "is_staff": False,
                 "is_portal_client": True,
             },
+            {
+                "email": "client.new@apexindustrial.com",
+                "full_name": "Sarah Connor",
+                "job_title": "Client Facility Manager",
+                "role_key": "client_requester",
+                "is_platform_admin": False,
+                "is_staff": False,
+                "is_portal_client": True,
+            },
         ]
 
         # 4. Create Persona Users, Memberships & Assign Roles
