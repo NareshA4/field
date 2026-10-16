@@ -4,6 +4,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
+from rest_framework.response import Response
 
 from apps.core.apiutils import query_param
 from apps.core.exceptions import ValidationFailed
@@ -20,6 +21,9 @@ FILTER_PARAMS = [
     query_param("site", "site id", OpenApiTypes.UUID),
     query_param("category", "security | state | assignment | approvals | closures | inventory | sla | evidence | "
                             "coverage | client | exports"),
+    query_param("module", "workorders | assets | incidents | checklists | inventory | contracts | sla | portal | security | audit"),
+    query_param("outcome", "failed | success"),
+    query_param("sort", "-occurred_at | occurred_at | action | -action | actor_email | -actor_email"),
     query_param("asset", "history of one asset and its work orders / requests", OpenApiTypes.UUID),
     query_param("work_order", "lifecycle of one work order", OpenApiTypes.UUID),
     query_param("from", "first day YYYY-MM-DD", OpenApiTypes.DATE), query_param("to", "last day YYYY-MM-DD",
@@ -40,7 +44,7 @@ class AuditLogViewSet(TenantAPIMixin, viewsets.ReadOnlyModelViewSet):
 
     serializer_class = AuditLogSerializer
     permission_map = {"list": "audit.view", "retrieve": "audit.view", "export": "audit.export",
-                      "evidence": "audit.export"}
+                      "evidence": "audit.export", "metrics": "audit.view", "reports": "audit.view"}
     filterset_fields: list = []
 
     def get_queryset(self):
@@ -49,11 +53,69 @@ class AuditLogViewSet(TenantAPIMixin, viewsets.ReadOnlyModelViewSet):
         qs = selectors.visible_logs(self.request.membership, self.request.organization)
         return selectors.search(qs, self.request.query_params, org=self.request.organization)
 
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    @action(detail=False, methods=["get"])
+    def metrics(self, request):
+        """Dashboard overview metrics calculated over authorized PostgreSQL records."""
+        data = selectors.get_audit_dashboard_metrics(request.membership, request.organization)
+        recent = [
+            {
+                "id": str(e.pk),
+                "occurred_at": e.occurred_at.isoformat(),
+                "action": e.action,
+                "actor_email": e.actor_email,
+                "target_type": e.target_type,
+                "target_repr": e.target_repr,
+                "site_id": str(e.site_id) if e.site_id else None,
+            }
+            for e in data["recent_activities"]
+        ]
+        exports_recent = [
+            {
+                "id": str(e.pk),
+                "occurred_at": e.occurred_at.isoformat(),
+                "action": e.action,
+                "actor_email": e.actor_email,
+                "metadata": e.metadata,
+            }
+            for e in data["recent_exports"]
+        ]
+        return Response({
+            "total_events": data["total_events"],
+            "today_events": data["today_events"],
+            "security_events": data["security_events"],
+            "workflow_events": data["workflow_events"],
+            "record_modification_events": data["record_modification_events"],
+            "failed_denied_events": data["failed_denied_events"],
+            "evidence_events": data["evidence_events"],
+            "module_distribution": data["module_distribution"],
+            "action_distribution": data["action_distribution"],
+            "daily_trend": data["daily_trend"],
+            "recent_activities": recent,
+            "recent_exports": exports_recent,
+        })
+
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    @action(detail=False, methods=["get"])
+    def reports(self, request):
+        """Compliance report categories and count summary."""
+        base_qs = selectors.visible_logs(request.membership, request.organization)
+        reports_list = []
+        for key, (label, desc, q_expr) in selectors.CATEGORIES.items():
+            cnt = base_qs.filter(q_expr).count()
+            reports_list.append({
+                "category": key,
+                "label": label,
+                "description": desc,
+                "event_count": cnt,
+            })
+        return Response({"reports": reports_list})
+
     @extend_schema(parameters=FILTER_PARAMS + [query_param("export_format", "csv | xlsx | pdf (default csv)")],
                    responses=OpenApiTypes.BINARY)
     @action(detail=False, methods=["get"])
     def export(self, request):
-        fmt = (request.query_params.get("export_format") or "csv").lower()
+        fmt = (request.query_params.get("export_format") or request.query_params.get("format") or "csv").lower()
         if fmt not in exports.FORMATS:
             raise ValidationFailed("Unknown export format (csv, xlsx or pdf).", code="invalid_format")
         from django.http import HttpResponse

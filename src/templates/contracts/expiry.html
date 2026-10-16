@@ -1,6 +1,6 @@
 {% extends "shell.html" %}
 {% load ui_tags %}
-{% block title %}Expiring coverage · FieldOps Nexus{% endblock %}
+{% block title %}Expiring coverage Â· FieldOps Nexus{% endblock %}
 {% block content %}
 <div class="fx-page-header"><div><h1>Expiring coverage</h1><div class="text-body-secondary">Active agreements ending within {{ days }} days, and active agreements that have already lapsed.</div></div>
   <form method="get" class="d-flex gap-2"><select class="form-select form-select-sm" name="days" aria-label="Window">{% for d in windows %}<option value="{{ d }}" {% if d == days %}selected{% endif %}>{{ d }} days</option>{% endfor %}</select><button class="btn btn-sm btn-outline-secondary">Apply</button></form></div>

@@ -1,10 +1,11 @@
+from uuid import UUID
+
+from django.db.models import Q
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db.models import Q
-from django.utils import timezone
-from uuid import UUID
 
 from apps.core.api import StandardPagination
 from apps.rbac import services as rbac
@@ -12,14 +13,26 @@ from apps.sites.models import Site
 from apps.tenancy.api import TenantAPIMixin
 
 from . import services
-from .models import WorkOrder, WorkOrderEvent
-from .serializers import (AssignSerializer, ProvisionalChecklistSerializer, CompleteSerializer, CreateWorkOrderSerializer,
-                         EvidenceSerializer, LaborInputSerializer, LaborSerializer, MaterialInputSerializer,
-                         MaterialSerializer, PlanSerializer, WorkOrderReasonSerializer, ReviewSerializer,
-                         ClosureCommentSerializer, WorkNoteSerializer, WorkOrderEventSerializer, WorkOrderSerializer)
-from .serializers import ChecklistReferenceSerializer
-from .serializers import ExpectedVersionSerializer
-from .serializers import UpdateWorkOrderSerializer
+from .models import WorkOrder
+from .serializers import (
+    AssignSerializer,
+    ChecklistReferenceSerializer,
+    ClosureCommentSerializer,
+    CompleteSerializer,
+    CreateWorkOrderSerializer,
+    EvidenceSerializer,
+    ExpectedVersionSerializer,
+    LaborInputSerializer,
+    MaterialInputSerializer,
+    PlanSerializer,
+    ProvisionalChecklistSerializer,
+    ReviewSerializer,
+    UpdateWorkOrderSerializer,
+    WorkNoteSerializer,
+    WorkOrderEventSerializer,
+    WorkOrderReasonSerializer,
+    WorkOrderSerializer,
+)
 
 
 class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):

@@ -15,7 +15,7 @@ IN SERVICE -> RESOLVED -> CONFIRMED -> CLOSED).
 
 ``link_work_order``, ``work_order_cancelled``, ``start_service``, ``resolve`` and ``resume_service`` are SYSTEM actions: they are
 driven by the work-order lifecycle (M06) and are not offered as buttons / not accepted by the transition API.
-``reopen`` and the APPROVED return path are OUR IMPLEMENTATION DECISIONS.
+``reopen`` and the APPROVED return path are OUR IMPLEMENTATION DECISIONS (docs/DECISIONS.md D-035).
 """
 from apps.core.workflow import StateMachine, Transition
 
@@ -28,10 +28,30 @@ IN_SERVICE = "IN_SERVICE"
 RESOLVED = "RESOLVED"
 CONFIRMED = "CONFIRMED"
 CLOSED = "CLOSED"
+IN_PROGRESS = "IN_PROGRESS"
+ON_HOLD = "ON_HOLD"
+CANCELLED = "CANCELLED"
 
-STATES = (NEW, TRIAGED, APPROVED, REJECTED, WORK_ORDER_CREATED, IN_SERVICE, RESOLVED, CONFIRMED, CLOSED)
+STATES = (NEW, TRIAGED, APPROVED, REJECTED, WORK_ORDER_CREATED, IN_SERVICE, RESOLVED, CONFIRMED, CLOSED, IN_PROGRESS, ON_HOLD)
 TERMINAL_STATES = (REJECTED, CLOSED)
 OPEN_STATES = (NEW, TRIAGED, APPROVED, WORK_ORDER_CREATED, IN_SERVICE, RESOLVED, CONFIRMED)
+
+# Duplicate Incident Detection status boundaries
+ACTIVE_INCIDENT_STATUSES = (
+    NEW,
+    TRIAGED,
+    APPROVED,
+    WORK_ORDER_CREATED,
+    IN_SERVICE,
+    IN_PROGRESS,
+    ON_HOLD,
+)
+NON_BLOCKING_STATUSES = (
+    CLOSED,
+    REJECTED,
+    CANCELLED,
+    CONFIRMED,
+)
 
 SYSTEM_ACTIONS = ("link_work_order", "work_order_cancelled", "start_service", "resolve", "resume_service")
 
@@ -39,10 +59,10 @@ REQUEST_STATUS = StateMachine(
     "service_request",
     STATES,
     [
-        Transition("triage", (NEW,), TRIAGED, label="Triage"),
-        Transition("approve", (TRIAGED,), APPROVED, label="Approve"),
-        Transition("reject", (TRIAGED,), REJECTED, label="Reject"),
-        Transition("link_work_order", (APPROVED,), WORK_ORDER_CREATED, label="Work order created"),
+        Transition("triage", (NEW,), TRIAGED, label="Triage Request"),
+        Transition("approve", (TRIAGED,), APPROVED, label="Approve Request"),
+        Transition("reject", (TRIAGED,), REJECTED, label="Reject Request"),
+        Transition("link_work_order", (APPROVED,), WORK_ORDER_CREATED, label="Convert to Work Order"),
         Transition("work_order_cancelled", (WORK_ORDER_CREATED,), APPROVED, label="Work order cancelled"),
         Transition("start_service", (WORK_ORDER_CREATED,), IN_SERVICE, label="Start service"),
         Transition("resolve", (IN_SERVICE,), RESOLVED, label="Resolve"),
@@ -59,4 +79,4 @@ ACTION_PERMISSIONS = {
     "confirm": "incident.confirm", "reopen": "incident.confirm", "close": "incident.close",
 }
 REASON_REQUIRED = ("reject", "reopen")
-BUTTON_STYLES = {"reject": "danger", "reopen": "warning", "close": "secondary"}
+BUTTON_STYLES = {"triage": "info", "approve": "success", "reject": "danger", "reopen": "warning", "close": "secondary"}

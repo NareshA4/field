@@ -1,0 +1,17 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}{{ asset.asset_tag }} · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>{{ asset.name }} {% status_badge asset.status %}</h1>
+  <div class="text-body-secondary">{{ asset.asset_tag }} · {{ asset.category.name }} · {{ asset.site.code }}{% if asset.zone %} · {{ asset.zone.name }}{% endif %}</div></div>
+  <div class="d-flex gap-2 flex-wrap"><a class="btn btn-primary" href="{% url 'assets:detail' asset.pk %}">Open asset</a><a class="btn btn-outline-secondary" href="{% url 'identification:scan' %}">Scan another</a></div></div>
+{% if revoked %}<div class="alert alert-danger" role="alert">This label was revoked or replaced. Do not rely on it; use the asset's current label.</div>{% endif %}
+{% if res.asset_inactive %}<div class="alert alert-secondary">This asset is {{ asset.status|lower }}; no new requests can be opened for it.</div>{% endif %}
+{% if can_report %}
+<div class="fx-card" style="max-width:640px" id="report-card"><div class="fx-card-header">Report a problem with this asset</div><div class="fx-card-body">
+  <form method="post" novalidate>{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger py-2" role="alert">{{ form.non_field_errors.0 }}</div>{% endif %}
+    <div class="fx-form-grid">{% for field in form %}<div>{% include "components/_form_field.html" %}</div>{% endfor %}</div>
+    <button class="btn btn-primary">Create request</button></form></div></div>
+{% endif %}
+{% endblock %}

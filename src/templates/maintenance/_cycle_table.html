@@ -1,0 +1,7 @@
+{% load ui_tags %}<div class="table-responsive"><table class="table fx-table cycle-table"><thead><tr><th>Generated</th><th>Plan</th><th>Asset</th><th>Cycle</th><th>Due</th><th>Work order</th><th>PM state</th><th>Source</th></tr></thead><tbody>
+{% for c in rows %}<tr><td class="small">{{ c.created_at|date:"d M Y H:i" }}</td><td><a href="{% url 'maintenance:plan' c.schedule.plan_id %}">{{ c.schedule.plan.name }}</a></td><td>{{ c.schedule.plan.asset.asset_tag }}</td>
+  <td>#{{ c.sequence }}{% if c.skipped %} <span class="small text-body-secondary">(+{{ c.skipped }} missed)</span>{% endif %}</td>
+  <td>{% if c.due_date %}{{ c.due_date|date:"d M Y" }}{% else %}{{ c.due_value|floatformat:"-3" }} {{ c.schedule.meter.unit }}{% endif %}</td>
+  <td>{% if c.work_order %}<a href="{% url 'workorders:detail' c.work_order_id %}">{{ c.work_order.number }}</a> {% status_badge c.work_order.status %}{% else %}—{% endif %}</td>
+  <td>{% status_badge c.pm_state %}</td><td class="small">{{ c.trigger }}</td></tr>
+{% empty %}<tr><td colspan="8">{% include "components/_empty_state.html" with title="Nothing generated yet" text="Work orders appear here when a schedule becomes due." %}</td></tr>{% endfor %}</tbody></table></div>

@@ -1,0 +1,250 @@
+{% load ui_tags %}
+<div class="offcanvas offcanvas-end fx-drawer show" tabindex="-1" id="jobDrawer" aria-labelledby="jobDrawerLabel" style="visibility: visible; width: 440px; max-width: 95vw;">
+  <div class="offcanvas-header border-bottom bg-light">
+    <div>
+      <span class="badge bg-secondary mb-1">{{ work_order.order_number }}</span>
+      <h5 class="offcanvas-title mb-0" id="jobDrawerLabel">{{ work_order.title }}</h5>
+      <div class="small text-muted mt-1">
+        Priority: <span class="fw-semibold">{{ priority_display }}</span> · 
+        Type: <span class="fw-semibold">{{ work_type_display }}</span>
+      </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+
+  <div class="offcanvas-body p-3">
+    <!-- Action Feedback & Pop Box Messages inside Drawer -->
+    {% include "components/_messages.html" %}
+
+    <!-- Current Status Card -->
+    <div class="card mb-3 shadow-sm border">
+      <div class="card-body p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="small text-muted fw-bold text-uppercase">Current Execution State</span>
+          {% status_badge status %}
+        </div>
+
+        <!-- Quick Status Transitions -->
+        <div class="d-grid gap-2 mt-3">
+          {% if status == 'COMPLETED' or work_order.status == 'COMPLETED' %}
+            <div class="alert alert-success d-flex align-items-center gap-2 mb-0 py-2">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-success"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <div>
+                <div class="fw-bold text-success">Job Completed</div>
+                <div class="small text-secondary">Work order {{ work_order.order_number }} is completed and awaiting review.</div>
+              </div>
+            </div>
+          {% endif %}
+
+          {% if can_start %}
+            <form method="post" action="{% url 'workspace:start' work_order.pk %}" hx-post="{% url 'workspace:start' work_order.pk %}" hx-target="#jobDrawer" hx-swap="outerHTML">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-success w-100 fw-bold py-2">
+                {% icon 'play' 16 %} Start Job
+              </button>
+            </form>
+          {% endif %}
+
+          {% if can_resume %}
+            <form method="post" action="{% url 'workspace:resume' work_order.pk %}" hx-post="{% url 'workspace:resume' work_order.pk %}" hx-target="#jobDrawer" hx-swap="outerHTML">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-success w-100 fw-bold py-2">
+                {% icon 'play-circle' 16 %} Resume Job
+              </button>
+            </form>
+          {% endif %}
+
+          {% if can_pause %}
+            <div class="border rounded p-2 bg-light">
+              <label for="pause-reason" class="form-label small fw-bold mb-1">Pause Job (Hold)</label>
+              <form method="post" action="{% url 'workspace:pause' work_order.pk %}" hx-post="{% url 'workspace:pause' work_order.pk %}" hx-target="#jobDrawer" hx-swap="outerHTML">
+                {% csrf_token %}
+                <input type="text" id="pause-reason" name="reason" class="form-control form-control-sm mb-2" placeholder="Mandatory reason for pausing..." required>
+                <button type="submit" class="btn btn-warning btn-sm w-100 fw-semibold text-dark">
+                  {% icon 'pause' 14 %} Pause / Put on Hold
+                </button>
+              </form>
+            </div>
+          {% endif %}
+
+          {% if can_complete %}
+            <div class="border rounded p-2 bg-light">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small fw-bold text-uppercase text-secondary">Final Completion</span>
+                {% if work_order.signoff %}
+                  <span class="badge bg-success" style="font-size: 0.65rem;">Signed</span>
+                {% endif %}
+              </div>
+              {% if work_order.checklist_required and work_order.checklist_status != 'COMPLETED' %}
+                <div class="alert alert-warning py-1 px-2 small mb-2 d-flex align-items-center justify-content-between">
+                  <span>⚠️ Checklist must be completed first</span>
+                  <a href="{% url 'checklists:inspections' %}?work_order={{ work_order.pk }}" class="btn btn-sm btn-outline-dark py-0 px-2 fw-semibold" style="font-size: 0.72rem;">Open Checklist</a>
+                </div>
+              {% endif %}
+              {% if work_order.work_type in 'CORRECTIVE,INSTALLATION' and not work_order.completion_evidence.exists %}
+                <div class="alert alert-warning py-1 px-2 small mb-2 d-flex align-items-center justify-content-between">
+                  <span>⚠️ Evidence required before completion</span>
+                  <a href="{% url 'workspace:job_detail' work_order.pk %}#evidence-section" class="btn btn-sm btn-outline-dark py-0 px-2 fw-semibold" style="font-size: 0.72rem;">Upload</a>
+                </div>
+              {% endif %}
+
+              <div class="mb-2">
+                <a href="{% url 'workspace:complete' work_order.pk %}" class="btn btn-primary btn-sm w-100 fw-bold d-inline-flex align-items-center justify-content-center gap-1 shadow-sm" id="drawerSignoffLink">
+                  {% icon 'edit-3' 14 %} Customer Sign-off & Complete →
+                </a>
+              </div>
+
+              <details class="small">
+                <summary class="text-muted cursor-pointer mb-2" style="font-size: 0.76rem;">Quick Complete without Sign-off</summary>
+                <form method="post" action="{% url 'workspace:complete' work_order.pk %}" hx-post="{% url 'workspace:complete' work_order.pk %}" hx-target="#jobDrawer" hx-swap="outerHTML">
+                  {% csrf_token %}
+                  <textarea id="complete-notes" name="resolution_notes" class="form-control form-control-sm mb-2" rows="2" placeholder="Resolution summary (min 10 chars)..." minlength="10" required></textarea>
+                  <button type="submit" class="btn btn-outline-primary btn-sm w-100 fw-semibold">
+                    {% icon 'check' 14 %} Quick Complete Order
+                  </button>
+                </form>
+              </details>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Travel Logging Section -->
+    <div class="card mb-3 shadow-sm border">
+      <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+        <span class="fw-bold small text-uppercase">{% icon 'navigation' 14 %} Travel Logging</span>
+        <span class="badge bg-primary-subtle text-primary">{{ total_travel_hours }}h Total</span>
+      </div>
+      <div class="card-body p-3">
+        <form method="post" action="{% url 'workspace:travel' work_order.pk %}" hx-post="{% url 'workspace:travel' work_order.pk %}" hx-target="#jobDrawer" hx-swap="outerHTML">
+          {% csrf_token %}
+          <div class="row g-2 mb-2">
+            <div class="col-6">
+              <label class="form-label small mb-0">Duration (Hours) *</label>
+              <input type="number" step="0.25" min="0.1" max="24" name="duration_hours" class="form-control form-control-sm" placeholder="e.g. 1.5" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small mb-0">Distance (KM)</label>
+              <input type="number" step="0.5" min="0" max="9999" name="distance_km" class="form-control form-control-sm" placeholder="e.g. 25.0">
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small mb-0">Route / Vehicle</label>
+            <input type="text" name="route_details" class="form-control form-control-sm" placeholder="e.g. Service Van #04 via Expressway">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small mb-0">Notes</label>
+            <input type="text" name="notes" class="form-control form-control-sm" placeholder="Traffic, tolls, or trip remarks">
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm w-100">
+            {% icon 'check' 14 %} Log Travel Time
+          </button>
+        </form>
+
+        {% if travel_logs %}
+          <hr class="my-2">
+          <div class="small fw-semibold text-muted mb-1">Recent Travel Logs:</div>
+          <ul class="list-unstyled mb-0 small">
+            {% for tl in travel_logs %}
+              <li class="d-flex justify-content-between py-1 border-bottom">
+                <div>
+                  <span class="fw-semibold">{{ tl.duration_hours }}h</span>
+                  {% if tl.distance_km %} · {{ tl.distance_km }} km{% endif %}
+                  {% if tl.notes %}<div class="text-muted text-truncate" style="max-width: 260px;">{{ tl.notes }}</div>{% endif %}
+                </div>
+                <span class="text-muted">{{ tl.created_at|date:"M j, H:i" }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Allocated Parts Consumption (Drawer Quick-Action) -->
+    <div class="card mb-3 shadow-sm border">
+      <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+        <span class="fw-bold small text-uppercase">{% icon 'box' 14 %} Allocated Parts</span>
+        {% if consumable_parts_count > 0 %}
+          <span class="badge bg-success-subtle text-success border border-success-subtle">{{ consumable_parts_count }} available</span>
+        {% else %}
+          <span class="badge bg-light text-secondary border">0 pending</span>
+        {% endif %}
+      </div>
+      <div class="card-body p-3">
+        {% if consumable_parts %}
+          <form method="post" action="{% url 'workspace:consume_part' work_order.pk %}"
+                hx-post="{% url 'workspace:consume_part' work_order.pk %}"
+                hx-target="#jobDrawer"
+                hx-swap="outerHTML">
+            {% csrf_token %}
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Select Part to Consume</label>
+              <select name="part_line_id" class="form-select form-select-sm" required>
+                {% for line in consumable_parts %}
+                  <option value="{{ line.pk }}">
+                    {{ line.part.part_number }} (Rem: {{ line.outstanding|floatformat:"-3" }} {{ line.part.unit }})
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Quantity</label>
+              <input type="number" step="0.001" min="0.001" name="quantity" class="form-control form-control-sm" required placeholder="Quantity used">
+            </div>
+            <button type="submit" class="btn btn-sm btn-outline-primary w-100 fw-semibold">
+              {% icon 'check' 14 %} Consume Part
+            </button>
+          </form>
+        {% else %}
+          <p class="small text-muted mb-0">No outstanding warehouse parts pending consumption.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Site & Route Navigation -->
+    <div class="card mb-3 shadow-sm border">
+      <div class="card-header bg-white py-2">
+        <span class="fw-bold small text-uppercase">{% icon 'map-pin' 14 %} Site &amp; Route Details</span>
+      </div>
+      <div class="card-body p-3 small">
+        <div class="fw-bold">{{ route.site_name }} ({{ route.site_code }})</div>
+        {% if route.site_address %}
+          <div class="text-muted mt-1">{{ route.site_address|linebreaksbr }}</div>
+        {% endif %}
+        {% if route.location_path %}
+          <div class="mt-2 text-secondary">
+            <strong>Location:</strong> {{ route.location_path }}
+          </div>
+        {% endif %}
+        {% if route.maps_query %}
+          <div class="mt-2">
+            <a href="https://www.google.com/maps/search/?api=1&query={{ route.maps_query|urlencode }}" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm w-100">
+              {% icon 'external-link' 14 %} Open in Google Maps
+            </a>
+          </div>
+        {% endif %}
+
+        {% if route.contacts %}
+          <hr class="my-2">
+          <div class="fw-semibold text-muted mb-1">Site Contacts:</div>
+          <ul class="list-unstyled mb-0">
+            {% for c in route.contacts %}
+              <li class="py-1">
+                <strong>{{ c.name }}</strong> ({{ c.role }})
+                {% if c.phone %}<br><a href="tel:{{ c.phone }}">{% icon 'phone' 12 %} {{ c.phone }}</a>{% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="mt-3">
+      <a href="{% url 'workspace:job_detail' work_order.pk %}" class="btn btn-outline-primary btn-sm w-100 py-2 fw-semibold">
+        {% icon 'wrench' 14 %} Open Dedicated Job Workspace &rarr;
+      </a>
+    </div>
+
+  </div>
+</div>

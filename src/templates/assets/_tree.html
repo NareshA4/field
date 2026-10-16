@@ -1,0 +1,60 @@
+{% load ui_tags %}
+<div class="fx-hierarchy-wrapper">
+  <!-- Interactive Hierarchy Toolbar -->
+  <div class="fx-hierarchy-toolbar">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <!-- Search Input -->
+      <div class="fx-tree-search">
+        {% icon 'search' 14 %}
+        <input type="search" class="form-control form-control-sm" placeholder="Search tag, part #, serial…" data-tree-search aria-label="Search tree nodes">
+        <button type="button" class="fx-tree-search-clear" aria-label="Clear search">&times;</button>
+      </div>
+
+      <!-- Quick Role Filter Pills -->
+      <div class="fx-filter-pill-group">
+        <button type="button" class="fx-filter-pill active" data-filter-role="all">All</button>
+        <button type="button" class="fx-filter-pill" data-filter-role="assembly">Assemblies</button>
+        <button type="button" class="fx-filter-pill" data-filter-role="component">Components</button>
+        <button type="button" class="fx-filter-pill" data-filter-role="replaceable">Replaceable Parts</button>
+      </div>
+    </div>
+    
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <!-- View Density and Branch Toggles -->
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-action="toggle-density" title="Toggle compact density">
+        {% icon 'align-justify' 13 %} Compact
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-action="expand-all" title="Expand all branches">
+        {% icon 'maximize-2' 13 %} Expand All
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-action="collapse-all" title="Collapse all branches">
+        {% icon 'minimize-2' 13 %} Collapse All
+      </button>
+
+      {% if can_manage and current.status not in 'RETIRED,DISPOSED' %}
+        <a class="btn btn-sm btn-primary" href="{% url 'assets:create' %}?parent={{ current.pk }}">
+          {% icon 'plus' 13 %} Register Child
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Hierarchy Content -->
+  <div class="fx-hierarchy-container">
+    <ul class="fx-tree-root">
+      {% include "assets/_tree_node.html" with node=node current=current can_manage=can_manage %}
+    </ul>
+  </div>
+
+  <!-- Quick Inspection Modal Container -->
+  <div class="modal fade" id="quickViewModal" tabindex="-1" aria-labelledby="quickViewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content shadow-lg border-0" id="quickViewModalContent">
+        <div class="p-5 text-center text-body-secondary">
+          <div class="spinner-border text-primary mb-2" role="status"></div>
+          <div>Loading asset details…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,12 +1,86 @@
 <section class="wo-detail-card">
-  <h2>Checklist</h2>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Checklist</h2>
+    <div>
+      {% if can_execute_checklist %}
+        {% if not inspection %}
+          <a class="wo-view-button" id="start-checklist-btn" href="{% url 'workorders:checklist_execute' wo.pk %}">Start Checklist</a>
+        {% elif inspection.status == "IN_PROGRESS" %}
+          <a class="wo-view-button" id="execute-checklist-btn" href="{% url 'workorders:checklist_execute' wo.pk %}">Execute Checklist</a>
+        {% else %}
+          <a class="wo-view-button" id="view-checklist-btn" href="{% url 'checklists:inspection' inspection.pk %}">View Checklist</a>
+        {% endif %}
+      {% elif inspection %}
+        <a class="wo-view-button" id="view-checklist-btn" href="{% url 'checklists:inspection' inspection.pk %}">View Checklist</a>
+      {% endif %}
+    </div>
+  </div>
+
   <dl class="row mb-0">
     <dt class="col-sm-4">Required</dt><dd class="col-sm-8">{{ checklist_summary.required|yesno:"Yes,No" }}</dd>
-    <dt class="col-sm-4">Template reference</dt><dd class="col-sm-8">{{ checklist_summary.template_ref|default:"—" }}</dd>
-    <dt class="col-sm-4">Instance reference</dt><dd class="col-sm-8">{{ checklist_summary.instance_ref|default:"—" }}</dd>
-    <dt class="col-sm-4">Execution status</dt><dd class="col-sm-8">{{ checklist_summary.status }}</dd>
-    <dt class="col-sm-4">Validation</dt><dd class="col-sm-8">{{ checklist_summary.validation_state|default:"PENDING" }}</dd>
+    <dt class="col-sm-4">Template reference</dt><dd class="col-sm-8">{{ checklist_summary.template_ref|default:"—" }}{% if checklist_template %} ({{ checklist_template.name }}){% endif %}</dd>
+    <dt class="col-sm-4">Instance reference</dt><dd class="col-sm-8">{% if inspection %}<a href="{% url 'checklists:inspection' inspection.pk %}">{{ checklist_summary.instance_ref }}</a>{% else %}{{ checklist_summary.instance_ref|default:"Missing" }}{% endif %}</dd>
+    <dt class="col-sm-4">Execution status</dt><dd class="col-sm-8"><span class="badge {% if checklist_summary.status == 'COMPLETED' %}bg-success{% elif checklist_summary.status == 'IN_PROGRESS' %}bg-primary{% else %}bg-secondary{% endif %}">{{ checklist_summary.status }}</span></dd>
+    <dt class="col-sm-4">Validation</dt><dd class="col-sm-8"><span class="badge {% if checklist_summary.validation_state == 'VALID' %}bg-success{% elif checklist_summary.validation_state == 'INVALID' %}bg-danger{% else %}bg-warning text-dark{% endif %}">{{ checklist_summary.validation_state|default:"PENDING" }}</span></dd>
+    {% if inspection.summary %}
+      <dt class="col-sm-4">Completion notes</dt><dd class="col-sm-8">{{ inspection.summary }}</dd>
+    {% endif %}
   </dl>
+
+  {% if checklist_rows %}
+    <h3 class="h6 fw-bold mt-4 mb-2">Checklist Steps ({{ checklist_template.name|default:checklist_summary.template_ref }})</h3>
+    <div class="table-responsive">
+      <table class="wo-table">
+        <thead>
+          <tr>
+            <th style="width: 50px;">#</th>
+            <th>Verification Step</th>
+            <th>Type</th>
+            <th>Required</th>
+            <th>Photo</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in checklist_rows %}
+            <tr>
+              <td>{{ r.item.position }}</td>
+              <td>
+                <div class="fw-semibold">{{ r.item.prompt }}</div>
+                {% if r.item.guidance %}<div class="small text-muted">{{ r.item.guidance }}</div>{% endif %}
+                {% if r.finding %}
+                  <div class="small text-danger mt-1">
+                    <strong>Finding:</strong> {{ r.finding.description }} ({{ r.finding.severity }})
+                  </div>
+                {% endif %}
+              </td>
+              <td><span class="badge bg-light text-dark border">{{ r.item.get_item_type_display }}</span></td>
+              <td>{{ r.item.required|yesno:"Yes,No" }}</td>
+              <td>{{ r.item.evidence_required|yesno:"Yes,No" }}</td>
+              <td>
+                {% if r.response %}
+                  {% if r.response.is_exception %}
+                    <span class="badge bg-danger">FAIL</span>
+                  {% elif r.response.value_bool is not None %}
+                    <span class="badge bg-success">PASS</span>
+                  {% elif r.response.value_text %}
+                    <span>{{ r.response.value_text }}</span>
+                  {% elif r.response.value_number is not None %}
+                    <span>{{ r.response.value_number }} {{ r.item.unit }}</span>
+                  {% else %}
+                    <span class="badge bg-info">Recorded</span>
+                  {% endif %}
+                {% else %}
+                  <span class="badge bg-secondary">PENDING</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+
   {% if wo.provisional_checklist %}
     <div class="wo-inline-state is-warning mt-3">Provisional notes · not validated</div>
     <ul class="mb-0 mt-2">{% for item in wo.provisional_checklist %}<li>{{ item.label }}</li>{% endfor %}</ul>

@@ -74,3 +74,212 @@ function showWorkOrderMessage(message, isError) {
   host.prepend(notice);
   window.setTimeout(function () { notice.remove(); }, 6000);
 }
+
+/* Interactive Hierarchy Hub & Tree Controls */
+document.addEventListener("DOMContentLoaded", function () {
+  // Tree Node Expand / Collapse Toggle
+  document.addEventListener("click", function (e) {
+    var expander = e.target.closest(".fx-tree-expander");
+    if (!expander) return;
+    var nodeItem = expander.closest(".fx-tree-node-item");
+    if (!nodeItem) return;
+    var branch = nodeItem.querySelector(":scope > .fx-tree-branch");
+    if (!branch) return;
+
+    var isHidden = branch.style.display === "none";
+    branch.style.display = isHidden ? "" : "none";
+    expander.classList.toggle("collapsed", !isHidden);
+    expander.textContent = isHidden ? "▼" : "▶";
+  });
+
+  // Expand All / Collapse All / Toggle Density
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-action]");
+    if (!btn) return;
+    var action = btn.dataset.action;
+    var wrapper = document.querySelector(".fx-hierarchy-wrapper");
+    if (!wrapper) return;
+
+    if (action === "toggle-density") {
+      wrapper.classList.toggle("is-compact");
+    } else if (action === "expand-all") {
+      wrapper.querySelectorAll(".fx-tree-branch").forEach(function (b) { b.style.display = ""; });
+      wrapper.querySelectorAll(".fx-tree-expander").forEach(function (exp) {
+        if (!exp.classList.contains("opacity-25")) {
+          exp.classList.remove("collapsed");
+          exp.textContent = "▼";
+        }
+      });
+    } else if (action === "collapse-all") {
+      wrapper.querySelectorAll(".fx-tree-branch").forEach(function (b) { b.style.display = "none"; });
+      wrapper.querySelectorAll(".fx-tree-expander").forEach(function (exp) {
+        if (!exp.classList.contains("opacity-25")) {
+          exp.classList.add("collapsed");
+          exp.textContent = "▶";
+        }
+      });
+    }
+  });
+
+  // Role Filtering Pills
+  document.addEventListener("click", function (e) {
+    var pill = e.target.closest("[data-filter-role]");
+    if (!pill) return;
+    var group = pill.closest(".fx-filter-pill-group");
+    if (!group) return;
+    group.querySelectorAll(".fx-filter-pill").forEach(function (p) { p.classList.remove("active"); });
+    pill.classList.add("active");
+
+    var role = pill.dataset.filterRole; // 'all', 'assembly', 'component', 'replaceable'
+    var cards = document.querySelectorAll(".fx-tree-node-card");
+    cards.forEach(function (card) {
+      var item = card.closest(".fx-tree-node-item");
+      if (!item) return;
+      if (role === "all") {
+        item.style.opacity = "";
+      } else if (role === "assembly" && card.classList.contains("role-assembly")) {
+        item.style.opacity = "";
+      } else if (role === "component" && card.classList.contains("role-component")) {
+        item.style.opacity = "";
+      } else if (role === "replaceable" && (card.classList.contains("role-replaceable_part") || card.classList.contains("role-replaceable"))) {
+        item.style.opacity = "";
+      } else if (card.classList.contains("role-root")) {
+        item.style.opacity = "";
+      } else {
+        item.style.opacity = "0.3";
+      }
+    });
+  });
+
+  // Live Tree Search Filtering
+  document.addEventListener("input", function (e) {
+    var input = e.target.closest("[data-tree-search]");
+    if (!input) return;
+    var query = input.value.trim().toLowerCase();
+    var nodeItems = document.querySelectorAll(".fx-tree-node-item");
+
+    if (!query) {
+      nodeItems.forEach(function (item) { item.style.display = ""; });
+      return;
+    }
+
+    nodeItems.forEach(function (item) {
+      var card = item.querySelector(":scope > .fx-tree-node-card");
+      var text = card ? card.textContent.toLowerCase() : "";
+      if (text.indexOf(query) !== -1) {
+        item.style.display = "";
+        // ensure ancestors are visible
+        var parent = item.parentElement.closest(".fx-tree-node-item");
+        while (parent) {
+          parent.style.display = "";
+          var parentBranch = parent.querySelector(":scope > .fx-tree-branch");
+          if (parentBranch) parentBranch.style.display = "";
+          parent = parent.parentElement.closest(".fx-tree-node-item");
+        }
+      } else {
+        var hasMatchingChild = item.querySelector(".fx-tree-branch .fx-tree-node-item");
+        // if children match, keep open
+        var childText = item.querySelector(".fx-tree-branch") ? item.querySelector(".fx-tree-branch").textContent.toLowerCase() : "";
+        if (childText.indexOf(query) !== -1) {
+          item.style.display = "";
+        } else {
+          item.style.display = "none";
+        }
+      }
+    });
+  });
+
+  // Clear Search Button
+  document.addEventListener("click", function (e) {
+    var clearBtn = e.target.closest(".fx-tree-search-clear");
+    if (!clearBtn) return;
+    var searchBox = clearBtn.closest(".fx-tree-search");
+    if (!searchBox) return;
+    var input = searchBox.querySelector("input");
+    if (input) {
+      input.value = "";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    }
+  });
+
+  // Copy Part Number Feedback
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-copy]");
+    if (!btn) return;
+    var text = btn.dataset.copy;
+    if (navigator.clipboard && text) {
+      navigator.clipboard.writeText(text).then(function () {
+        var orig = btn.innerHTML;
+        btn.innerHTML = "✓ Copied";
+        setTimeout(function () { btn.innerHTML = orig; }, 1500);
+      });
+    }
+  });
+
+  // Global Toast auto-dismiss handler
+  function initAutoDismiss() {
+    var alerts = document.querySelectorAll(".fx-toast-message:not([data-dismiss-queued]), [data-auto-dismiss]:not([data-dismiss-queued])");
+    alerts.forEach(function (el) {
+      el.setAttribute("data-dismiss-queued", "1");
+      var timeoutMs = parseInt(el.getAttribute("data-auto-dismiss") || "4000", 10);
+      var timer = null;
+      var remaining = timeoutMs;
+      var start = Date.now();
+
+      function startTimer() {
+        start = Date.now();
+        timer = setTimeout(function () {
+          dismissToast(el);
+        }, remaining);
+      }
+
+      function pauseTimer() {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+          remaining -= (Date.now() - start);
+          if (remaining < 400) remaining = 400;
+        }
+      }
+
+      function dismissToast(item) {
+        if (!item || item.getAttribute("data-dismissing") === "1") return;
+        item.setAttribute("data-dismissing", "1");
+        item.style.transition = "opacity 0.35s ease, max-height 0.35s ease, margin 0.35s ease, padding 0.35s ease";
+        item.style.opacity = "0";
+        item.style.maxHeight = item.offsetHeight + "px";
+        item.offsetHeight;
+        item.style.maxHeight = "0px";
+        item.style.marginTop = "0px";
+        item.style.marginBottom = "0px";
+        item.style.paddingTop = "0px";
+        item.style.paddingBottom = "0px";
+        item.style.overflow = "hidden";
+        setTimeout(function () {
+          if (item && item.parentNode) {
+            var parent = item.closest(".fx-toast-container");
+            item.remove();
+            if (parent && parent.children.length === 0) parent.remove();
+          }
+        }, 360);
+      }
+
+      startTimer();
+      el.addEventListener("mouseenter", pauseTimer);
+      el.addEventListener("mouseleave", startTimer);
+
+      var closeBtn = el.querySelector(".btn-close");
+      if (closeBtn) {
+        closeBtn.addEventListener("click", function (e) {
+          e.preventDefault();
+          dismissToast(el);
+        });
+      }
+    });
+  }
+
+  initAutoDismiss();
+  document.body.addEventListener("htmx:afterSettle", initAutoDismiss);
+  document.body.addEventListener("htmx:afterSwap", initAutoDismiss);
+});

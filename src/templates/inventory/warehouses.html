@@ -1,0 +1,21 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Warehouses · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>Warehouses</h1><div class="text-body-secondary">Stock locations per site.</div></div>
+  <div class="d-flex gap-2">{% if can_manage %}<a class="btn btn-primary" href="{% url 'inventory:warehouse_new' %}">{% icon 'plus' 16 %} New warehouse</a>{% endif %}</div></div>
+{% include "components/_section_tabs.html" with section="Inventory" %}
+<div class="fx-card">
+  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
+    <input class="form-control form-control-sm" style="max-width:240px" type="search" name="q" value="{{ filters.q }}" placeholder="Code or name" aria-label="Search warehouses">
+    <select class="form-select form-select-sm" style="max-width:160px" name="site" aria-label="Site"><option value="">All sites</option>
+      {% for s in sites %}<option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>{% endfor %}</select>
+    <select class="form-select form-select-sm" style="max-width:150px" name="active" aria-label="Active"><option value="">All</option>
+      <option value="1" {% if filters.active == "1" %}selected{% endif %}>Active</option><option value="0" {% if filters.active == "0" %}selected{% endif %}>Inactive</option></select>
+    <button class="btn btn-sm btn-outline-secondary">Filter</button></form>
+  <div class="table-responsive"><table class="table fx-table" id="warehouses-table"><thead><tr><th>Code</th><th>Name</th><th>Site</th><th>Status</th></tr></thead><tbody>
+  {% for w in page %}<tr><td><a href="{% url 'inventory:warehouse' w.pk %}">{{ w.code }}</a></td><td>{{ w.name }}</td><td>{{ w.site.code }}</td><td>{% if w.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="4">{% include "components/_empty_state.html" with title="No warehouses" text="Create a warehouse for a site." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "components/_pagination.html" %}
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}{{ p.name }} &middot; SLA Profile &middot; FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div>
+  <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'sla:profiles' %}">SLA profiles</a></li><li class="breadcrumb-item active">{{ p.name }}</li></ol></nav>
+  <h1>{{ p.name }} {% if p.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}</h1>
+  <div class="text-body-secondary">{{ p.get_applies_to_display }} &middot; {% if p.client %}Client: {{ p.client.user.display_name }} &middot; {% endif %}{% if p.contract %}Contract / AMC: {{ p.contract.reference }} &middot; {% endif %}{% if p.asset %}Asset: {{ p.asset.asset_tag }} &middot; {% elif p.asset_category %}Asset category: {{ p.asset_category.name }} &middot; {% endif %}{% if p.site %}Site: {{ p.site.code }}{% else %}Organization default{% endif %}{% if p.service_type or p.work_type %} &middot; Service type: {{ p.service_type|default:p.work_type|title }}{% endif %}{% if p.description %} &middot; {{ p.description }}{% endif %}</div></div>
+  <div class="d-flex gap-2"><a class="btn btn-outline-primary" href="{% url 'sla:profile_edit' p.pk %}">Edit</a>
+    <form method="post" action="{% url 'sla:profile_active' p.pk %}" class="m-0">{% csrf_token %}{% if p.is_active %}<input type="hidden" name="active" value="0"><button class="btn btn-outline-secondary" data-confirm="Deactivate this SLA Profile? New Incident / Breakdown and Work Order items will not be tracked by it.">Deactivate</button>{% else %}<input type="hidden" name="active" value="1"><button class="btn btn-outline-success">Activate</button>{% endif %}</form></div></div>
+<div class="fx-card mb-3"><div class="fx-card-header">Pause rules</div><div class="fx-card-body">{% if p.pause_states %}Timers pause only in these configured workflow states: {{ p.pause_states|join:", " }}. The workflow reason, actor, start time, end time, and duration are recorded.{% else %}Timers continue through every workflow state.{% endif %}<div class="small text-body-secondary mt-2">SLA targets use 24/7 elapsed time, including nights, weekends, and holidays.</div></div></div>
+<div class="fx-card mb-3"><div class="fx-card-header">Targets</div><div class="table-responsive"><table class="table fx-table" id="targets-table"><thead><tr><th>Priority</th><th>Response Target</th><th>Resolution Target</th><th>Warning Alert</th><th></th></tr></thead><tbody>
+  {% for t in targets %}<tr><td>{% status_badge t.priority %}</td><td>{{ t.response_minutes }} min</td><td>{{ t.resolution_minutes }} min</td><td>{{ t.warning_percent }}%</td>
+    <td><form method="post" action="{% url 'sla:target_remove' p.pk t.pk %}" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" data-confirm="Remove this target?">Remove</button></form></td></tr>
+  {% empty %}<tr><td colspan="5" class="text-body-secondary">No targets yet: items of unlisted priorities are not tracked.</td></tr>{% endfor %}</tbody></table></div>
+  <div class="fx-card-body border-top"><form method="post" action="{% url 'sla:target_set' p.pk %}" class="row g-2 align-items-end">{% csrf_token %}
+    {% for field in target_form %}<div class="col-6 col-lg-3">{% include "components/_form_field.html" %}</div>{% endfor %}
+    <div class="col-12"><button class="btn btn-primary">Save target</button> <span class="small text-body-secondary">Saving an existing priority replaces it; running trackings keep their due times.</span></div></form></div></div>
+<div class="fx-card"><div class="fx-card-header">Escalation rules ({{ rules|length }} of {{ max_rules }})</div><div class="table-responsive"><table class="table fx-table" id="rules-table"><thead><tr><th>Target</th><th>Trigger</th><th>After</th><th>Level</th><th>Notifies</th><th></th></tr></thead><tbody>
+  {% for r in rules %}<tr><td>{{ r.get_target_kind_display }}</td><td>{{ r.get_trigger_display }}</td><td>{% if r.after_minutes %}{{ r.after_minutes }} min{% else %}&mdash;{% endif %}</td><td>{{ r.level }}</td>
+    <td>{% if r.notify_role %}{{ r.notify_role.name }}{% endif %}{% if r.notify_role and r.notify_assignee %} + {% endif %}{% if r.notify_assignee %}assignee{% endif %}</td>
+    <td><form method="post" action="{% url 'sla:rule_remove' p.pk r.pk %}" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" data-confirm="Remove this rule?">Remove</button></form></td></tr>
+  {% empty %}<tr><td colspan="6" class="text-body-secondary">No rules: breaches are recorded but nobody is notified.</td></tr>{% endfor %}</tbody></table></div>
+  <div class="fx-card-body border-top"><form method="post" action="{% url 'sla:rule_new' p.pk %}" class="row g-2 align-items-end">{% csrf_token %}
+    {% for field in rule_form %}<div class="col-6 col-lg-3">{% include "components/_form_field.html" %}</div>{% endfor %}
+    <div class="col-12"><button class="btn btn-primary">Add rule</button></div></form></div></div>
+{% endblock %}

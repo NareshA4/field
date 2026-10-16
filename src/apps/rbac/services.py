@@ -178,6 +178,62 @@ def site_scope(membership, code: str) -> SiteScope:
         sid for sid, perms in site_permissions(membership).items() if code in perms))
 
 
+def has_role_assignment_permission(membership, site=None) -> bool:
+    """Checks whether the membership has role-assignment authority (user.update),
+    either org-wide, or for a specific site."""
+    if membership is None or not membership.is_active:
+        return False
+    if is_owner(membership):
+        return True
+    if has_permission(membership, "user.update"):
+        return True
+    qs = MembershipRole.objects.filter(
+        membership=membership,
+        role__role_permissions__permission__code="user.update",
+    )
+    if site is not None:
+        qs = qs.filter(site_id=_site_id(site))
+    return qs.exists()
+
+
+def authorized_sites_for_actor(actor_membership) -> SiteScope:
+    """The SiteScope of sites the actor is authorized to manage or assign roles for."""
+    if actor_membership is None or not actor_membership.is_active:
+        return SiteScope(False)
+    if is_owner(actor_membership):
+        return SiteScope(True)
+
+    # Actor MUST hold role-assignment authority (user.update).
+    # site.update alone DOES NOT grant permission to assign user roles.
+    if not has_role_assignment_permission(actor_membership):
+        return SiteScope(False)
+
+    has_org_user_update = has_permission(actor_membership, "user.update")
+    site_user_update_qs = MembershipRole.objects.filter(
+        membership=actor_membership,
+        site__isnull=False,
+        site__organization_id=actor_membership.organization_id,
+        role__role_permissions__permission__code="user.update",
+    )
+
+    if not has_org_user_update:
+        # Only has site-scoped user.update
+        site_ids = set(site_user_update_qs.values_list("site_id", flat=True))
+        return SiteScope(False, frozenset(site_ids))
+
+    # Actor has org-wide user.update.
+    # Check if their site management authority is explicitly scoped:
+    site_update_scope = site_scope(actor_membership, "site.update")
+    site_view_scope = site_scope(actor_membership, "site.view")
+    if site_update_scope.all_sites or site_view_scope.all_sites:
+        return SiteScope(True)
+
+    scoped_sites = set(site_update_scope.site_ids) | set(site_view_scope.site_ids)
+    if not scoped_sites:
+        return SiteScope(True)
+    return SiteScope(False, frozenset(scoped_sites))
+
+
 def is_owner(membership) -> bool:
     if membership is None or not membership.is_active:
         return False
@@ -246,6 +302,56 @@ def set_membership_assignments(membership, assignments: list, *, actor, request=
         actor_membership = _membership_of(actor, org)
         if not is_owner(actor_membership):
             raise PermissionDenied("Only an Owner can grant or revoke the Owner role.", code="owner_only")
+    if not system and actor is not None:
+        actor_membership = _membership_of(actor, org)
+        if actor_membership is not None and not is_owner(actor_membership):
+            new_assignments = {k: v for k, v in wanted.items() if k not in current}
+            if new_assignments:
+                if not has_role_assignment_permission(actor_membership):
+                    raise PermissionDenied(
+                        "You do not have permission to assign roles.",
+                        code="permission_denied",
+                    )
+                actor_site_scope = authorized_sites_for_actor(actor_membership)
+                actor_org_perms = set(membership_permissions(actor_membership))
+                actor_site_perms = site_permissions(actor_membership)
+                for (role_pk, sid), (r, site) in new_assignments.items():
+                    if site is None:
+                        if not actor_site_scope.all_sites:
+                            raise PermissionDenied(
+                                "Organization-wide role assignment requires full site authority.",
+                                code="site_scope_exceeded",
+                            )
+                        if not has_permission(actor_membership, "role.manage"):
+                            r_perms = set(r.role_permissions.values_list("permission__code", flat=True))
+                            excess = r_perms - actor_org_perms
+                            if excess:
+                                raise PermissionDenied(
+                                    "Cannot assign roles with permissions beyond your own authority.",
+                                    code="privilege_escalation",
+                                    details={"excess": sorted(excess)},
+                                )
+                    else:
+                        if not actor_site_scope.allows(site):
+                            raise PermissionDenied(
+                                f"You do not have permission to assign roles for site {getattr(site, 'code', site)}.",
+                                code="unauthorized_site",
+                            )
+                        if not has_permission(actor_membership, "role.manage"):
+                            site_key = _site_id(site)
+                            site_perms_for_site = set(actor_site_perms.get(site_key, frozenset()))
+                            actor_effective = actor_org_perms | site_perms_for_site
+                            r_site_perms = {
+                                c for c in r.role_permissions.values_list("permission__code", flat=True)
+                                if c in catalog.site_scoped_codes()
+                            }
+                            excess = r_site_perms - actor_effective
+                            if excess:
+                                raise PermissionDenied(
+                                    "Cannot assign roles with permissions beyond your own authority.",
+                                    code="privilege_escalation",
+                                    details={"excess": sorted(excess)},
+                                )
     removed_owner = any(mr.role.is_owner for key, mr in current.items() if key not in wanted)
     if removed_owner and not any(r.is_owner for r, _ in wanted.values()):
         assert_not_last_owner(membership)

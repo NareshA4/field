@@ -10,12 +10,14 @@ from apps.rbac import services as rbac
 from apps.rbac.models import Role
 from apps.tenancy import selectors
 from apps.tenancy.models import Membership
+from .utils import is_client_membership
 
 
 @login_required
 def root(request):
-    if request.user.is_platform_admin and request.membership is None:
-        return redirect("platform_admin:organizations")
+    membership = getattr(request, "membership", None)
+    if membership and is_client_membership(membership):
+        return redirect("portal:dashboard")
     return redirect("ui:home")
 
 
@@ -25,12 +27,16 @@ def home(request):
     if request.tenant_error:
         return render(request, "errors/tenant.html", {"code": request.tenant_error}, status=403)
     if request.membership is None:
-        if request.user.is_platform_admin:
-            return redirect("platform_admin:organizations")
         return redirect("ui:choose_org")
+    if is_client_membership(request.membership):
+        return redirect("portal:dashboard")
     org = request.organization
     perms = rbac.membership_permissions(request.membership)
-    if perms and all(p.startswith("portal.request.") for p in perms):  # client-only account: portal is home
+    client_allowed = {
+        "incident.report_owned", "incident.view_owned", "incident.view_assigned",
+        "incident.attach", "incident.confirm"
+    }
+    if perms and all(p.startswith("portal.request.") or p in client_allowed for p in perms):  # client-only account: portal is home
         return redirect("portal:dashboard")
     stats = {
         "active_members": Membership.objects.for_organization(org).filter(status=Membership.Status.ACTIVE).count(),

@@ -19,6 +19,8 @@ dependencies = [
     "pillow>=10.3",
     "filetype>=1.2",
     "django-storages[s3]>=1.14",
+    "segno>=1.6.0",
+    "python-barcode>=0.15.0",
 ]
 
 [project.optional-dependencies]

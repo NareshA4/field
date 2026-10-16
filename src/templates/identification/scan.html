@@ -1,0 +1,27 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block title %}Scan asset label · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div><h1>Scan an asset label</h1><div class="text-body-secondary">Point the camera at the QR code on the asset. The asset opens automatically.</div></div></div>
+<div class="row g-3"><div class="col-lg-7"><div class="fx-card"><div class="fx-card-header">Camera</div><div class="fx-card-body">
+  <div id="scan-camera" data-resolve-url="{% url 'identification:resolve' token='__TOKEN__' %}" data-zxing-src="{% static 'lib/zxing.min.js' %}">
+    <div id="scan-viewport" class="fx-scan-viewport">
+      <video id="scan-video" playsinline muted autoplay></video>
+      <div class="fx-scan-frame" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    </div>
+    <div id="scan-status" class="fx-scan-status" role="status" aria-live="polite">Starting the camera…</div>
+    <div id="scan-error" class="alert alert-warning py-2 mt-2 mb-2" role="alert" hidden></div>
+    <div class="d-flex flex-wrap gap-2 mt-2">
+      <button type="button" class="btn btn-primary btn-sm" id="scan-retry" hidden>Retry camera</button>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="scan-switch" hidden>Switch camera</button>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="scan-stop" hidden>Stop camera</button>
+    </div>
+  </div>
+  <noscript><p class="text-body-secondary mb-0">The camera scanner needs JavaScript. Enter the code instead.</p></noscript></div></div></div>
+<div class="col-lg-5"><div class="fx-card"><div class="fx-card-header">Enter code</div><div class="fx-card-body">
+  <form method="post" id="scan-form" novalidate>{% csrf_token %}
+    <label class="form-label" for="scan-token">Label code or scanned link</label>
+    <input class="form-control mb-3" id="scan-token" name="token" autocomplete="off" autocapitalize="off" spellcheck="false" required placeholder="e.g. K3V9Q2…  or the full link">
+    <button class="btn btn-primary">Open asset</button></form></div></div></div></div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/qr_scan.js' %}" defer></script>{% endblock %}

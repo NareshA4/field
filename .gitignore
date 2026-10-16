@@ -15,6 +15,9 @@ htmlcov/
 .vscode/
 *.log
 .pytest_media/
-
 # Local test tooling installed outside the project environment
 .local/
+uv.lock
+# Test artifacts, screenshots, and visual media
+qa/artifacts/
+*.png

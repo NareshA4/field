@@ -68,11 +68,19 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.notifications",
     "apps.files",
-    "apps.platform_admin",
     "apps.sites",
     "apps.assets",
+    "apps.identification",
     "apps.incidents",
     "apps.workorders",
+    "apps.inventory",
+    "apps.maintenance",
+    "apps.sla",
+    "apps.contracts",
+    "apps.checklists",
+    "apps.portal",
+    "apps.workspace",
+    "apps.dashboards",
     "apps.ui",
 ]
 
@@ -163,17 +171,25 @@ CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_CREDENTIALS = False
 
 # --- Cache / Redis ----------------------------------------------------------------------------
-REDIS_URL = env("REDIS_URL", "redis://localhost:6379/0")
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": REDIS_URL,
-        "KEY_PREFIX": "fieldops",
+REDIS_URL = env("REDIS_URL", "").strip()
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+            "KEY_PREFIX": "fieldops",
+        }
     }
-}
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "KEY_PREFIX": "fieldops",
+        }
+    }
 
 # --- Celery -----------------------------------------------------------------------------------
-CELERY_BROKER_URL = env("CELERY_BROKER_URL", REDIS_URL)
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", REDIS_URL or "memory://")
 CELERY_RESULT_BACKEND = None
 CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_TIME_LIMIT = 60 * 10
@@ -183,6 +199,10 @@ CELERY_BEAT_SCHEDULE = {
     "clear-expired-sessions": {
         "task": "apps.core.tasks.clear_expired_sessions",
         "schedule": 60 * 60 * 24,
+    },
+    "generate-due-maintenance": {
+        "task": "apps.maintenance.tasks.fan_out_maintenance",
+        "schedule": 60 * 15,
     },
 }
 
@@ -210,7 +230,7 @@ MEDIA_URL = "media/"
 MEDIA_ROOT = Path(env("MEDIA_ROOT", str(BASE_DIR.parent / "media")))
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
 }
 # Uploads (asset documents, work order / incident evidence, portal attachments). Local disk by default; set
 # AWS_STORAGE_BUCKET_NAME to store them in an S3-compatible bucket (Supabase Storage in production: Render's disk is

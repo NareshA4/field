@@ -29,7 +29,6 @@ class UserManager(BaseUserManager):
     def create_superuser(self, email, password=None, **extra):
         extra.setdefault("is_staff", True)
         extra.setdefault("is_superuser", True)
-        extra.setdefault("is_platform_admin", True)
         return self._create(email, password, **extra)
 
     def get_by_natural_key(self, username):

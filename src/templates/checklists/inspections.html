@@ -1,0 +1,133 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Inspections Register · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header">
+  <div>
+    <h1>Inspections Register</h1>
+    <div class="text-body-secondary">Real-time log of field verification checklists, executed responses, and quality compliance audits.</div>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'checklists:list' %}">{% icon 'file-text' 14 %} Checklist Templates</a>
+  </div>
+</div>
+
+<!-- KPI Metric Cards (Figma Spec) -->
+<div class="fx-kpi-grid">
+  <div class="fx-kpi-card">
+    <div>
+      <div class="fx-kpi-label">Total Executions</div>
+      <div class="fx-kpi-val">{{ kpis.total|default:"0" }}</div>
+      <div class="fx-kpi-sub">All-time inspections</div>
+    </div>
+    <div class="fx-kpi-icon navy">{% icon 'clipboard' 20 %}</div>
+  </div>
+  <div class="fx-kpi-card">
+    <div>
+      <div class="fx-kpi-label">In Progress</div>
+      <div class="fx-kpi-val text-warning">{{ kpis.in_progress|default:"0" }}</div>
+      <div class="fx-kpi-sub">Field technicians active</div>
+    </div>
+    <div class="fx-kpi-icon amber">{% icon 'clock' 20 %}</div>
+  </div>
+  <div class="fx-kpi-card">
+    <div>
+      <div class="fx-kpi-label">Completed</div>
+      <div class="fx-kpi-val text-success">{{ kpis.completed|default:"0" }}</div>
+      <div class="fx-kpi-sub">Passed & archived</div>
+    </div>
+    <div class="fx-kpi-icon green">{% icon 'check-circle' 20 %}</div>
+  </div>
+  <div class="fx-kpi-card">
+    <div>
+      <div class="fx-kpi-label">Open Findings</div>
+      <div class="fx-kpi-val text-danger">{{ kpis.open_findings|default:"0" }}</div>
+      <div class="fx-kpi-sub">Awaiting resolution</div>
+    </div>
+    <div class="fx-kpi-icon red">{% icon 'alert-triangle' 20 %}</div>
+  </div>
+</div>
+
+<div class="fx-card">
+  <div class="fx-card-header bg-white">
+    <div class="fw-semibold text-dark">Field Verification Log</div>
+    <div class="small text-muted">{{ page.paginator.count|default:"0" }} inspection{{ page.paginator.count|pluralize }}</div>
+  </div>
+  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom align-items-center bg-light">
+    <select class="form-select form-select-sm" style="max-width:180px" name="site" aria-label="Site">
+      <option value="">All Operating Sites</option>
+      {% for s in sites %}
+        <option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }} ({{ s.name }})</option>
+      {% endfor %}
+    </select>
+    <select class="form-select form-select-sm" style="max-width:160px" name="status" aria-label="Status">
+      <option value="">All statuses</option>
+      <option value="IN_PROGRESS" {% if filters.status == "IN_PROGRESS" %}selected{% endif %}>In progress</option>
+      <option value="COMPLETED" {% if filters.status == "COMPLETED" %}selected{% endif %}>Completed</option>
+    </select>
+    <button class="btn btn-sm btn-outline-secondary">Filter</button>
+    {% if filters.site or filters.status %}
+      <a href="{% url 'checklists:inspections' %}" class="btn btn-sm btn-link text-decoration-none text-muted">Clear</a>
+    {% endif %}
+  </form>
+  <div class="table-responsive">
+    <table class="table fx-table" id="inspection-table">
+      <thead>
+        <tr>
+          <th>Checklist Protocol</th>
+          <th>Asset</th>
+          <th>Site Location</th>
+          <th>Work Order</th>
+          <th>Status</th>
+          <th>Execution Timeline</th>
+          <th class="text-end">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for i in page %}
+        <tr>
+          <td>
+            <a class="fw-semibold text-decoration-none text-dark d-block" href="{% url 'checklists:inspection' i.pk %}">
+              {{ i.template.name }} <span class="badge fx-badge fx-badge-secondary ms-1">v{{ i.template.version }}</span>
+            </a>
+          </td>
+          <td>
+            <span class="badge bg-light text-dark border font-monospace">{{ i.asset.asset_tag }}</span>
+          </td>
+          <td><span class="text-muted small">{{ i.site.code }}</span></td>
+          <td>
+            {% if i.work_order %}
+              <a href="{% url 'workorders:detail' i.work_order.pk %}" class="badge fx-badge fx-badge-info text-decoration-none">
+                {{ i.work_order.number }}
+              </a>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td>{% status_badge i.status %}</td>
+          <td class="small">
+            <div>{{ i.started_at|date:"d M Y H:i" }}</div>
+            <div class="text-muted">by {{ i.started_by.user.display_name }}</div>
+          </td>
+          <td class="text-end">
+            {% if i.status == "IN_PROGRESS" %}
+              <a class="btn btn-sm btn-primary" href="{% url 'checklists:inspection_run' i.pk %}">Execute</a>
+            {% else %}
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'checklists:inspection' i.pk %}">View Report</a>
+            {% endif %}
+          </td>
+        </tr>
+
+        {% empty %}
+        <tr>
+          <td colspan="7">
+            {% include "components/_empty_state.html" with title="No inspections recorded" text="Inspections automatically appear here as technicians execute checklists against work orders." %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/_pagination.html" %}
+</div>
+{% endblock %}

@@ -1,0 +1,323 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+
+{% block title %}Client Portal · FieldOps Nexus{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <!-- Header Banner -->
+  <div class="fx-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-3 border-bottom">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-7">FON-M13 Portal</span>
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 fs-7">
+          <span class="d-inline-block rounded-circle bg-success me-1" style="width: 6px; height: 6px;"></span>
+          Authorized Client
+        </span>
+      </div>
+      <h1 class="h3 fw-bold mb-1">{{ company_name }}</h1>
+      <p class="text-body-secondary mb-0">Welcome to your dedicated service and maintenance requester portal.</p>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <a href="{% url 'portal:request_create' %}" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
+        {% icon 'plus-circle' 16 %} Submit Request
+      </a>
+      <div class="text-end d-none d-sm-block">
+        <div class="small fw-semibold">{{ request.user.full_name }}</div>
+        <div class="small text-body-secondary">{{ request.user.email }}</div>
+      </div>
+      <div class="fx-avatar rounded-circle bg-dark text-white d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width: 42px; height: 42px;">
+        {{ request.user.full_name|slice:":1"|upper }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Confirmation Banner if Request was Created -->
+  {% if created_ref %}
+  <div class="alert alert-success d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 shadow-sm" role="alert" style="border-radius: var(--fx-radius);">
+    <div class="d-flex align-items-center gap-2">
+      {% icon 'check-circle' 22 %}
+      <div>
+        <strong>Service Request Created Successfully!</strong> Reference number: 
+        <span class="font-monospace fw-bold px-2 py-1 bg-white rounded border border-success-subtle text-success">{{ created_ref }}</span>.
+        Your request has been logged in PostgreSQL and queued for operations triage.
+      </div>
+    </div>
+    <a href="{% url 'portal:request_create' %}" class="btn btn-sm btn-outline-success">
+      {% icon 'plus-circle' 14 %} Submit Another Request
+    </a>
+  </div>
+  {% endif %}
+
+  <!-- Live Database-Backed KPI Metrics Cards (Defect 5 Resolution) -->
+  <div class="row g-3 mb-4">
+    <!-- 1. Total Requests -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card h-100 shadow-sm border" style="border-radius: var(--fx-radius);">
+        <div class="card-body p-3">
+          <div class="text-body-secondary small fw-medium mb-1">Total Requests</div>
+          <div class="fs-4 fw-bold text-slate-900 dark:text-white">{{ metrics.total }}</div>
+          <a href="{% url 'portal:requests_list' %}" class="small text-primary text-decoration-none mt-1 d-inline-block">View all &rarr;</a>
+        </div>
+      </div>
+    </div>
+    <!-- 2. New / Open -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card h-100 shadow-sm border" style="border-radius: var(--fx-radius); border-left: 3px solid #3b82f6 !important;">
+        <div class="card-body p-3">
+          <div class="text-body-secondary small fw-medium mb-1">New / Open</div>
+          <div class="fs-4 fw-bold text-primary">{{ metrics.open }}</div>
+          <span class="small text-body-secondary mt-1 d-inline-block">Under review</span>
+        </div>
+      </div>
+    </div>
+    <!-- 3. In Progress -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card h-100 shadow-sm border" style="border-radius: var(--fx-radius); border-left: 3px solid #f59e0b !important;">
+        <div class="card-body p-3">
+          <div class="text-body-secondary small fw-medium mb-1">In Progress</div>
+          <div class="fs-4 fw-bold text-warning">{{ metrics.in_progress }}</div>
+          <span class="small text-body-secondary mt-1 d-inline-block">Active service</span>
+        </div>
+      </div>
+    </div>
+    <!-- 4. Awaiting Confirmation -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card h-100 shadow-sm border" style="border-radius: var(--fx-radius); border-left: 3px solid #8b5cf6 !important;">
+        <div class="card-body p-3">
+          <div class="text-body-secondary small fw-medium mb-1">Needs Sign-Off</div>
+          <div class="fs-4 fw-bold" style="color: #8b5cf6;">{{ metrics.awaiting_confirmation }}</div>
+          <span class="small text-body-secondary mt-1 d-inline-block">Awaiting you</span>
+        </div>
+      </div>
+    </div>
+    <!-- 5. Resolved / Closed -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card h-100 shadow-sm border" style="border-radius: var(--fx-radius); border-left: 3px solid #10b981 !important;">
+        <div class="card-body p-3">
+          <div class="text-body-secondary small fw-medium mb-1">Resolved</div>
+          <div class="fs-4 fw-bold text-success">{{ metrics.resolved_closed }}</div>
+          <span class="small text-body-secondary mt-1 d-inline-block">Completed</span>
+        </div>
+      </div>
+    </div>
+    <!-- 6. Client Satisfaction Rating -->
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card h-100 shadow-sm border" style="border-radius: var(--fx-radius); border-left: 3px solid #eab308 !important;">
+        <div class="card-body p-3">
+          <div class="text-body-secondary small fw-medium mb-1">Avg Rating</div>
+          <div class="fs-4 fw-bold text-warning d-flex align-items-center gap-1">
+            {% if metrics.avg_rating %}
+              <span>{{ metrics.avg_rating }}</span> <span class="fs-6 text-warning">★</span>
+            {% else %}
+              <span class="text-body-secondary fs-6">N/A</span>
+            {% endif %}
+          </div>
+          <span class="small text-body-secondary mt-1 d-inline-block">{{ metrics.rating_count }} review{{ metrics.rating_count|pluralize }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Client Organization & Boundary Profile Card (Defect 3 Fallback Removed) -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-4">
+      <div class="card h-100 shadow-sm border" style="border-radius: var(--fx-radius);">
+        <div class="card-body p-3">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="text-body-secondary small fw-medium">Client Account</span>
+            <span class="badge bg-success text-white">Active</span>
+          </div>
+          <div class="fs-5 fw-bold text-truncate">{{ account.company_name|default:org.name }}</div>
+          <div class="small text-body-secondary mt-1">Verified organization partner</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card h-100 shadow-sm border" style="border-radius: var(--fx-radius);">
+        <div class="card-body p-3">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="text-body-secondary small fw-medium">Organization</span>
+            <span class="badge bg-secondary-subtle text-secondary">{{ org.timezone }}</span>
+          </div>
+          <div class="fs-5 fw-bold text-truncate">{{ org.name }}</div>
+          <div class="small text-body-secondary mt-1">Slug: {{ org.slug }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card h-100 shadow-sm border" style="border-radius: var(--fx-radius);">
+        <div class="card-body p-3">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="text-body-secondary small fw-medium">Authorized Assets</span>
+            <span class="badge bg-info-subtle text-info">Authorized</span>
+          </div>
+          <div class="fs-5 fw-bold">{{ metrics.granted_assets_count }} Asset{{ metrics.granted_assets_count|pluralize }}</div>
+          <div class="small text-body-secondary mt-1">Granted for self-service reporting</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content: Recent Requests Table + Recent Activity Feed -->
+  <div class="row g-3 mb-4">
+    <div class="{% if metrics.recent_activity %}col-lg-8{% else %}col-12{% endif %}">
+      <div class="card shadow-sm border h-100" style="border-radius: var(--fx-radius);">
+        <div class="card-header bg-transparent py-3 border-bottom d-flex align-items-center justify-content-between">
+          <div class="fw-semibold">Your Recent Service Requests</div>
+          <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'portal:requests_list' %}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+              {% icon 'list-check' 14 %} View All
+            </a>
+            <a href="{% url 'portal:request_create' %}" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
+              {% icon 'plus' 14 %} New Request
+            </a>
+          </div>
+        </div>
+        {% if recent_requests %}
+        <div class="table-responsive">
+          <table class="table fx-table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Reference</th>
+                <th>Title</th>
+                <th>Asset</th>
+                <th>Site</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in recent_requests %}
+              <tr>
+                <td>
+                  <a href="{% url 'portal:request_detail' r.pk %}" class="font-monospace fw-semibold text-primary text-decoration-none">
+                    {{ r.number }}
+                  </a>
+                </td>
+                <td class="fw-medium text-truncate" style="max-width: 180px;">{{ r.title }}</td>
+                <td>{{ r.asset.asset_tag }} <span class="text-body-secondary small">({{ r.asset.name }})</span></td>
+                <td><span class="badge bg-light text-dark border">{{ r.site.code }}</span></td>
+                <td>
+                  {% if r.severity == "HIGH" or r.severity == "CRITICAL" %}
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ r.severity }}</span>
+                  {% elif r.severity == "MEDIUM" %}
+                  <span class="badge bg-warning-subtle text-warning border border-warning-subtle">{{ r.severity }}</span>
+                  {% else %}
+                  <span class="badge bg-secondary-subtle text-secondary">{{ r.severity }}</span>
+                  {% endif %}
+                </td>
+                <td>{% status_badge r.status %}</td>
+                <td class="text-body-secondary small">{{ r.created_at|date:"Y-m-d H:i" }}</td>
+                <td class="text-end">
+                  <a href="{% url 'portal:request_detail' r.pk %}" class="btn btn-sm btn-outline-primary py-0 px-2">
+                    View
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="card-body text-center py-5">
+          <div class="text-body-secondary mb-3">{% icon 'inbox' 40 %}</div>
+          <h3 class="h6 fw-semibold text-body-secondary">No service requests yet</h3>
+          <p class="small text-body-secondary mb-3">You haven't submitted any service requests. Use the button below to report an equipment issue.</p>
+          <a href="{% url 'portal:request_create' %}" class="btn btn-sm btn-primary">
+            {% icon 'plus-circle' 14 %} Submit First Request
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if metrics.recent_activity %}
+    <div class="col-lg-4">
+      <div class="card shadow-sm border h-100" style="border-radius: var(--fx-radius);">
+        <div class="card-header bg-transparent py-3 border-bottom">
+          <div class="fw-semibold">Recent Status Updates</div>
+        </div>
+        <div class="card-body p-3">
+          <div class="d-flex flex-column gap-3">
+            {% for act in metrics.recent_activity %}
+            <div class="d-flex gap-2 pb-2 border-bottom">
+              <div class="mt-1">
+                <span class="badge rounded-circle p-1 bg-primary text-white">●</span>
+              </div>
+              <div class="flex-grow-1 small">
+                <div class="d-flex justify-content-between align-items-center">
+                  <a href="{% url 'portal:request_detail' act.request.pk %}" class="fw-semibold text-decoration-none">
+                    {{ act.request.number }}
+                  </a>
+                  <span class="text-body-secondary" style="font-size: 0.72rem;">{{ act.created_at|date:"M d, H:i" }}</span>
+                </div>
+                <div class="text-body-secondary mt-1">
+                  {{ act.action|title }} &rarr; <span class="badge bg-light text-dark border">{{ act.to_status }}</span>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Foundation Overview -->
+  <div class="card shadow-sm border mb-4" style="border-radius: var(--fx-radius);">
+    <div class="card-header bg-transparent py-3 border-bottom d-flex align-items-center justify-content-between">
+      <div class="fw-semibold">Requester Portal Overview</div>
+      <span class="small text-body-secondary">FON-M13 Enterprise Client Portal</span>
+    </div>
+    <div class="card-body p-4">
+      <div class="row align-items-center g-4">
+        <div class="col-lg-8">
+          <h2 class="h5 fw-bold mb-2">Self-Service Request Submission &amp; Tracking</h2>
+          <p class="text-body-secondary mb-3">
+            Your client identity is authenticated through FieldOps Nexus single identity model with dedicated 
+            Client / Requester role governance. You can submit equipment breakdowns and maintenance requests 
+            directly into the enterprise operations queue, monitor work orders, and confirm resolutions.
+          </p>
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            <span class="badge bg-light text-dark border px-2 py-2">
+              {% icon 'shield' 14 %} portal.request.create
+            </span>
+            <span class="badge bg-light text-dark border px-2 py-2">
+              {% icon 'eye' 14 %} portal.request.view
+            </span>
+            <span class="badge bg-light text-dark border px-2 py-2">
+              {% icon 'check' 14 %} portal.request.confirm
+            </span>
+          </div>
+          <div>
+            <a href="{% url 'portal:request_create' %}" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1">
+              {% icon 'plus-circle' 14 %} Create Service Request Now
+            </a>
+          </div>
+        </div>
+        <div class="col-lg-4 text-center text-lg-end">
+          <div class="p-3 rounded bg-light border d-inline-block text-start w-100">
+            <div class="small fw-semibold text-uppercase text-body-secondary mb-2">Account Summary</div>
+            <div class="d-flex justify-content-between small py-1 border-bottom">
+              <span class="text-body-secondary">Account ID</span>
+              <span class="font-monospace text-truncate ms-2" style="max-width: 140px;">{{ account.id }}</span>
+            </div>
+            <div class="d-flex justify-content-between small py-1 border-bottom">
+              <span class="text-body-secondary">Membership</span>
+              <span class="badge bg-success-subtle text-success">{{ membership.status }}</span>
+            </div>
+            <div class="d-flex justify-content-between small py-1">
+              <span class="text-body-secondary">Status</span>
+              <span class="text-success fw-semibold">Enabled</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

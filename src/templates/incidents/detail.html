@@ -8,17 +8,128 @@
   <h1>{{ sr.title }} {% status_badge sr.status %}</h1>
   <div class="text-body-secondary">{{ sr.number }} · {{ sr.get_kind_display }} · {% status_badge sr.severity %} · <a href="{% url 'assets:detail' sr.asset_id %}">{{ sr.asset.asset_tag }}</a> · {% if can.view_site %}<a href="{% url 'sites:detail' sr.site_id %}">{{ sr.site.code }}</a>{% else %}{{ sr.site.code }}{% endif %}</div></div>
   <div class="d-flex gap-2">{% if can.update and editable %}<a class="btn btn-outline-primary" href="{% url 'incidents:edit' sr.pk %}">Edit</a>{% endif %}
-    {% if can.create_work_order %}<form method="post" action="{% url 'incidents:create_work_order' sr.pk %}">{% csrf_token %}<button class="btn btn-primary" type="submit">Create work order</button></form>{% endif %}
+    {% if can.create_work_order %}<form method="post" action="{% url 'incidents:create_work_order' sr.pk %}">{% csrf_token %}<button class="btn btn-primary" type="submit" id="header-btn-convert-wo">Convert to Work Order</button></form>{% endif %}
     {% if linked_work_order %}<a class="btn btn-outline-primary" href="{% url 'workorders:detail' linked_work_order.pk %}">Open {{ linked_work_order.order_number }}</a>{% endif %}</div></div>
 <div class="fx-tabs" role="tablist">{% for key, label in tabs %}<a role="tab" class="{% if tab == key %}active{% endif %}" href="?tab={{ key }}">{{ label }}</a>{% endfor %}</div>
+
+<!-- Lifecycle & Authorized Actions Card -->
+<div class="fx-card mb-3" id="workflow-action-card">
+  <div class="fx-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+      <span class="fw-semibold me-2">Service Request Lifecycle</span>
+      <span class="small text-muted">(Current Status: {% status_badge sr.status %})</span>
+    </div>
+    {% if linked_work_order %}
+      <div>
+        <a class="btn btn-sm btn-outline-success" href="{% url 'workorders:detail' linked_work_order.pk %}">
+          Linked Work Order: {{ linked_work_order.order_number }}
+        </a>
+      </div>
+    {% endif %}
+  </div>
+  <div class="fx-card-body">
+    <!-- Stepper indicator -->
+    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+      <div class="small {% if workflow_guide.stage_index > 1 %}text-success fw-semibold{% elif workflow_guide.stage_index == 1 %}fw-bold text-primary{% else %}text-muted{% endif %}">
+        {% if workflow_guide.stage_index > 1 %}✓{% else %}1.{% endif %} Intake / Reported
+      </div>
+      <div class="text-muted small">→</div>
+      <div class="small {% if workflow_guide.stage_index > 2 %}text-success fw-semibold{% elif workflow_guide.stage_index == 2 %}fw-bold text-primary{% else %}text-muted{% endif %}">
+        {% if workflow_guide.stage_index > 2 %}✓{% else %}2.{% endif %} Triage
+      </div>
+      <div class="text-muted small">→</div>
+      <div class="small {% if workflow_guide.stage_index > 3 %}text-success fw-semibold{% elif workflow_guide.stage_index == 3 %}fw-bold text-primary{% elif sr.status == 'REJECTED' %}text-danger fw-bold{% else %}text-muted{% endif %}">
+        {% if workflow_guide.stage_index > 3 %}✓{% else %}3.{% endif %} Approval
+      </div>
+      <div class="text-muted small">→</div>
+      <div class="small {% if workflow_guide.stage_index >= 4 %}text-success fw-semibold{% else %}text-muted{% endif %}">
+        {% if workflow_guide.stage_index >= 4 %}✓{% else %}4.{% endif %} Work Order Conversion
+      </div>
+    </div>
+
+    <!-- Authorized Action Buttons -->
+    <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+      <span class="small fw-bold me-2">Actions:</span>
+      {% if can.triage %}
+        <form method="post" action="{% url 'incidents:transition' sr.pk 'triage' %}" class="d-inline m-0">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-info text-white" type="submit" id="btn-triage-request">
+            Triage Request
+          </button>
+        </form>
+      {% endif %}
+
+      {% if can.approve %}
+        <form method="post" action="{% url 'incidents:transition' sr.pk 'approve' %}" class="d-inline m-0">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-success" type="submit" id="btn-approve-request">
+            Approve Request
+          </button>
+        </form>
+      {% endif %}
+
+      {% if can.reject %}
+        <form method="post" action="{% url 'incidents:transition' sr.pk 'reject' %}" class="d-inline-flex gap-1 m-0" id="reject-panel">
+          {% csrf_token %}
+          <input class="form-control form-control-sm" style="width: 14rem;" name="reason" required minlength="3" maxlength="500" placeholder="Rejection reason (required)" aria-label="Rejection reason">
+          <button class="btn btn-sm btn-danger" type="submit" id="btn-reject-request" data-confirm="Reject this request?">
+            Reject Request
+          </button>
+        </form>
+      {% endif %}
+
+      {% if can.create_work_order %}
+        <form method="post" action="{% url 'incidents:create_work_order' sr.pk %}" class="d-inline m-0">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-primary" type="submit" id="btn-convert-work-order">
+            Convert to Work Order
+          </button>
+        </form>
+      {% endif %}
+
+      {% if linked_work_order %}
+        <a class="btn btn-sm btn-primary" href="{% url 'workorders:detail' linked_work_order.pk %}" id="btn-view-linked-wo">
+          View Work Order {{ linked_work_order.order_number }}
+        </a>
+      {% endif %}
+    </div>
+
+    <!-- Diagnostic and guidance when an action is unavailable -->
+    {% if not workflow_guide.is_authorized and sr.status in "NEW,TRIAGED,APPROVED" %}
+      <div class="alert alert-warning py-2 px-3 small mb-0 mt-2" id="action-unavailable-notice">
+        {% if workflow_guide.is_client %}
+          <strong>Client Account:</strong> Client / Requester accounts cannot perform internal triage, approval, or conversion actions.
+        {% else %}
+          <strong>Next Action Unavailable:</strong> <em>{{ workflow_guide.next_action_title }}</em> requires permission <code>{{ workflow_guide.required_perm }}</code> for site <strong>{{ sr.site.code }}</strong>.
+          Authorized internal roles: <strong>{{ workflow_guide.authorized_roles }}</strong>.
+          Your active roles: <em>{{ workflow_guide.user_roles_str }}</em>.
+        {% endif %}
+      </div>
+    {% elif sr.status == "REJECTED" %}
+      <div class="alert alert-danger py-2 px-3 small mb-0 mt-2" id="rejection-notice">
+        <strong>Request Rejected:</strong> {{ sr.decision_reason|default:"No rejection reason recorded." }}
+      </div>
+    {% elif linked_work_order and sr.status == "WORK_ORDER_CREATED" %}
+      <div class="alert alert-success py-2 px-3 small mb-0 mt-2" id="wo-conversion-success-notice">
+        <strong>Work Order Created:</strong> This request has been converted to Work Order <strong>{{ linked_work_order.order_number }}</strong>. Duplicate work order conversion is prevented.
+      </div>
+    {% endif %}
+  </div>
+</div>
+
 {% if transitions %}<div class="mb-3">{% include "components/_workflow_bar.html" %}</div>{% endif %}
 
 {% if tab == "overview" %}
 <div class="row g-3"><div class="col-lg-7">
   <div class="fx-card mb-3"><div class="fx-card-header">What happened</div><div class="fx-card-body"><dl class="fx-kv">
-    <dt>Description</dt><dd>{{ sr.description|default:"—"|linebreaksbr }}</dd><dt>Occurred</dt><dd>{{ sr.occurred_at|date:"d M Y H:i" }}</dd>
+    <dt>Description</dt><dd>{{ sr.description|default:"—"|linebreaksbr }}</dd>
+    {% if sr.failure_category %}<dt>Failure category</dt><dd>{{ sr.failure_category }}</dd>{% endif %}
+    {% if sr.assigned_team %}<dt>Assigned team</dt><dd>{{ sr.assigned_team }}</dd>{% endif %}
+    <dt>Occurred</dt><dd>{{ sr.occurred_at|date:"d M Y H:i" }}</dd>
     <dt>Service impact</dt><dd>{{ sr.get_service_impact_display }}{% if sr.impact_notes %} · {{ sr.impact_notes }}{% endif %}</dd>
     <dt>Reported by</dt><dd>{{ sr.reported_by.user.display_name }} on {{ sr.created_at|date:"d M Y H:i" }}</dd>
+    {% if sr.duplicate_of %}<dt>Duplicate of</dt><dd><a href="{% url 'incidents:detail' sr.duplicate_of.pk %}">{{ sr.duplicate_of.number }} · {{ sr.duplicate_of.title }}</a></dd>{% endif %}
+    {% if sr.override_reason %}<dt class="text-warning">Override reason</dt><dd class="text-warning-emphasis fw-medium">{{ sr.override_reason }}</dd>{% endif %}
     {% if sr.decision_reason %}<dt>Decision / reason</dt><dd>{{ sr.decision_reason }}</dd>{% endif %}</dl></div></div>
   </div>
 <div class="col-lg-5">

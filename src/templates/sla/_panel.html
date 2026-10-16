@@ -1,0 +1,31 @@
+{% load ui_tags %}{% if sla %}
+<div class="fx-card mb-3" id="sla-panel">
+  <div class="fx-card-header d-flex justify-content-between">
+    SLA {% status_badge sla.status %}<a
+      class="small"
+      href="{% url 'sla:tracking' sla.pk %}"
+      >Details</a
+    >
+  </div>
+  <div class="fx-card-body">
+    <dl class="fx-kv mb-0">
+      <dt>Response</dt>
+      <dd>
+        {% status_badge sla.response_state %}
+        <span class="small text-body-secondary"
+          >due {{ sla.response_due_at|date:"d M H:i" }}</span
+        >
+      </dd>
+      <dt>Resolution</dt>
+      <dd>
+        {% status_badge sla.resolution_state %}
+        <span class="small text-body-secondary"
+          >due {{ sla.resolution_due_at|date:"d M H:i" }}</span
+        >
+      </dd>
+      <dt>Policy selected</dt><dd>{{ sla.selection_reason|default:"Organization policy" }} &middot; {{ sla.profile.name }}</dd>
+    </dl>
+    {% if sla.pause_events.all %}<div class="border-top mt-2 pt-2"><strong>Pause history</strong><ul class="small mb-0">{% for pause in sla.pause_events.all %}<li>{{ pause.workflow_state|default:"Workflow pause" }} &middot; {{ pause.reason }} &middot; {{ pause.started_at|date:"d M Y H:i" }} to {% if pause.ended_at %}{{ pause.ended_at|date:"d M Y H:i" }} ({{ pause.duration_seconds }} sec){% else %}now{% endif %}{% if pause.paused_by %} &middot; {{ pause.paused_by.get_full_name }}{% endif %}</li>{% endfor %}</ul></div>{% endif %}
+  </div>
+</div>
+{% endif %}

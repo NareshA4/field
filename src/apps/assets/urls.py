@@ -3,8 +3,13 @@ from django.urls import path
 from . import views
 
 app_name = "assets"
+
 urlpatterns = [
+    # UI endpoints
     path("assets/", views.AssetListView.as_view(), name="list"),
+    path("assets/hierarchy/", views.AssetHierarchyHubView.as_view(), name="hierarchy_hub"),
+    path("assets/components/", views.ComponentListView.as_view(), name="component_list"),
+    path("components/", views.ComponentListView.as_view()),
     path("assets/new/", views.AssetCreateView.as_view(), name="create"),
     path("assets/categories/", views.CategoryView.as_view(), name="categories"),
     path("assets/<uuid:pk>/", views.AssetDetailView.as_view(), name="detail"),
@@ -19,5 +24,7 @@ urlpatterns = [
     path("meters/<uuid:pk>/toggle/", views.MeterToggleView.as_view(), name="meter_toggle"),
     path("components/<uuid:pk>/edit/", views.ComponentEditView.as_view(), name="component_edit"),
     path("components/<uuid:pk>/move/", views.ComponentMoveView.as_view(), name="component_move"),
+    path("components/<uuid:pk>/replace/", views.ComponentReplaceView.as_view(), name="component_replace"),
     path("components/<uuid:pk>/remove/", views.ComponentRemoveView.as_view(), name="component_remove"),
+    path("assets/<uuid:pk>/quick-view/", views.ComponentDetailModalView.as_view(), name="quick_view"),
 ]

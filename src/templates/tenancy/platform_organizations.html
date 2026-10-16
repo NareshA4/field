@@ -1,0 +1,26 @@
+{% extends "shell.html" %}
+{% block title %}Organizations · FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header">
+  <div><h1>Organizations</h1><div class="text-body-secondary">Platform administration</div></div>
+  <div class="d-flex gap-2"><a class="btn btn-primary" href="{% url 'platform_admin:incident_dashboard' %}">Incident dashboard</a><a class="btn btn-outline-secondary" href="{% url 'platform_admin:audit' %}">Platform audit</a></div>
+</div>
+<div class="fx-card">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead><tr><th>Organization</th><th>Status</th><th>Country</th><th>Created</th></tr></thead>
+      <tbody>
+        {% for org in page %}
+        <tr><td>{{ org.name }}</td><td>{{ org.get_status_display }}</td><td>{{ org.country|default:"—" }}</td><td>{{ org.created_at|date:"M j, Y" }}</td></tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-body-secondary">No organizations have been created yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% if page.has_other_pages %}<nav class="mt-3" aria-label="Pagination"><span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+  {% if page.has_previous %}<a class="btn btn-sm btn-outline-secondary ms-2" href="?page={{ page.previous_page_number }}">Previous</a>{% endif %}
+  {% if page.has_next %}<a class="btn btn-sm btn-outline-secondary ms-2" href="?page={{ page.next_page_number }}">Next</a>{% endif %}
+</nav>{% endif %}
+{% endblock %}

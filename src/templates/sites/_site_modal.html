@@ -1,0 +1,556 @@
+{% load ui_tags %}
+<div class="modal-header bg-light flex-shrink-0">
+  <div class="d-flex align-items-center gap-2">
+    <div class="fx-avatar fx-avatar-md bg-primary-subtle text-primary fw-bold">
+      {% icon 'building' 18 %}
+    </div>
+    <div>
+      <h5 class="modal-title fw-bold mb-0" id="siteModalLabel">{{ title }}</h5>
+      {% if site %}<div class="text-body-secondary small">{{ site.code }} · {{ site.name }}</div>{% endif %}
+    </div>
+  </div>
+  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<form method="post" action="{{ action_url }}" hx-post="{{ action_url }}" hx-target="#siteModalContent" hx-swap="innerHTML" hx-indicator="#site-modal-spinner" hx-disabled-elt="#site-modal-submit" novalidate id="site-modal-form" class="d-flex flex-column flex-grow-1 overflow-hidden" style="min-height: 0;">
+  {% csrf_token %}
+  <div class="modal-body p-3 p-md-4 overflow-y-auto flex-grow-1" style="min-height: 0;">
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger py-2 mb-3" role="alert">
+        {% for err in form.non_field_errors %}<div>{{ err }}</div>{% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="fx-form-grid">
+      {% for field in form %}
+        <div>
+          {% include "components/_form_field.html" %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="modal-footer bg-light py-2 flex-shrink-0">
+    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+    <button type="submit" class="btn btn-primary btn-sm d-flex align-items-center gap-1" id="site-modal-submit">
+      <span class="spinner-border spinner-border-sm htmx-indicator" id="site-modal-spinner" role="status" aria-hidden="true" style="display:none;"></span>
+      <span>{{ submit|default:"Save" }}</span>
+    </button>
+  </div>
+</form>
+
+<script nonce="{{ csp_nonce }}">
+(function() {
+  var geoStates = {
+    "IN": [
+      "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+      "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand",
+      "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",
+      "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab",
+      "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
+      "Uttar Pradesh", "Uttarakhand", "West Bengal",
+      "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu",
+      "Delhi (NCT)", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
+    ],
+    "US": [
+      "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
+      "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho",
+      "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana",
+      "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota",
+      "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada",
+      "New Hampshire", "New Jersey", "New Mexico", "New York",
+      "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon",
+      "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota",
+      "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
+      "West Virginia", "Wisconsin", "Wyoming", "District of Columbia"
+    ],
+    "GB": ["England", "Scotland", "Wales", "Northern Ireland"],
+    "AE": ["Abu Dhabi", "Dubai", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al-Quwain"],
+    "CA": ["Alberta", "British Columbia", "Manitoba", "New Brunswick", "Newfoundland and Labrador", "Nova Scotia", "Ontario", "Prince Edward Island", "Quebec", "Saskatchewan"],
+    "AU": ["New South Wales", "Victoria", "Queensland", "Western Australia", "South Australia", "Tasmania", "Australian Capital Territory", "Northern Territory"],
+    "DE": ["Baden-Württemberg", "Bavaria", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hesse", "Lower Saxony", "Mecklenburg-Vorpommern", "North Rhine-Westphalia", "Rhineland-Palatinate", "Saarland", "Saxony", "Saxony-Anhalt", "Schleswig-Holstein", "Thuringia"]
+  };
+
+  var geoCities = {
+    "Karnataka": ["Bengaluru", "Mysuru", "Hubballi-Dharwad", "Mangaluru", "Belagavi", "Kalaburagi", "Ballari", "Davanagere", "Shivamogga", "Tumakuru", "Udupi", "Bidar", "Hosapete"],
+    "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Thane", "Nashik", "Kalyan-Dombivli", "Vasai-Virar", "Aurangabad", "Navi Mumbai", "Solapur", "Kolhapur", "Amravati", "Nanded"],
+    "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli", "Salem", "Tiruppur", "Erode", "Tirunelveli", "Vellore", "Thoothukudi", "Dindigul", "Thanjavur"],
+    "Delhi": ["New Delhi", "Central Delhi", "North Delhi", "South Delhi", "East Delhi", "West Delhi", "Dwarka", "Rohini", "Connaught Place"],
+    "Delhi (NCT)": ["New Delhi", "Central Delhi", "North Delhi", "South Delhi", "East Delhi", "West Delhi", "Dwarka", "Rohini", "Connaught Place"],
+    "Telangana": ["Hyderabad", "Warangal", "Nizamabad", "Karimnagar", "Ramagundam", "Khammam", "Mahbubnagar", "Nalgonda"],
+    "Gujarat": ["Ahmedabad", "Surat", "Vadodara", "Rajkot", "Bhavnagar", "Jamnagar", "Gandhinagar", "Junagadh", "Anand", "Navsari", "Morbi"],
+    "West Bengal": ["Kolkata", "Howrah", "Durgapur", "Asansol", "Siliguri", "Bardhaman", "Malda", "Kharagpur", "Haldia"],
+    "Uttar Pradesh": ["Noida", "Greater Noida", "Lucknow", "Kanpur", "Ghaziabad", "Agra", "Varanasi", "Meerut", "Prayagraj", "Bareilly", "Aligarh", "Moradabad", "Gorakhpur"],
+    "Kerala": ["Thiruvananthapuram", "Kochi", "Kozhikode", "Kollam", "Thrissur", "Kannur", "Alappuzha", "Palakkad", "Kottayam"],
+    "Andhra Pradesh": ["Visakhapatnam", "Vijayawada", "Guntur", "Nellore", "Kurnool", "Kakinada", "Rajahmundry", "Tirupati", "Kadapa", "Anantapur"],
+    "Rajasthan": ["Jaipur", "Jodhpur", "Kota", "Bikaner", "Ajmer", "Udaipur", "Bhilwara", "Alwar", "Bharatpur", "Sikar"],
+    "Haryana": ["Gurugram", "Faridabad", "Panipat", "Ambala", "Yamunanagar", "Rohtak", "Hisar", "Karnal", "Sonipat", "Panchkula"],
+    "Punjab": ["Ludhiana", "Amritsar", "Jalandhar", "Patiala", "Bathinda", "Mohali", "Hoshiarpur", "Pathankot"],
+    "Madhya Pradesh": ["Indore", "Bhopal", "Jabalpur", "Gwalior", "Ujjain", "Sagar", "Dewas", "Satna", "Ratlam"],
+    "Bihar": ["Patna", "Gaya", "Bhagalpur", "Muzaffarpur", "Purnia", "Darbhanga", "Bihar Sharif", "Arrah", "Begusarai"],
+    "Odisha": ["Bhubaneswar", "Cuttack", "Rourkela", "Berhampur", "Sambalpur", "Puri", "Balasore", "Bhadrak"],
+    "Assam": ["Guwahati", "Silchar", "Dibrugarh", "Jorhat", "Nagaon", "Tinsukia", "Tezpur"],
+    "Goa": ["Panaji", "Margao", "Vasco da Gama", "Mapusa", "Ponda"],
+    "Jharkhand": ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro Steel City", "Deoghar", "Hazaribagh"],
+    "Chhattisgarh": ["Raipur", "Bhilai", "Bilaspur", "Korba", "Durg", "Rajnandgaon"],
+    "Uttarakhand": ["Dehradun", "Haridwar", "Roorkee", "Haldwani", "Rishikesh", "Nainital"],
+    "Himachal Pradesh": ["Shimla", "Dharamshala", "Solan", "Mandi", "Baddi", "Kullu"],
+    "Chandigarh": ["Chandigarh"],
+    "Jammu and Kashmir": ["Srinagar", "Jammu", "Anantnag", "Baramulla"],
+    "Ladakh": ["Leh", "Kargil"],
+    "Puducherry": ["Puducherry", "Karaikal", "Oulgaret"],
+    "California": ["Los Angeles", "San Francisco", "San Diego", "San Jose", "Sacramento", "Fresno"],
+    "Texas": ["Houston", "Dallas", "Austin", "San Antonio", "Fort Worth", "El Paso"],
+    "New York": ["New York City", "Buffalo", "Rochester", "Yonkers", "Syracuse", "Albany"],
+    "Florida": ["Miami", "Orlando", "Tampa", "Jacksonville", "Fort Lauderdale"],
+    "Dubai": ["Dubai", "Jebel Ali", "Deira", "Bur Dubai", "Business Bay"],
+    "Abu Dhabi": ["Abu Dhabi", "Al Ain", "Al Dhafra", "Mussafah"],
+    "England": ["London", "Manchester", "Birmingham", "Leeds", "Liverpool", "Bristol"]
+  };
+
+  var indiaStatePin = {
+    "Delhi": { prefixes: ["11"], sample: "110001" },
+    "Delhi (NCT)": { prefixes: ["11"], sample: "110001" },
+    "Haryana": { prefixes: ["12", "13"], sample: "122001" },
+    "Punjab": { prefixes: ["14", "15"], sample: "141001" },
+    "Chandigarh": { prefixes: ["16"], sample: "160017" },
+    "Himachal Pradesh": { prefixes: ["17"], sample: "171001" },
+    "Jammu and Kashmir": { prefixes: ["18", "19"], sample: "190001" },
+    "Ladakh": { prefixes: ["19"], sample: "194101" },
+    "Uttar Pradesh": { prefixes: ["20", "21", "22", "23", "24", "25", "26", "27", "28"], sample: "201301" },
+    "Uttarakhand": { prefixes: ["24", "26"], sample: "248001" },
+    "Rajasthan": { prefixes: ["30", "31", "32", "33", "34"], sample: "302001" },
+    "Gujarat": { prefixes: ["36", "37", "38", "39"], sample: "380001" },
+    "Dadra and Nagar Haveli and Daman and Diu": { prefixes: ["39"], sample: "396210" },
+    "Maharashtra": { prefixes: ["40", "41", "42", "43", "44"], sample: "400001" },
+    "Goa": { prefixes: ["40"], sample: "403001" },
+    "Madhya Pradesh": { prefixes: ["45", "46", "47", "48"], sample: "452001" },
+    "Chhattisgarh": { prefixes: ["49"], sample: "492001" },
+    "Telangana": { prefixes: ["50"], sample: "500001" },
+    "Andhra Pradesh": { prefixes: ["51", "52", "53"], sample: "530001" },
+    "Karnataka": { prefixes: ["56", "57", "58", "59"], sample: "560001" },
+    "Tamil Nadu": { prefixes: ["60", "61", "62", "63", "64"], sample: "600001" },
+    "Puducherry": { prefixes: ["60"], sample: "605001" },
+    "Kerala": { prefixes: ["67", "68", "69"], sample: "682001" },
+    "Lakshadweep": { prefixes: ["68"], sample: "682555" },
+    "West Bengal": { prefixes: ["70", "71", "72", "73", "74"], sample: "700001" },
+    "Andaman and Nicobar Islands": { prefixes: ["74"], sample: "744101" },
+    "Sikkim": { prefixes: ["73"], sample: "737101" },
+    "Odisha": { prefixes: ["75", "76", "77"], sample: "751001" },
+    "Assam": { prefixes: ["78"], sample: "781001" },
+    "Arunachal Pradesh": { prefixes: ["79"], sample: "791111" },
+    "Manipur": { prefixes: ["79"], sample: "795001" },
+    "Meghalaya": { prefixes: ["79"], sample: "793001" },
+    "Mizoram": { prefixes: ["79"], sample: "796001" },
+    "Nagaland": { prefixes: ["79"], sample: "797001" },
+    "Tripura": { prefixes: ["79"], sample: "799001" },
+    "Bihar": { prefixes: ["80", "81", "82", "83", "84", "85"], sample: "800001" },
+    "Jharkhand": { prefixes: ["81", "82", "83"], sample: "834001" }
+  };
+
+  var cityPincodes = {
+    "Bengaluru": "560001", "Mysuru": "570001", "Hubballi-Dharwad": "580001", "Mangaluru": "575001", "Belagavi": "590001",
+    "Mumbai": "400001", "Pune": "411001", "Nagpur": "440001", "Thane": "400601", "Nashik": "422001",
+    "Chennai": "600001", "Coimbatore": "641001", "Madurai": "625001", "Salem": "636001",
+    "New Delhi": "110001", "Central Delhi": "110001", "North Delhi": "110007", "South Delhi": "110017", "Dwarka": "110075",
+    "Hyderabad": "500001", "Warangal": "506001", "Visakhapatnam": "530001", "Vijayawada": "520001",
+    "Ahmedabad": "380001", "Surat": "395001", "Vadodara": "390001",
+    "Kolkata": "700001", "Howrah": "711101", "Durgapur": "713201",
+    "Noida": "201301", "Greater Noida": "201310", "Lucknow": "226001", "Kanpur": "208001",
+    "Gurugram": "122001", "Faridabad": "121001", "Jaipur": "302001", "Kochi": "682001",
+    "Chandigarh": "160017", "Indore": "452001", "Patna": "800001", "Bhubaneswar": "751001",
+    "Guwahati": "781001", "Panaji": "403001", "Dehradun": "248001", "Shimla": "171001"
+  };
+
+  // Build reverse mapping: City -> State
+  var cityToState = {};
+  for (var st in geoCities) {
+    if (geoCities.hasOwnProperty(st)) {
+      geoCities[st].forEach(function(c) {
+        cityToState[c] = st;
+      });
+    }
+  }
+
+  var geoTimezones = {
+    "IN": "Asia/Kolkata", "US": "America/New_York", "GB": "Europe/London",
+    "AE": "Asia/Dubai", "SG": "Asia/Singapore", "AU": "Australia/Sydney",
+    "CA": "America/Toronto", "DE": "Europe/Berlin", "FR": "Europe/Paris",
+    "SA": "Asia/Riyadh", "JP": "Asia/Tokyo", "LK": "Asia/Colombo",
+    "BR": "America/Sao_Paulo", "CN": "Asia/Shanghai", "ID": "Asia/Jakarta",
+    "IT": "Europe/Rome", "MY": "Asia/Kuala_Lumpur", "MX": "America/Mexico_City",
+    "NL": "Europe/Amsterdam", "NZ": "Pacific/Auckland", "PH": "Asia/Manila",
+    "QA": "Asia/Qatar", "ZA": "Africa/Johannesburg", "KR": "Asia/Seoul",
+    "ES": "Europe/Madrid", "CH": "Europe/Zurich", "TH": "Asia/Bangkok",
+    "TR": "Europe/Istanbul", "VN": "Asia/Ho_Chi_Minh"
+  };
+
+  var geoPrefixes = {
+    "IN": "+91", "US": "+1", "GB": "+44", "AE": "+971", "SG": "+65",
+    "AU": "+61", "CA": "+1", "DE": "+49", "FR": "+33", "SA": "+966",
+    "JP": "+81", "LK": "+94", "BR": "+55", "CN": "+86", "ID": "+62",
+    "IT": "+39", "MY": "+60", "MX": "+52", "NL": "+31", "NZ": "+64",
+    "PH": "+63", "QA": "+974", "ZA": "+27", "KR": "+82", "ES": "+34",
+    "CH": "+41", "TH": "+66", "TR": "+90", "VN": "+84"
+  };
+
+  function setFieldError(field, msg) {
+    if (!field) return;
+    field.classList.add('is-invalid');
+    var parent = field.closest('.mb-3') || field.parentElement;
+    var errEl = parent.querySelector('.js-field-error');
+    if (!errEl) {
+      errEl = document.createElement('div');
+      errEl.className = 'text-danger small mt-1 fw-medium js-field-error';
+      parent.appendChild(errEl);
+    }
+    errEl.textContent = msg;
+    errEl.style.display = 'block';
+  }
+
+  function clearFieldError(field) {
+    if (!field) return;
+    field.classList.remove('is-invalid');
+    var parent = field.closest('.mb-3') || field.parentElement;
+    var errEl = parent.querySelector('.js-field-error');
+    if (errEl) {
+      errEl.textContent = '';
+      errEl.style.display = 'none';
+    }
+  }
+
+  function initDynamicDropdowns() {
+    var form = document.getElementById('site-modal-form');
+    if (!form) return;
+
+    var countryEl = form.querySelector('#id_country');
+    var stateEl = form.querySelector('#id_state_region');
+    var cityEl = form.querySelector('#id_city');
+    var tzEl = form.querySelector('#id_timezone');
+    var phoneEl = form.querySelector('#id_contact_phone');
+    var postalEl = form.querySelector('#id_postal_code');
+    var codeEl = form.querySelector('input[name="code"]');
+    var nameEl = form.querySelector('input[name="name"]');
+
+    if (!countryEl || !stateEl || !cityEl) return;
+
+    // Code input auto-uppercase
+    if (codeEl) {
+      codeEl.addEventListener('input', function() {
+        var start = this.selectionStart;
+        var end = this.selectionEnd;
+        this.value = this.value.toUpperCase();
+        this.setSelectionRange(start, end);
+        if (this.value.trim()) clearFieldError(this);
+      });
+    }
+
+    if (nameEl) {
+      nameEl.addEventListener('input', function() {
+        if (this.value.trim().length >= 2) clearFieldError(this);
+      });
+    }
+
+    function updateStates(country, selectedState) {
+      var states = geoStates[country] || [];
+      var currentVal = selectedState || stateEl.value;
+      stateEl.innerHTML = '';
+
+      var defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = 'Select State / Region...';
+      stateEl.appendChild(defaultOpt);
+
+      var matched = false;
+      states.forEach(function(s) {
+        var opt = document.createElement('option');
+        opt.value = s;
+        opt.textContent = s;
+        if (s === currentVal) {
+          opt.selected = true;
+          matched = true;
+        }
+        stateEl.appendChild(opt);
+      });
+
+      if (currentVal && !matched) {
+        var customOpt = document.createElement('option');
+        customOpt.value = currentVal;
+        customOpt.textContent = currentVal;
+        customOpt.selected = true;
+        stateEl.appendChild(customOpt);
+      }
+    }
+
+    function updateCities(state, selectedCity) {
+      var cities = geoCities[state] || [];
+      var currentVal = selectedCity || cityEl.value;
+      cityEl.innerHTML = '';
+
+      var defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = 'Select City...';
+      cityEl.appendChild(defaultOpt);
+
+      var matched = false;
+      cities.forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        if (c === currentVal) {
+          opt.selected = true;
+          matched = true;
+        }
+        cityEl.appendChild(opt);
+      });
+
+      if (currentVal && !matched) {
+        var customOpt = document.createElement('option');
+        customOpt.value = currentVal;
+        customOpt.textContent = currentVal;
+        customOpt.selected = true;
+        cityEl.appendChild(customOpt);
+      }
+    }
+
+    function onCountryChange(isInitial) {
+      var country = (countryEl.value || '').toUpperCase();
+      var currentState = isInitial ? stateEl.value : '';
+      var currentCity = isInitial ? cityEl.value : '';
+
+      updateStates(country, currentState);
+      updateCities(currentState || stateEl.value, currentCity);
+
+      if (!isInitial && geoTimezones[country] && tzEl) {
+        tzEl.value = geoTimezones[country];
+        clearFieldError(tzEl);
+      }
+
+      if (phoneEl) {
+        var prefix = geoPrefixes[country] || '+1';
+        phoneEl.placeholder = 'e.g. ' + prefix + ' 98765 43210';
+      }
+
+      if (postalEl) {
+        if (country === 'IN') {
+          postalEl.placeholder = 'e.g. 560001 (6-digit PIN code)';
+        } else if (country === 'US') {
+          postalEl.placeholder = 'e.g. 90210 (5-digit ZIP code)';
+        } else {
+          postalEl.placeholder = 'Postal / ZIP code';
+        }
+      }
+    }
+
+    countryEl.addEventListener('change', function() {
+      clearFieldError(this);
+      onCountryChange(false);
+    });
+
+    stateEl.addEventListener('change', function() {
+      clearFieldError(this);
+      var state = this.value;
+      updateCities(state, '');
+      clearFieldError(cityEl);
+
+      // Update PIN code placeholder based on state's postal circle
+      if (countryEl.value === 'IN' && postalEl) {
+        var info = indiaStatePin[state];
+        if (info) {
+          postalEl.placeholder = 'e.g. ' + info.sample + ' (' + info.prefixes.join(', ') + 'xxxx)';
+        }
+      }
+    });
+
+    cityEl.addEventListener('change', function() {
+      clearFieldError(this);
+      var city = this.value;
+      if (!city) return;
+
+      // If city has a known state, ensure state dropdown matches
+      if (cityToState[city]) {
+        var targetState = cityToState[city];
+        if (stateEl.value !== targetState) {
+          stateEl.value = targetState;
+          clearFieldError(stateEl);
+          updateCities(targetState, city);
+        }
+      }
+
+      // Auto-suggest or set related PIN code
+      if (cityPincodes[city] && postalEl) {
+        postalEl.value = cityPincodes[city];
+        clearFieldError(postalEl);
+      }
+    });
+
+    if (postalEl) {
+      postalEl.addEventListener('input', function() {
+        var val = this.value.trim();
+        var country = (countryEl.value || '').toUpperCase();
+        if (country === 'IN') {
+          // Keep only digits and max 6 chars
+          this.value = val.replace(/\D/g, '').substring(0, 6);
+          val = this.value;
+          if (val.length === 6) {
+            validatePincode(false);
+          } else if (val.length > 0 && val.startsWith('0')) {
+            setFieldError(this, 'Indian PIN code cannot start with 0.');
+          } else {
+            clearFieldError(this);
+          }
+        } else {
+          if (val) clearFieldError(this);
+        }
+      });
+
+      postalEl.addEventListener('blur', function() {
+        validatePincode(true);
+      });
+    }
+
+    function validatePincode(showEmptyError) {
+      if (!postalEl) return true;
+      var postal = (postalEl.value || '').trim();
+      var country = (countryEl.value || '').toUpperCase();
+
+      if (!postal) {
+        if (showEmptyError) {
+          setFieldError(postalEl, 'Postal / PIN code is required.');
+          return false;
+        }
+        return true;
+      }
+
+      if (country === 'IN') {
+        if (!/^[1-9][0-9]{5}$/.test(postal)) {
+          setFieldError(postalEl, 'PIN code must be exactly 6 digits starting with 1-9 (e.g. 560001).');
+          return false;
+        }
+        var state = stateEl.value;
+        var info = indiaStatePin[state];
+        if (info) {
+          var prefix = postal.substring(0, 2);
+          if (info.prefixes.indexOf(prefix) === -1) {
+            var validList = info.prefixes.join(', ');
+            setFieldError(postalEl, 'PIN code ' + postal + ' does not match ' + state + '. Must start with ' + validList + ' (e.g. ' + info.sample + ').');
+            return false;
+          }
+        }
+      } else if (country === 'US') {
+        if (!/^\d{5}(-\d{4})?$/.test(postal)) {
+          setFieldError(postalEl, 'US ZIP code must be 5 digits (e.g. 90210).');
+          return false;
+        }
+      }
+
+      clearFieldError(postalEl);
+      return true;
+    }
+
+    // Strict Form Validation on Submit
+    form.addEventListener('submit', function(e) {
+      var isValid = true;
+      var firstInvalid = null;
+
+      // Validate Code
+      if (codeEl) {
+        var code = (codeEl.value || '').trim();
+        if (!code) {
+          setFieldError(codeEl, 'Site code is required.');
+          isValid = false;
+          firstInvalid = firstInvalid || codeEl;
+        } else if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,29}$/.test(code)) {
+          setFieldError(codeEl, 'Start with letter/digit. Allowed: uppercase letters, numbers, ., _, -');
+          isValid = false;
+          firstInvalid = firstInvalid || codeEl;
+        } else {
+          clearFieldError(codeEl);
+        }
+      }
+
+      // Validate Name
+      if (nameEl) {
+        var name = (nameEl.value || '').trim();
+        if (!name) {
+          setFieldError(nameEl, 'Site name is required.');
+          isValid = false;
+          firstInvalid = firstInvalid || nameEl;
+        } else if (name.length < 2) {
+          setFieldError(nameEl, 'Site name must be at least 2 characters.');
+          isValid = false;
+          firstInvalid = firstInvalid || nameEl;
+        } else if (/^\d+$/.test(name)) {
+          setFieldError(nameEl, 'Site name cannot be purely numbers.');
+          isValid = false;
+          firstInvalid = firstInvalid || nameEl;
+        } else {
+          clearFieldError(nameEl);
+        }
+      }
+
+      // Validate Country
+      if (!countryEl.value) {
+        setFieldError(countryEl, 'Please select a Country.');
+        isValid = false;
+        firstInvalid = firstInvalid || countryEl;
+      } else {
+        clearFieldError(countryEl);
+      }
+
+      // Validate Timezone
+      if (tzEl && !tzEl.value) {
+        setFieldError(tzEl, 'Please select a Timezone.');
+        isValid = false;
+        firstInvalid = firstInvalid || tzEl;
+      } else if (tzEl) {
+        clearFieldError(tzEl);
+      }
+
+      // Validate State
+      if (!stateEl.value) {
+        setFieldError(stateEl, 'Please select a State / Region.');
+        isValid = false;
+        firstInvalid = firstInvalid || stateEl;
+      } else {
+        clearFieldError(stateEl);
+      }
+
+      // Validate City
+      if (!cityEl.value) {
+        setFieldError(cityEl, 'Please select a City.');
+        isValid = false;
+        firstInvalid = firstInvalid || cityEl;
+      } else {
+        clearFieldError(cityEl);
+      }
+
+      // Validate PIN code
+      if (!validatePincode(true)) {
+        isValid = false;
+        firstInvalid = firstInvalid || postalEl;
+      }
+
+      if (!isValid) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (firstInvalid) {
+          firstInvalid.focus();
+          firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        return false;
+      }
+    });
+
+    // Initial setup on modal render
+    var initialState = stateEl.value;
+    var initialCity = cityEl.value;
+    onCountryChange(true);
+    if (initialState) {
+      stateEl.value = initialState;
+      updateCities(initialState, initialCity);
+    }
+  }
+
+  initDynamicDropdowns();
+})();
+</script>

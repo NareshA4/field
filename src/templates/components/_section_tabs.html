@@ -1,0 +1,10 @@
+{% load ui_tags %}
+{% with section_items=shell_nav_sections|get_item:section %}
+{% if section_items %}
+<div class="fx-tabs mb-3" role="tablist">
+  {% for item in section_items %}
+    <a role="tab" class="{% if item.active %}active{% endif %}" href="{{ item.url }}">{{ item.label }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endwith %}

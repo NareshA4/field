@@ -1,7 +1,9 @@
 <div class="mb-3">
-  <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+  <label class="form-label fw-semibold" for="{{ field.id_for_label }}">
+    {{ field.label }}{% if field.field.required %}<span class="text-danger ms-1" title="Required">*</span>{% endif %}
+  </label>
   {% if field.field.widget.input_type == "checkbox" or field.field.widget.allow_multiple_selected %}{{ field }}{% else %}
   <div>{{ field }}</div>{% endif %}
   {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
-  {% for e in field.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+  {% for e in field.errors %}<div class="text-danger small mt-1 fw-medium">{{ e }}</div>{% endfor %}
 </div>

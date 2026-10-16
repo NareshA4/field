@@ -1,18 +1,16 @@
-from django.contrib import messages
+import json
+from datetime import time, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from django.conf import settings
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce
-import json
-from datetime import time, timedelta
-from django.urls import reverse
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-
-from django.http import Http404, HttpResponse
-from django.http import QueryDict
+from django.http import Http404, HttpResponse, QueryDict
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 
@@ -24,10 +22,23 @@ from apps.ui.mixins import TenantPermissionMixin
 
 from . import services
 from .assignment_rules import available_technicians, schedule_warnings
-from .forms import (AssignForm, ChecklistForm, ClosureCommentForm, CompleteForm, CreateWorkOrderForm, EditWorkOrderForm, EvidenceForm, LaborForm,
-                    MaterialForm, PlanForm, ReasonForm, ReviewForm, WorkUpdateForm)
-from .models import WorkOrder, WorkOrderAssignment
 from .checklist_adapter import get_checklist_summary
+from .forms import (
+    AssignForm,
+    ChecklistForm,
+    ClosureCommentForm,
+    CompleteForm,
+    CreateWorkOrderForm,
+    EditWorkOrderForm,
+    EvidenceForm,
+    LaborForm,
+    MaterialForm,
+    PlanForm,
+    ReasonForm,
+    ReviewForm,
+    WorkUpdateForm,
+)
+from .models import WorkOrder, WorkOrderAssignment
 
 
 def _site_zone(site):
@@ -41,7 +52,7 @@ def _orders(request):
     m = request.membership
     qs = WorkOrder.objects.for_organization(m.organization).select_related("site", "assigned_to__user", "created_by")
     if not rbac.has_permission_anywhere(m, "work_order.view"):
-        qs = qs.filter(assigned_to=m)
+        qs = qs.filter(Q(assigned_to=m) | Q(assigned_to__isnull=True))
     from apps.sites.models import Site
     visible = [s.pk for s in Site.objects.for_organization(m.organization)
                if rbac.has_permission(m, "work_order.view", s) or
@@ -50,9 +61,14 @@ def _orders(request):
 
 
 def _can_view(membership, wo):
-    return (rbac.has_permission(membership, "work_order.view", wo.site) or
-            (wo.assigned_to_id == membership.pk and
-             rbac.has_permission(membership, "work_order.view_assigned", wo.site)))
+    if rbac.has_permission(membership, "work_order.view", wo.site):
+        return True
+    if rbac.has_permission(membership, "work_order.view_assigned", wo.site):
+        if wo.assigned_to_id == membership.pk or wo.assigned_to_id is None:
+            return True
+        if wo.source_request_id and rbac.has_permission(membership, "incident.view", wo.site):
+            return True
+    return False
 
 
 WORKFLOW_GUIDANCE = {
@@ -773,7 +789,19 @@ def _work_order_tab_context(wo, membership, tab):
     """Build each detail tab from the same scoped work-order record."""
     can_execute = wo.assigned_to_id == membership.pk or rbac.has_permission(
         membership, "work_order.dispatch", wo.site)
-    context = {"wo": wo, "permissions": {
+    pm_cycle = None
+    can_view_pm = False
+    if wo.source_type in ("PREVENTIVE_MAINTENANCE", "PM"):
+        from apps.maintenance.models import MaintenanceCycle
+        pm_cycle = (
+            MaintenanceCycle.objects.for_organization(wo.organization)
+            .filter(work_order=wo)
+            .select_related("schedule__plan")
+            .first()
+        )
+        if pm_cycle:
+            can_view_pm = rbac.has_permission(membership, "maintenance.view", wo.site)
+    context = {"wo": wo, "pm_cycle": pm_cycle, "can_view_pm": can_view_pm, "permissions": {
         "update": rbac.has_permission(membership, "work_order.update", wo.site),
         "record": rbac.has_permission(membership, "work_order.record", wo.site),
         "attach": rbac.has_permission(membership, "work_order.attach", wo.site),
@@ -791,6 +819,48 @@ def _work_order_tab_context(wo, membership, tab):
                                wo.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED))}
     if tab in ("assignment", "timeline", "closure"):
         context["events"] = wo.events.select_related("actor", "assigned_to__user")
+    if tab == "checklist":
+        from apps.checklists.models import ACTIVE, ChecklistTemplate, Inspection
+        from apps.checklists import selectors as checklist_selectors
+
+        insp = (
+            Inspection.objects.for_organization(wo.organization)
+            .filter(work_order=wo)
+            .select_related("template", "started_by__user", "completed_by__user")
+            .order_by("-started_at")
+            .first()
+        )
+        context["inspection"] = insp
+        can_execute_checklist = (
+            wo.status == WorkOrder.Status.IN_PROGRESS
+            and can_execute
+            and rbac.has_permission(membership, "inspection.execute", wo.site)
+        )
+        context["can_execute_checklist"] = can_execute_checklist
+
+        template = None
+        if insp:
+            template = insp.template
+        elif wo.checklist_template_ref:
+            template = ChecklistTemplate.objects.for_organization(wo.organization).filter(
+                status=ACTIVE, name__icontains=wo.checklist_template_ref
+            ).first()
+            if not template:
+                template = ChecklistTemplate.objects.for_organization(wo.organization).filter(
+                    status=ACTIVE, work_type=wo.work_type
+                ).first()
+        context["checklist_template"] = template
+
+        if template:
+            items = list(checklist_selectors.items_for(wo.organization, template))
+            responses = checklist_selectors.responses_for(wo.organization, insp) if insp else {}
+            findings_by_item = {f.item_id: f for f in insp.findings.all()} if insp else {}
+            rows = [{
+                "item": it,
+                "response": responses.get(it.pk),
+                "finding": findings_by_item.get(it.pk),
+            } for it in items]
+            context["checklist_rows"] = rows
     if tab == "assignment":
         context["assignment_events"] = wo.events.filter(action="assigned").select_related(
             "actor", "assigned_to__user")
@@ -808,6 +878,109 @@ def _work_order_tab_context(wo, membership, tab):
             action__in=("closed", "review_rejected")).select_related("actor")
         context["approvals"] = wo.closure_approvals.select_related("approver")
     return context
+
+
+class WorkOrderChecklistExecuteView(TenantPermissionMixin, View):
+    """Initiates or resumes M08 checklist execution for a work order."""
+
+    required_permission = "work_order.view_assigned"
+
+    def dispatch(self, request, *args, **kwargs):
+        m = getattr(request, "membership", None)
+        self.required_permission = (
+            "work_order.view"
+            if m and rbac.has_permission_anywhere(m, "work_order.view")
+            else "work_order.view_assigned"
+        )
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, pk):
+        return self._execute(request, pk)
+
+    def post(self, request, pk):
+        return self._execute(request, pk)
+
+    def _execute(self, request, pk):
+        try:
+            wo = services.get_work_order(request.membership, pk)
+        except NotFound as exc:
+            raise Http404 from exc
+        if not _can_view(request.membership, wo):
+            raise Http404
+
+        can_execute = (
+            wo.assigned_to_id == request.membership.pk
+            or rbac.has_permission(request.membership, "work_order.dispatch", wo.site)
+        )
+        if not can_execute:
+            raise PermissionDenied("Only the assigned technician or a dispatcher can execute the checklist.")
+
+        if not rbac.has_permission(request.membership, "inspection.execute", wo.site):
+            raise PermissionDenied("You do not have permission to execute inspections at this site.")
+
+        if wo.status != WorkOrder.Status.IN_PROGRESS:
+            messages.warning(request, f"Work order must be In Progress to execute the checklist (currently {wo.get_status_display()}).")
+            return redirect("workorders:detail", pk=wo.pk)
+
+        from apps.checklists.models import ACTIVE, ChecklistTemplate, Inspection
+        from apps.checklists import services as checklist_services
+
+        insp = (
+            Inspection.objects.for_organization(request.organization)
+            .filter(work_order=wo)
+            .order_by("-started_at")
+            .first()
+        )
+
+        if not insp:
+            template = None
+            if wo.checklist_template_ref:
+                template = ChecklistTemplate.objects.for_organization(request.organization).filter(
+                    status=ACTIVE, name__icontains=wo.checklist_template_ref
+                ).first()
+                if not template:
+                    try:
+                        import uuid
+                        template_uuid = uuid.UUID(wo.checklist_template_ref)
+                        template = ChecklistTemplate.objects.for_organization(request.organization).filter(
+                            status=ACTIVE, key=template_uuid
+                        ).first()
+                    except (ValueError, TypeError):
+                        pass
+
+            if not template:
+                template = ChecklistTemplate.objects.for_organization(request.organization).filter(
+                    status=ACTIVE, work_type=wo.work_type
+                ).first()
+
+            if not template:
+                template = checklist_services.required_templates(wo).first()
+
+            if not template:
+                messages.error(request, f"No active checklist template found matching '{wo.checklist_template_ref or wo.work_type}'.")
+                return redirect(f"{reverse('workorders:detail', args=[wo.pk])}?tab=checklist")
+
+            try:
+                insp = checklist_services.start_inspection(
+                    request.organization,
+                    template=template,
+                    membership=request.membership,
+                    actor=request.user,
+                    work_order=wo,
+                    request=request,
+                )
+            except DomainError as exc:
+                messages.error(request, exc.message)
+                return redirect(f"{reverse('workorders:detail', args=[wo.pk])}?tab=checklist")
+
+        if wo.checklist_instance_ref != str(insp.pk) or wo.checklist_status != insp.status:
+            wo.checklist_instance_ref = str(insp.pk)
+            wo.checklist_status = insp.status
+            wo.save(update_fields=["checklist_instance_ref", "checklist_status", "updated_at"])
+
+        if insp.status == "IN_PROGRESS":
+            return redirect("checklists:inspection_run", pk=insp.pk)
+        return redirect("checklists:inspection", pk=insp.pk)
 
 
 class WorkOrderTabView(TenantPermissionMixin, View):

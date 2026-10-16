@@ -11,8 +11,8 @@ from apps.ui.mixins import TenantPermissionMixin
 
 from . import evidence, exports, selectors, services
 
-FILTER_KEYS = ("action", "q", "actor", "entity_type", "entity_id", "request_id", "site", "category", "asset",
-               "work_order", "from", "to")
+FILTER_KEYS = ("action", "q", "actor", "entity_type", "entity_id", "request_id", "site", "category", "module",
+               "outcome", "sort", "asset", "work_order", "from", "to")
 
 
 def export_logs(membership, org):
@@ -42,11 +42,12 @@ class AuditListView(TenantPermissionMixin, View):
         sites = {s.pk: s.code for s in Site.objects.for_organization(org)}
         for e in page:
             e.site_code = sites.get(e.site_id, "")
+        metrics = selectors.get_audit_dashboard_metrics(m, org)
         return render(request, "audit/list.html", {
             "page": page, "filters": request.GET, "categories": [(k, v[0]) for k, v in selectors.CATEGORIES.items()],
             "entity_types": selectors.entity_types(base), "sites": sorted(sites.items(), key=lambda kv: kv[1]),
             "can_export": rbac.has_permission_anywhere(m, "audit.export"), "error": error,
-            "query": request.GET.urlencode(), "total_hint": exports.EXPORT_LIMIT})
+            "query": request.GET.urlencode(), "total_hint": exports.EXPORT_LIMIT, "metrics": metrics})
 
 
 class AuditDetailView(TenantPermissionMixin, View):
@@ -58,7 +59,25 @@ class AuditDetailView(TenantPermissionMixin, View):
             raise Http404
         site = Site.objects.for_organization(request.organization).filter(pk=entry.site_id).first() \
             if entry.site_id else None
-        return render(request, "audit/detail.html", {"entry": entry, "site": site})
+
+        diff_rows = []
+        if isinstance(entry.before, dict) and isinstance(entry.after, dict):
+            all_keys = sorted(set(entry.before.keys()) | set(entry.after.keys()))
+            for key in all_keys:
+                b_val = entry.before.get(key)
+                a_val = entry.after.get(key)
+                diff_rows.append({
+                    "key": key,
+                    "before": b_val,
+                    "after": a_val,
+                    "changed": b_val != a_val,
+                })
+
+        return render(request, "audit/detail.html", {
+            "entry": entry,
+            "site": site,
+            "diff_rows": diff_rows,
+        })
 
 
 class ReportsView(TenantPermissionMixin, View):

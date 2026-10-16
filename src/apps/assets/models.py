@@ -1,9 +1,9 @@
+import uuid
 from django.conf import settings
 from django.db import models
 from django.db.models.functions import Lower
 
 from apps.core.models import TenantOwnedModel
-
 from .workflow import ACTIVE, STATES
 
 
@@ -30,12 +30,30 @@ class AssetCategory(TenantOwnedModel):
         return self.name
 
 
+class AssetStatus(models.TextChoices):
+    ACTIVE = "ACTIVE", "Active"
+    INACTIVE = "INACTIVE", "Inactive"
+    DRAFT = "DRAFT", "Draft"
+    UNDER_MAINTENANCE = "UNDER_MAINTENANCE", "Under Maintenance"
+    OUT_OF_SERVICE = "OUT_OF_SERVICE", "Out of Service"
+    RETIRED = "RETIRED", "Retired"
+    DISPOSED = "DISPOSED", "Disposed"
+
+
+class AssetCriticality(models.TextChoices):
+    CRITICAL = "CRITICAL", "Critical (Tier 1)"
+    HIGH = "HIGH", "High (Tier 2)"
+    MEDIUM = "MEDIUM", "Medium (Tier 3)"
+    LOW = "LOW", "Low (Tier 4)"
+
+
 class Asset(TenantOwnedModel):
     """M02 asset master. ``status`` is changed ONLY by ``assets.services.change_status``."""
 
     Status = models.TextChoices("Status", {s: (s, s.replace("_", " ").title()) for s in STATES})
 
     asset_tag = models.CharField(max_length=40, help_text="Human-readable identifier, unique per organization.")
+    opaque_identifier = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     category = models.ForeignKey(AssetCategory, on_delete=models.PROTECT, related_name="assets")
@@ -72,6 +90,10 @@ class Asset(TenantOwnedModel):
             models.Index(fields=["organization", "category"]),
             models.Index(fields=["organization", "serial_number"]),
         ]
+
+    @property
+    def asset_id(self):
+        return self.asset_tag
 
     def __str__(self):
         return f"{self.asset_tag} · {self.name}"
@@ -143,8 +165,6 @@ class AssetDocument(TenantOwnedModel):
     attachment = models.OneToOneField(
         "files.Attachment", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
-    # Removal is a soft state change (the stored file and the audit trail stay): a removed document is hidden and
-    # can no longer be downloaded.
     is_active = models.BooleanField(default=True)
     removed_at = models.DateTimeField(null=True, blank=True)
     removed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
@@ -174,8 +194,6 @@ class AssetMeter(TenantOwnedModel):
 
 
 class AssetMeterReading(TenantOwnedModel):
-    """Monotonic non-decreasing readings (enforced in ``assets.services.record_reading``)."""
-
     meter = models.ForeignKey(AssetMeter, on_delete=models.PROTECT, related_name="readings")
     value = models.DecimalField(max_digits=16, decimal_places=3)
     read_at = models.DateTimeField()
@@ -191,10 +209,6 @@ class AssetMeterReading(TenantOwnedModel):
 
 
 class AssetComponent(TenantOwnedModel):
-    """M03 hierarchy edge: ``child`` is an assembly/component/replaceable part of ``parent``.
-    A child has at most one parent (OneToOne), which makes the structure a forest; cycles, depth and
-    same-organization/site rules are enforced in ``assets.hierarchy``."""
-
     class Relationship(models.TextChoices):
         ASSEMBLY = "ASSEMBLY", "Assembly"
         COMPONENT = "COMPONENT", "Component"

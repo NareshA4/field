@@ -60,14 +60,16 @@ class AssetForm(BootstrapFormMixin, forms.Form):
 
     @staticmethod
     def _attribute_field(d, initial):
-        common = {"required": bool(d.get("required")), "label": d["label"], "initial": initial}
+        required = bool(d.get("required"))
+        label = f"{d['label']} *" if required else d["label"]
+        common = {"required": required, "label": label, "initial": initial}
         if d["type"] == "number":
-            return forms.DecimalField(decimal_places=6, max_digits=20, **common)
+            return forms.DecimalField(decimal_places=6, max_digits=20, widget=forms.NumberInput(attrs={"class": "form-control"}), **common)
         if d["type"] == "date":
-            return forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), **common)
+            return forms.DateField(widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}), **common)
         if d["type"] == "choice":
-            return forms.ChoiceField(choices=[("", "(choose)")] + [(c, c) for c in d["choices"]], **common)
-        return forms.CharField(max_length=attrs.MAX_TEXT, **common)
+            return forms.ChoiceField(choices=[("", "(choose)")] + [(c, c) for c in d["choices"]], widget=forms.Select(attrs={"class": "form-select"}), **common)
+        return forms.CharField(max_length=attrs.MAX_TEXT, widget=forms.TextInput(attrs={"class": "form-control"}), **common)
 
     def clean(self):
         data = super().clean()
@@ -112,6 +114,16 @@ class ComponentMoveForm(BootstrapFormMixin, forms.Form):
     def __init__(self, *args, candidates, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["parent"].queryset = candidates
+
+
+class ComponentReplaceForm(BootstrapFormMixin, forms.Form):
+    new_child = forms.ModelChoiceField(queryset=None, label="Replacement Asset")
+    reason = forms.CharField(max_length=300, required=False, label="Replacement Reason",
+                             help_text="e.g. Scheduled part swap, worn bearing replaced during PM.")
+
+    def __init__(self, *args, candidates, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["new_child"].queryset = candidates
 
 
 class DocumentForm(BootstrapFormMixin, forms.Form):

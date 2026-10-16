@@ -1,0 +1,31 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Parts Â· {{ wo.number }} Â· FieldOps Nexus{% endblock %}
+{% block content %}
+<div class="fx-page-header"><div>
+  <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'workorders:list' %}">Work orders</a></li><li class="breadcrumb-item"><a href="{% url 'workorders:detail' wo.pk %}">{{ wo.number }}</a></li><li class="breadcrumb-item active">Parts</li></ol></nav>
+  <h1>Parts for {{ wo.number }} {% status_badge wo.status %}</h1>
+  <div class="text-body-secondary">{{ wo.title }} Â· site {{ wo.site.code }}. Stock is owned by Inventory: every reserve, issue and return writes a stock movement.</div></div></div>
+<div class="fx-card mb-3"><div class="table-responsive"><table class="table fx-table" id="part-lines"><thead><tr><th>Part</th><th>Status</th><th>Requested</th><th>Reserved</th><th>Issued</th><th>Consumed</th><th>Returned</th><th>Outstanding</th><th>Warehouse</th><th>Actions</th></tr></thead><tbody>
+{% for ln in lines %}<tr data-line="{{ ln.pk }}"><td>{{ ln.part.part_number }}<div class="small text-body-secondary">{{ ln.part.name }}</div></td><td>{% status_badge ln.status %}</td>
+  <td>{{ ln.quantity_requested|floatformat:"-3" }} {{ ln.part.unit }}</td><td>{{ ln.ops.held|floatformat:"-3" }}</td><td>{{ ln.quantity_issued|floatformat:"-3" }}</td><td>{{ ln.quantity_consumed|floatformat:"-3" }}</td><td>{{ ln.quantity_returned|floatformat:"-3" }}</td><td>{{ ln.outstanding|floatformat:"-3" }}</td><td>{{ ln.warehouse.code|default:"â€”" }}</td>
+  <td><div class="d-flex flex-wrap gap-1">
+    {% if ln.ops.reserve %}<form method="post" action="{% url 'inventory:line_action' ln.pk 'reserve' %}" class="d-flex gap-1 m-0">{% csrf_token %}<select class="form-select form-select-sm" name="warehouse" required aria-label="Warehouse to reserve from">{% for w in reserve_whs %}<option value="{{ w.pk }}" {% if ln.warehouse_id == w.pk %}selected{% endif %}>{{ w.code }}</option>{% endfor %}</select><input class="form-control form-control-sm" style="width:5rem" name="quantity" placeholder="all" inputmode="decimal" aria-label="Quantity to reserve"><button class="btn btn-sm btn-outline-primary">Reserve</button></form>{% endif %}
+    {% if ln.ops.issue %}<form method="post" action="{% url 'inventory:line_action' ln.pk 'issue' %}" class="d-flex gap-1 m-0">{% csrf_token %}<select class="form-select form-select-sm" name="warehouse" required aria-label="Warehouse to issue from">{% for w in issue_whs %}<option value="{{ w.pk }}" {% if ln.warehouse_id == w.pk %}selected{% endif %}>{{ w.code }}</option>{% endfor %}</select><input class="form-control form-control-sm" style="width:5rem" name="quantity" required inputmode="decimal" aria-label="Quantity to issue"><button class="btn btn-sm btn-primary">Issue</button></form>{% endif %}
+    {% if ln.ops.consume %}<form method="post" action="{% url 'inventory:line_action' ln.pk 'consume' %}" class="d-flex gap-1 m-0">{% csrf_token %}<input class="form-control form-control-sm" style="width:5rem" name="quantity" required inputmode="decimal" aria-label="Quantity used"><button class="btn btn-sm btn-success">Consume</button></form>{% endif %}
+    {% if ln.ops.return %}<form method="post" action="{% url 'inventory:line_action' ln.pk 'return' %}" class="d-flex gap-1 m-0">{% csrf_token %}<input class="form-control form-control-sm" style="width:5rem" name="quantity" required inputmode="decimal" aria-label="Quantity to return"><button class="btn btn-sm btn-outline-secondary">Return</button></form>{% endif %}
+    {% if ln.ops.release %}<form method="post" action="{% url 'inventory:line_action' ln.pk 'release' %}" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary" data-confirm="Release the whole reservation?">Release</button></form>{% endif %}
+    {% if ln.ops.reconcile %}<form method="post" action="{% url 'inventory:line_action' ln.pk 'reconcile' %}" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-outline-success">Reconcile</button></form>{% endif %}
+    {% if ln.ops.cancel %}<form method="post" action="{% url 'inventory:line_action' ln.pk 'cancel' %}" class="m-0">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" data-confirm="Cancel this part line?">Cancel</button></form>{% endif %}
+  </div></td></tr>
+{% empty %}<tr><td colspan="10">{% include "components/_empty_state.html" with title="No parts requested" text="Request the spare parts this job needs." %}</td></tr>{% endfor %}</tbody></table></div></div>
+{% if can_request %}<div class="fx-card mb-3"><div class="fx-card-header">Request a part</div><div class="fx-card-body">
+  <form method="post" action="{% url 'inventory:part_request' wo.pk %}" class="row g-2 align-items-end">{% csrf_token %}
+    <div class="col-md-5"><label class="form-label small" for="id_part">Part</label>{{ request_form.part }}</div>
+    <div class="col-md-2"><label class="form-label small" for="id_quantity">Quantity</label>{{ request_form.quantity }}</div>
+    <div class="col-md-3"><label class="form-label small" for="id_notes">Notes</label>{{ request_form.notes }}</div>
+    <div class="col-md-2"><button class="btn btn-primary w-100">Request</button></div></form></div></div>{% endif %}
+{% if legacy_materials %}<div class="fx-card mb-3"><div class="fx-card-header">Free-text material lines (no stock moved)</div><div class="table-responsive"><table class="table fx-table"><thead><tr><th>Item</th><th>Part no.</th><th>Qty</th></tr></thead><tbody>
+  {% for mt in legacy_materials %}<tr><td>{{ mt.description }}</td><td>{{ mt.part_number|default:"â€”" }}</td><td>{{ mt.quantity|floatformat:"-3" }} {{ mt.unit }}</td></tr>{% endfor %}</tbody></table></div></div>{% endif %}
+{% if can_view_stock %}<div class="fx-card"><div class="fx-card-header">Stock movements for this work order</div>{% include "inventory/_movement_table.html" with rows=movements %}</div>{% endif %}
+{% endblock %}

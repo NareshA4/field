@@ -6,9 +6,8 @@
   <title>{% block title %}FieldOps Nexus{% endblock %}</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="{% static 'lib/bootstrap.min.css' %}">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}">
-  {% block extra_css %}{% endblock %}
-</head>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=2.9">
+  {% block extra_css %}{% endblock %}</head>
 <body class="{% block body_class %}{% endblock %}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
   {% block body %}{% endblock %}
   <dialog id="fx-confirm" class="fx-dialog">
@@ -23,7 +22,7 @@
   </dialog>
   <script src="{% static 'lib/bootstrap.bundle.min.js' %}"></script>
   <script src="{% static 'lib/htmx.min.js' %}"></script>
-  <script src="{% static 'js/app.js' %}"></script>
+  <script src="{% static 'js/app.js' %}?v=2.8"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

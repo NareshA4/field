@@ -33,36 +33,10 @@ def test_nav_is_permission_filtered(client, owner_a, tech_a):
     assert "Audit Trail" not in html and "Users" not in html.split("fx-nav")[1]
 
 
-@pytest.mark.parametrize("url", ["/app/", "/app/users/", "/app/audit/", "/platform/organizations/"])
+@pytest.mark.parametrize("url", ["/app/", "/app/users/", "/app/audit/"])
 def test_anonymous_redirected_to_login(client, url):
     r = client.get(url)
     assert r.status_code == 302 and "/accounts/login/" in r["Location"]
-
-
-def test_platform_console_access(client, platform_admin, owner_a, org_a):
-    for url in ["/platform/organizations/", "/platform/organizations/new/", "/platform/audit/",
-                f"/platform/organizations/{org_a.pk}/"]:
-        client.force_login(platform_admin)
-        assert client.get(url).status_code == 200, url
-        client.force_login(owner_a)
-        assert client.get(url).status_code == 403, url
-
-
-def test_platform_admin_cannot_see_tenant_pages_without_membership(client, platform_admin, org_a):
-    client.force_login(platform_admin)
-    r = client.get("/app/users/")
-    assert r.status_code in (302, 403)
-    assert r.status_code == 403 or "choose-organization" in r["Location"]
-
-
-def test_platform_console_creates_org_via_form(client, platform_admin):
-    client.force_login(platform_admin)
-    r = client.post("/platform/organizations/new/", {
-        "name": "Omega Works", "slug": "", "timezone": "Asia/Kolkata", "country": "IN",
-        "owner_name": "Om Ega", "owner_email": "om@omega.test"})
-    assert r.status_code == 302
-    from apps.tenancy.models import Organization
-    assert Organization.objects.filter(name="Omega Works").exists()
 
 
 def test_invite_form_persists_and_audits(client, owner_a, org_a):

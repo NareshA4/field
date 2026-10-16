@@ -62,23 +62,27 @@ def subtree_height(asset: Asset) -> int:
 def check_link(parent: Asset, child: Asset, *, moving: bool = False):
     """Raises a DomainError when ``child`` may not be placed under ``parent`` (also used for dry-run checks)."""
     if parent.pk == child.pk:
-        raise ValidationFailed("An asset cannot be its own parent.", code="self_parent")
+        raise ValidationFailed(f"Cannot attach {parent.asset_tag}: An asset cannot be its own parent.", code="self_parent")
     if parent.organization_id != child.organization_id:
-        raise ValidationFailed("Assets belong to different organizations.", code="cross_tenant")
+        raise ValidationFailed(f"Cannot link {child.asset_tag} to {parent.asset_tag}: Assets belong to different organizations.", code="cross_tenant")
     if parent.site_id != child.site_id:
-        raise ValidationFailed("Parent and child must be at the same site.", code="site_mismatch")
-    if parent.status in TERMINAL_STATES or child.status in TERMINAL_STATES:
-        raise Conflict("Retired or disposed assets cannot take part in the hierarchy.", code="asset_terminal")
+        parent_site = getattr(parent.site, "code", "Site A")
+        child_site = getattr(child.site, "code", "Site B")
+        raise ValidationFailed(f"Cannot link {child.asset_tag} to {parent.asset_tag}: Parent is at site '{parent_site}' while child is at site '{child_site}'.", code="site_mismatch")
+    if parent.status in TERMINAL_STATES:
+        raise Conflict(f"Cannot modify hierarchy: Parent {parent.asset_tag} is in terminal status ({parent.status}).", code="asset_terminal")
+    if child.status in TERMINAL_STATES:
+        raise Conflict(f"Cannot modify hierarchy: Child {child.asset_tag} is in terminal status ({child.status}).", code="asset_terminal")
     if not moving and AssetComponent.objects.filter(child=child).exists():
-        raise Conflict("This asset is already a component of another asset; move it instead.",
+        raise Conflict(f"Cannot attach: {child.asset_tag} is already a component of another asset. Use 'Move / Re-parent' instead.",
                        code="already_has_parent")
     above = ancestors(parent)
     if any(a.pk == child.pk for a in above):
-        raise ValidationFailed("This would create a cycle: the child is an ancestor of the parent.",
+        raise ValidationFailed(f"Circular dependency detected: {child.asset_tag} is already an ancestor of {parent.asset_tag}.",
                                code="hierarchy_cycle")
     levels = len(above) + 1 + 1 + subtree_height(child)  # ancestors + parent + child + below child
     if levels > MAX_DEPTH:
-        raise ValidationFailed(f"The hierarchy is limited to {MAX_DEPTH} levels.", code="hierarchy_too_deep")
+        raise ValidationFailed(f"Hierarchy depth limit exceeded: Linking {child.asset_tag} under {parent.asset_tag} would create a {levels}-level tree (maximum allowed is {MAX_DEPTH}).", code="hierarchy_too_deep")
 
 
 def _check_quantity(quantity):
@@ -107,7 +111,16 @@ def add_component(parent: Asset, child: Asset, *, relationship_type: str = "COMP
                           part_number=(part_number or "").strip(), notes=(notes or "").strip())
     link.save()
     audit.record("asset.component_added", actor=actor, organization=parent.organization, target=parent,
-                 after=audit.snapshot(link, COMPONENT_FIELDS), request=request)
+                 after=audit.snapshot(link, COMPONENT_FIELDS),
+                 metadata={
+                     "child": child.asset_tag,
+                     "child_tag": child.asset_tag,
+                     "child_name": child.name,
+                     "child_id": str(child.pk),
+                     "parent_tag": parent.asset_tag,
+                     "parent_name": parent.name,
+                 },
+                 request=request)
     return link
 
 
@@ -121,11 +134,23 @@ def move_component(link: AssetComponent, new_parent: Asset, *, actor, request=No
     if new_parent.pk == link.parent_id:
         raise Conflict("The component is already under that parent.", code="no_change")
     check_link(new_parent, child, moving=True)
+    before_parent = link.parent
     before = audit.snapshot(link, COMPONENT_FIELDS)
     link.parent = new_parent
     link.save()
     audit.record("asset.component_moved", actor=actor, organization=link.organization, target=child,
-                 before=before, after=audit.snapshot(link, COMPONENT_FIELDS), request=request)
+                 before=before, after=audit.snapshot(link, COMPONENT_FIELDS),
+                 metadata={
+                     "child_tag": child.asset_tag,
+                     "child_name": child.name,
+                     "old_parent_id": str(before_parent.pk),
+                     "old_parent_tag": before_parent.asset_tag,
+                     "old_parent_name": before_parent.name,
+                     "new_parent_id": str(new_parent.pk),
+                     "new_parent_tag": new_parent.asset_tag,
+                     "new_parent_name": new_parent.name,
+                 },
+                 request=request)
     return link
 
 
@@ -150,7 +175,16 @@ def update_component(link: AssetComponent, *, actor, request=None, relationship_
     after = audit.snapshot(link, COMPONENT_FIELDS)
     if before != after:
         audit.record("asset.component_updated", actor=actor, organization=link.organization, target=link.parent,
-                     before=before, after=after, request=request)
+                     before=before, after=after,
+                     metadata={
+                         "child": link.child.asset_tag,
+                         "child_tag": link.child.asset_tag,
+                         "child_name": link.child.name,
+                         "child_id": str(link.child.pk),
+                         "parent_tag": link.parent.asset_tag,
+                         "parent_name": link.parent.name,
+                     },
+                     request=request)
     return link
 
 
@@ -161,7 +195,36 @@ def remove_component(link: AssetComponent, *, actor, request=None):
     snap, parent, child, org = audit.snapshot(link, COMPONENT_FIELDS), link.parent, link.child, link.organization
     link.delete()
     audit.record("asset.component_removed", actor=actor, organization=org, target=parent, before=snap,
-                 metadata={"child": child.asset_tag}, request=request)
+                 metadata={
+                     "child": child.asset_tag,
+                     "child_tag": child.asset_tag,
+                     "child_name": child.name,
+                     "child_id": str(child.pk),
+                     "parent_tag": parent.asset_tag,
+                     "parent_name": parent.name,
+                 },
+                 request=request)
+
+
+@transaction.atomic
+def replace_component(old_link: AssetComponent, new_child: Asset, *, reason: str = "", actor, request=None) -> AssetComponent:
+    """Replaces old_link.child with new_child under the same parent. Records replacement in audit."""
+    parent = old_link.parent
+    org = old_link.organization
+    rel_type = old_link.relationship_type
+    qty = old_link.quantity
+    old_child = old_link.child
+
+    remove_component(old_link, actor=actor, request=request)
+    new_link = add_component(
+        parent, new_child, relationship_type=rel_type, quantity=qty,
+        notes=f"Replaced {old_child.asset_tag}. {reason}".strip(),
+        actor=actor, request=request
+    )
+    audit.record("asset.component_replaced", actor=actor, organization=org, target=parent,
+                 metadata={"old_child": old_child.asset_tag, "new_child": new_child.asset_tag, "reason": reason},
+                 request=request)
+    return new_link
 
 
 # --- read side ---------------------------------------------------------------------------------------
