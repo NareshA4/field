@@ -1,36 +1,416 @@
 {% extends "shell.html" %}
-{% block title %}Audit trail · FieldOps Nexus{% endblock %}
+{% load ui_tags %}
+
+{% block title %}Audit & Compliance Dashboard · FieldOps Nexus{% endblock %}
+
 {% block content %}
-<div class="fx-page-header"><div><h1>Audit trail</h1><div class="text-body-secondary">Append-only record of who did what, when, to which record. Nothing here can be edited or deleted.</div></div>
-  <div class="d-flex gap-2 flex-wrap"><a class="btn btn-outline-secondary" href="{% url 'audit:reports' %}">Compliance reports</a>
-  {% if can_export %}<div class="btn-group"><button class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Export results</button>
-    <ul class="dropdown-menu dropdown-menu-end">
-      <li><a class="dropdown-item" href="{% url 'audit:export' %}?{{ query }}&amp;format=csv">CSV</a></li>
-      <li><a class="dropdown-item" href="{% url 'audit:export' %}?{{ query }}&amp;format=xlsx">Excel (XLSX)</a></li>
-      <li><a class="dropdown-item" href="{% url 'audit:export' %}?{{ query }}&amp;format=pdf">PDF</a></li>
-      <li><span class="dropdown-item-text small text-body-secondary">Newest {{ total_hint }} rows of the current filter</span></li></ul></div>{% endif %}</div></div>
-<div class="fx-tabs" role="tablist"><a role="tab" class="{% if not filters.category %}active{% endif %}" href="?">All</a>
-  {% for key, label in categories %}<a role="tab" class="{% if filters.category == key %}active{% endif %}" href="?category={{ key }}">{{ label }}</a>{% endfor %}</div>
-<div class="fx-card mt-3">
-  <form method="get" class="row g-2 p-3 border-bottom" id="audit-filters">
-    <div class="col-6 col-md-2"><input class="form-control form-control-sm" name="action" value="{{ filters.action }}" placeholder="Action prefix" aria-label="Action prefix"></div>
-    <div class="col-6 col-md-2"><input class="form-control form-control-sm" name="actor" value="{{ filters.actor }}" placeholder="Actor e-mail" aria-label="Actor"></div>
-    <div class="col-6 col-md-2"><input class="form-control form-control-sm" name="q" value="{{ filters.q }}" placeholder="Search text" aria-label="Search"></div>
-    <div class="col-6 col-md-2"><select class="form-select form-select-sm" name="entity_type" aria-label="Entity type"><option value="">Any record type</option>{% for t in entity_types %}<option value="{{ t }}" {% if filters.entity_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
-    <div class="col-6 col-md-2"><input class="form-control form-control-sm" name="entity_id" value="{{ filters.entity_id }}" placeholder="Record id" aria-label="Record id"></div>
-    <div class="col-6 col-md-2"><select class="form-select form-select-sm" name="site" aria-label="Site"><option value="">Any site</option>{% for id, code in sites %}<option value="{{ id }}" {% if filters.site == id|stringformat:"s" %}selected{% endif %}>{{ code }}</option>{% endfor %}</select></div>
-    <div class="col-6 col-md-2"><input class="form-control form-control-sm" type="date" name="from" value="{{ filters.from }}" aria-label="From date"></div>
-    <div class="col-6 col-md-2"><input class="form-control form-control-sm" type="date" name="to" value="{{ filters.to }}" aria-label="To date"></div>
-    {% if filters.category %}<input type="hidden" name="category" value="{{ filters.category }}">{% endif %}
-    {% if filters.asset %}<input type="hidden" name="asset" value="{{ filters.asset }}">{% endif %}
-    {% if filters.work_order %}<input type="hidden" name="work_order" value="{{ filters.work_order }}">{% endif %}
-    <div class="col-12 col-md-4 d-flex gap-2"><button class="btn btn-sm btn-primary">Filter</button><a class="btn btn-sm btn-outline-secondary" href="?">Reset</a></div>
-  </form>
-  <div class="table-responsive"><table class="table fx-table" id="audit-table">
-    <thead><tr><th>When</th><th>Action</th><th>Actor</th><th>Record</th><th>Site</th><th></th></tr></thead>
-    <tbody>{% for e in page %}<tr><td class="text-nowrap">{{ e.occurred_at|date:"d M Y H:i:s" }}</td><td><code>{{ e.action }}</code></td>
-      <td>{{ e.actor_email|default:"system" }}</td><td>{{ e.target_repr }}<div class="small text-body-secondary">{{ e.target_type }}</div></td><td>{{ e.site_code|default:"—" }}</td><td><a href="{% url 'audit:detail' e.pk %}">Details</a></td></tr>
-    {% empty %}<tr><td colspan="6">{% include "components/_empty_state.html" with title="No audit entries" text="Nothing matches these filters." %}</td></tr>{% endfor %}</tbody></table></div>
-  {% include "components/_pagination.html" %}
+<!-- Dashboard Hero Header -->
+<div class="fx-page-header d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+  <div>
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <h1 class="h3 fw-bold mb-0">Audit &amp; Compliance Dashboard</h1>
+      <span class="badge bg-success-subtle text-success border border-success-subtle small">
+        {% icon 'shield' 14 %} Immutable Ledger
+      </span>
+    </div>
+    <div class="text-body-secondary small">
+      Append-only Audit trail record of all system mutations, security events, and workflow transitions. Protected by PostgreSQL database triggers and multi-tenant site scoping.
+    </div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap align-items-center">
+    <a class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" href="{% url 'audit:reports' %}">
+      {% icon 'list-check' 14 %} Compliance reports
+    </a>
+    <a class="btn btn-outline-info btn-sm d-flex align-items-center gap-1" href="#evidence-generator">
+      {% icon 'package' 14 %} Evidence Package
+    </a>
+    {% if can_export %}
+    <div class="btn-group">
+      <button class="btn btn-primary btn-sm dropdown-toggle d-flex align-items-center gap-1" data-bs-toggle="dropdown" aria-expanded="false">
+        {% icon 'external-link' 14 %} Export Audit Trail
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+        <li><h6 class="dropdown-header">Export Current View</h6></li>
+        <li><a class="dropdown-item" href="{% url 'audit:export' %}?{{ query }}&amp;format=csv">CSV Spreadsheet</a></li>
+        <li><a class="dropdown-item" href="{% url 'audit:export' %}?{{ query }}&amp;format=xlsx">Excel Workbook (XLSX)</a></li>
+        <li><a class="dropdown-item" href="{% url 'audit:export' %}?{{ query }}&amp;format=pdf">PDF Audit Report</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><span class="dropdown-item-text small text-body-secondary">Max {{ total_hint }} rows per export (newest first)</span></li>
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- KPI Metric Cards Grid -->
+<div class="row g-3 mb-4" id="audit-kpis">
+  <div class="col-12 col-sm-6 col-lg-3 col-xl-auto flex-fill">
+    <div class="fx-card h-100 p-3 shadow-sm border-start border-primary border-3">
+      <div class="d-flex justify-content-between align-items-start mb-1">
+        <span class="text-uppercase fw-semibold small text-body-secondary">Total Events</span>
+        <span class="badge bg-light text-dark border">Scope</span>
+      </div>
+      <div class="display-6 fw-bold text-dark my-1">{{ metrics.total_events }}</div>
+      <div class="text-body-secondary small">Authorized audit rows</div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-lg-3 col-xl-auto flex-fill">
+    <div class="fx-card h-100 p-3 shadow-sm border-start border-info border-3">
+      <div class="d-flex justify-content-between align-items-start mb-1">
+        <span class="text-uppercase fw-semibold small text-body-secondary">Today's Events</span>
+        <span class="badge bg-info-subtle text-info border">24h</span>
+      </div>
+      <div class="display-6 fw-bold text-dark my-1">{{ metrics.today_events }}</div>
+      <div class="text-body-secondary small">Logged since 00:00 UTC</div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-lg-3 col-xl-auto flex-fill">
+    <div class="fx-card h-100 p-3 shadow-sm border-start border-danger border-3">
+      <div class="d-flex justify-content-between align-items-start mb-1">
+        <span class="text-uppercase fw-semibold small text-body-secondary">Security &amp; RBAC</span>
+        <span class="badge bg-danger-subtle text-danger border">Auth</span>
+      </div>
+      <div class="display-6 fw-bold text-dark my-1">{{ metrics.security_events }}</div>
+      <div class="text-body-secondary small">Logins, roles &amp; permissions</div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-lg-3 col-xl-auto flex-fill">
+    <div class="fx-card h-100 p-3 shadow-sm border-start border-success border-3">
+      <div class="d-flex justify-content-between align-items-start mb-1">
+        <span class="text-uppercase fw-semibold small text-body-secondary">Workflow Changes</span>
+        <span class="badge bg-success-subtle text-success border">States</span>
+      </div>
+      <div class="display-6 fw-bold text-dark my-1">{{ metrics.workflow_events }}</div>
+      <div class="text-body-secondary small">Lifecycle transitions</div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-lg-3 col-xl-auto flex-fill">
+    <div class="fx-card h-100 p-3 shadow-sm border-start border-warning border-3">
+      <div class="d-flex justify-content-between align-items-start mb-1">
+        <span class="text-uppercase fw-semibold small text-body-secondary">Record Mutations</span>
+        <span class="badge bg-warning-subtle text-warning border">Data</span>
+      </div>
+      <div class="display-6 fw-bold text-dark my-1">{{ metrics.record_modification_events }}</div>
+      <div class="text-body-secondary small">Entity creations &amp; updates</div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-lg-3 col-xl-auto flex-fill">
+    <div class="fx-card h-100 p-3 shadow-sm border-start border-danger border-3">
+      <div class="d-flex justify-content-between align-items-start mb-1">
+        <span class="text-uppercase fw-semibold small text-body-secondary">Failed / Denied</span>
+        <span class="badge bg-danger-subtle text-danger border">Alarms</span>
+      </div>
+      <div class="display-6 fw-bold text-dark my-1">{{ metrics.failed_denied_events }}</div>
+      <div class="text-body-secondary small">Unauthorized &amp; blocked actions</div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-lg-3 col-xl-auto flex-fill">
+    <div class="fx-card h-100 p-3 shadow-sm border-start border-secondary border-3">
+      <div class="d-flex justify-content-between align-items-start mb-1">
+        <span class="text-uppercase fw-semibold small text-body-secondary">Evidence &amp; Exports</span>
+        <span class="badge bg-light text-dark border">Files</span>
+      </div>
+      <div class="display-6 fw-bold text-dark my-1">{{ metrics.evidence_events }}</div>
+      <div class="text-body-secondary small">Packages &amp; file evidence</div>
+    </div>
+  </div>
+</div>
+
+<!-- Visual Analytics Breakdown: Pure CSS Responsive Layout -->
+<div class="row g-3 mb-4">
+  <!-- Module Distribution -->
+  <div class="col-12 col-lg-6">
+    <div class="fx-card p-3 shadow-sm h-100">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold text-uppercase text-body-secondary small mb-0">Event Distribution by Module</h6>
+        <span class="text-body-secondary small">Across all authorized sites</span>
+      </div>
+      {% if metrics.module_distribution %}
+      <div class="d-flex flex-column gap-2">
+        {% for item in metrics.module_distribution %}
+        <div>
+          <div class="d-flex justify-content-between align-items-center mb-1 small">
+            <span class="fw-medium text-dark">{{ item.label }}</span>
+            <span class="text-body-secondary">{{ item.count }} ({{ item.pct }}%)</span>
+          </div>
+          <div class="progress" style="height: 8px; background-color: #E2E8F0; border-radius: 4px;">
+            <div class="progress-bar" role="progressbar"
+                 style="width: {{ item.pct }}%; background: linear-gradient(90deg, #0B1F3A 0%, #1E3A8A 100%); border-radius: 4px;"
+                 aria-valuenow="{{ item.pct }}" aria-valuemin="0" aria-valuemax="100">
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-body-secondary small py-3 text-center">No module event distribution recorded.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Top Action Types & 7-Day Velocity Trend -->
+  <div class="col-12 col-lg-6">
+    <div class="fx-card p-3 shadow-sm h-100 d-flex flex-column justify-content-between">
+      <div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold text-uppercase text-body-secondary small mb-0">Top Action Frequencies</h6>
+          <span class="text-body-secondary small">Most frequent operations</span>
+        </div>
+        {% if metrics.action_distribution %}
+        <div class="d-flex flex-column gap-2 mb-4">
+          {% for item in metrics.action_distribution %}
+          <div>
+            <div class="d-flex justify-content-between align-items-center mb-1 small">
+              <code>{{ item.label }}</code>
+              <span class="text-body-secondary">{{ item.count }} ({{ item.pct }}%)</span>
+            </div>
+            <div class="progress" style="height: 6px; background-color: #E2E8F0; border-radius: 3px;">
+              <div class="progress-bar bg-primary" role="progressbar"
+                   style="width: {{ item.pct }}%; border-radius: 3px;"
+                   aria-valuenow="{{ item.pct }}" aria-valuemin="0" aria-valuemax="100">
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-body-secondary small py-2 text-center">No actions logged in current scope.</div>
+        {% endif %}
+      </div>
+
+      <!-- 7-Day Activity Velocity -->
+      <div class="pt-3 border-top">
+        <h6 class="fw-bold text-uppercase text-body-secondary small mb-2">7-Day Event Velocity</h6>
+        <div class="d-flex align-items-end justify-content-between gap-2" style="height: 70px;">
+          {% for day in metrics.daily_trend %}
+          <div class="d-flex flex-column align-items-center flex-fill h-100 justify-content-end" title="{{ day.date }}: {{ day.count }} events">
+            <div class="small fw-semibold text-primary mb-1" style="font-size: 0.72rem;">{{ day.count }}</div>
+            <div class="w-100 rounded-top bg-primary" style="height: {{ day.pct|default:4 }}%; min-height: 4px; opacity: 0.85;"></div>
+            <div class="text-body-secondary mt-1" style="font-size: 0.68rem;">{{ day.day }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Category Tabs -->
+<div class="fx-tabs" role="tablist">
+  <a role="tab" class="{% if not filters.category %}active{% endif %}" href="?">All Categories</a>
+  {% for key, label in categories %}
+  <a role="tab" class="{% if filters.category == key %}active{% endif %}" href="?category={{ key }}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<!-- Search and Filter Console -->
+<div class="fx-card mt-3 shadow-sm">
+  <div class="p-3 border-bottom bg-light bg-opacity-50">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h6 class="fw-bold text-uppercase text-body-secondary small mb-0">Search &amp; Filter Console</h6>
+      <span class="text-body-secondary small">Filter over genuine PostgreSQL records</span>
+    </div>
+    <form method="get" class="row g-2" id="audit-filters">
+      <div class="col-6 col-md-2">
+        <label class="form-label small fw-semibold text-body-secondary mb-1">Action Prefix</label>
+        <input class="form-control form-control-sm" name="action" value="{{ filters.action }}" placeholder="e.g. work_order." aria-label="Action prefix">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small fw-semibold text-body-secondary mb-1">Actor Email</label>
+        <input class="form-control form-control-sm" name="actor" value="{{ filters.actor }}" placeholder="User email" aria-label="Actor">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small fw-semibold text-body-secondary mb-1">Search Text</label>
+        <input class="form-control form-control-sm" name="q" value="{{ filters.q }}" placeholder="Keywords, entity..." aria-label="Search">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small fw-semibold text-body-secondary mb-1">Module</label>
+        <select class="form-select form-select-sm" name="module" aria-label="Module">
+          <option value="">All Modules</option>
+          <option value="workorders" {% if filters.module == "workorders" %}selected{% endif %}>Work Orders (M06/M07)</option>
+          <option value="assets" {% if filters.module == "assets" %}selected{% endif %}>Assets (M02/M03)</option>
+          <option value="incidents" {% if filters.module == "incidents" %}selected{% endif %}>Incidents &amp; Requests (M05)</option>
+          <option value="checklists" {% if filters.module == "checklists" %}selected{% endif %}>Checklists &amp; Inspections (M08)</option>
+          <option value="inventory" {% if filters.module == "inventory" %}selected{% endif %}>Inventory &amp; Stock (M09)</option>
+          <option value="contracts" {% if filters.module == "contracts" %}selected{% endif %}>Contracts &amp; Warranty (M10)</option>
+          <option value="sla" {% if filters.module == "sla" %}selected{% endif %}>SLA Management (M11)</option>
+          <option value="portal" {% if filters.module == "portal" %}selected{% endif %}>Client Portal (M13)</option>
+          <option value="security" {% if filters.module == "security" %}selected{% endif %}>Security &amp; RBAC</option>
+          <option value="audit" {% if filters.module == "audit" %}selected{% endif %}>Audit &amp; Evidence (M15)</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small fw-semibold text-body-secondary mb-1">Outcome</label>
+        <select class="form-select form-select-sm" name="outcome" aria-label="Outcome">
+          <option value="">All Outcomes</option>
+          <option value="success" {% if filters.outcome == "success" %}selected{% endif %}>Successful Actions</option>
+          <option value="failed" {% if filters.outcome == "failed" %}selected{% endif %}>Failed / Denied / Blocked</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small fw-semibold text-body-secondary mb-1">Site Scope</label>
+        <select class="form-select form-select-sm" name="site" aria-label="Site">
+          <option value="">Any Authorized Site</option>
+          {% for id, code in sites %}
+          <option value="{{ id }}" {% if filters.site == id|stringformat:"s" %}selected{% endif %}>{{ code }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-6 col-md-2">
+        <label class="form-label small fw-semibold text-body-secondary mb-1">Entity Type</label>
+        <select class="form-select form-select-sm" name="entity_type" aria-label="Entity type">
+          <option value="">Any Record Type</option>
+          {% for t in entity_types %}
+          <option value="{{ t }}" {% if filters.entity_type == t %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small fw-semibold text-body-secondary mb-1">Entity ID</label>
+        <input class="form-control form-control-sm" name="entity_id" value="{{ filters.entity_id }}" placeholder="UUID or key" aria-label="Record id">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small fw-semibold text-body-secondary mb-1">From Date</label>
+        <input class="form-control form-control-sm" type="date" name="from" value="{{ filters.from }}" aria-label="From date">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small fw-semibold text-body-secondary mb-1">To Date</label>
+        <input class="form-control form-control-sm" type="date" name="to" value="{{ filters.to }}" aria-label="To date">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small fw-semibold text-body-secondary mb-1">Sort Order</label>
+        <select class="form-select form-select-sm" name="sort" aria-label="Sort">
+          <option value="-occurred_at" {% if filters.sort == "-occurred_at" or not filters.sort %}selected{% endif %}>Newest First</option>
+          <option value="occurred_at" {% if filters.sort == "occurred_at" %}selected{% endif %}>Oldest First</option>
+          <option value="action" {% if filters.sort == "action" %}selected{% endif %}>Action (A &rarr; Z)</option>
+          <option value="-action" {% if filters.sort == "-action" %}selected{% endif %}>Action (Z &rarr; A)</option>
+        </select>
+      </div>
+
+      {% if filters.category %}<input type="hidden" name="category" value="{{ filters.category }}">{% endif %}
+      {% if filters.asset %}<input type="hidden" name="asset" value="{{ filters.asset }}">{% endif %}
+      {% if filters.work_order %}<input type="hidden" name="work_order" value="{{ filters.work_order }}">{% endif %}
+
+      <div class="col-12 col-md-2 d-flex align-items-end gap-2">
+        <button type="submit" class="btn btn-sm btn-primary flex-fill">Apply Filter</button>
+        <a class="btn btn-sm btn-outline-secondary" href="?">Reset</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Audit Event Table -->
+  <div class="table-responsive">
+    <table class="table fx-table table-hover align-middle mb-0" id="audit-table">
+      <thead class="table-light">
+        <tr>
+          <th style="min-width: 155px;">Timestamp (UTC)</th>
+          <th>Action</th>
+          <th>Actor</th>
+          <th>Target Record</th>
+          <th>Site</th>
+          <th>Status</th>
+          <th class="text-end">Verification</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in page %}
+        <tr>
+          <td class="text-nowrap small text-body-secondary">
+            <span class="fw-semibold text-dark">{{ e.occurred_at|date:"d M Y" }}</span>
+            <div style="font-size: 0.8rem;">{{ e.occurred_at|date:"H:i:s" }} UTC</div>
+          </td>
+          <td>
+            <code>{{ e.action }}</code>
+          </td>
+          <td>
+            <div class="fw-medium text-dark small">{{ e.actor_email|default:"system" }}</div>
+            {% if e.ip_address %}
+            <div class="text-body-secondary" style="font-size: 0.72rem;">IP: {{ e.ip_address }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <div class="fw-semibold text-dark small">{{ e.target_repr|default:"—" }}</div>
+            <div class="small text-body-secondary font-monospace" style="font-size: 0.75rem;">{{ e.target_type }}</div>
+          </td>
+          <td>
+            {% if e.site_code %}
+            <span class="badge bg-light text-dark border">{{ e.site_code }}</span>
+            {% else %}
+            <span class="text-body-secondary small">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if "denied" in e.action or "failed" in e.action or "revoked" in e.action or "unknown" in e.action %}
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Denied / Failed</span>
+            {% elif "status_changed" in e.action or "started" in e.action or "closed" in e.action or "assigned" in e.action %}
+            <span class="badge bg-info-subtle text-info border border-info-subtle">Transition</span>
+            {% elif "created" in e.action or "updated" in e.action %}
+            <span class="badge bg-success-subtle text-success border border-success-subtle">Mutated</span>
+            {% else %}
+            <span class="badge bg-light text-dark border">Recorded</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'audit:detail' e.pk %}">Details</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7">
+            {% include "components/_empty_state.html" with title="No audit entries found" text="No audit records match the current search filters and site authorization." %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination Controls -->
+  <div class="p-3 border-top bg-light bg-opacity-25">
+    {% include "components/_pagination.html" %}
+  </div>
+</div>
+
+<!-- Evidence Package Quick Download -->
+<div class="row g-3 mt-4" id="evidence-generator">
+  <div class="col-12 col-lg-6">
+    <div class="fx-card p-3 shadow-sm h-100">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        {% icon 'package' 20 %}
+        <h6 class="fw-bold mb-0">Work Order Evidence Package Generator (ZIP)</h6>
+      </div>
+      <p class="small text-body-secondary mb-3">
+        Compiles the complete audit-ready evidentiary archive for any work order: lifecycle timeline, checklist answers &amp; findings, labor/material logs, SLA tracking, attached files, and SHA-256 checksum manifest.
+      </p>
+      <form id="evidence-form" onsubmit="event.preventDefault(); var id=document.getElementById('wo-evidence-id').value.trim(); if(id){ window.location.href='/app/audit/evidence/work-order/' + id + '/'; }" class="d-flex gap-2">
+        <input type="text" id="wo-evidence-id" class="form-control form-control-sm" placeholder="Work Order UUID (e.g. b8f...)" required aria-label="Work Order UUID">
+        <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Download ZIP Archive</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="fx-card p-3 shadow-sm h-100">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        {% icon 'shield' 20 %}
+        <h6 class="fw-bold mb-0">Immutability &amp; Tamper Protection Verification</h6>
+      </div>
+      <p class="small text-body-secondary mb-2">
+        Audit records in FieldOps Nexus are strictly append-only. UPDATE and DELETE statements are rejected at both the Django ORM layer and through PostgreSQL database-level triggers.
+      </p>
+      <div class="d-flex gap-2 flex-wrap mt-3">
+        <span class="badge bg-light text-dark border">Trigger: audit_immutable_trigger</span>
+        <span class="badge bg-light text-dark border">Isolation: Multi-Tenant TenantQuerySet</span>
+        <span class="badge bg-light text-dark border">Hashing: SHA-256 File Manifests</span>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}

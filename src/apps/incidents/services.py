@@ -445,8 +445,18 @@ def _notify_reporter(sr: ServiceRequest, action: str, reason: str):
         return
     from apps.notifications import services as notifications
 
-    is_client = getattr(sr.reported_by.user, "is_client", False)
-    link = f"/portal/requests/{sr.pk}/" if is_client else f"/app/incidents/{sr.pk}/"
+    is_client = False
+    if sr.reported_by:
+        from apps.portal.models import PortalAccount
+        from apps.rbac.models import MembershipRole
+        if getattr(sr, "source", "") == "PORTAL":
+            is_client = True
+        elif PortalAccount.objects.filter(membership=sr.reported_by, is_enabled=True).exists():
+            is_client = True
+        elif MembershipRole.objects.filter(membership=sr.reported_by, role__system_key="client_requester").exists():
+            is_client = True
+
+    link = f"/app/portal/requests/{sr.pk}/" if is_client else f"/app/incidents/{sr.pk}/"
     notifications.notify(sr.organization, [sr.reported_by.user], title=f"{sr.number} {texts[action]}",
                          body=sr.title, link=link, source="incidents")
 

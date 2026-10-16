@@ -26,7 +26,11 @@ def home(request):
         return redirect("ui:choose_org")
     org = request.organization
     perms = rbac.membership_permissions(request.membership)
-    if perms and all(p.startswith("portal.request.") for p in perms):  # client-only account: portal is home
+    client_allowed = {
+        "incident.report_owned", "incident.view_owned", "incident.view_assigned",
+        "incident.attach", "incident.confirm"
+    }
+    if perms and all(p.startswith("portal.request.") or p in client_allowed for p in perms):  # client-only account: portal is home
         return redirect("portal:dashboard")
     stats = {
         "active_members": Membership.objects.for_organization(org).filter(status=Membership.Status.ACTIVE).count(),

@@ -1,0 +1,558 @@
+{% extends "shell.html" %}
+{% load ui_tags %}
+
+{% block title %}Job Completion & Customer Sign-off | {{ work_order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" style="max-width: 980px;">
+  <!-- Breadcrumb & Back -->
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb small mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'workspace:my_jobs' %}" class="text-decoration-none">← My Jobs</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'workspace:job_detail' work_order.pk %}" class="text-decoration-none">{{ work_order.order_number }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Completion & Sign-off</li>
+      </ol>
+    </nav>
+    <a href="{% url 'workspace:job_detail' work_order.pk %}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1">
+      {% icon 'arrow-left' 14 %} Return to Job Detail
+    </a>
+  </div>
+
+  <!-- Messages -->
+  {% include "components/_messages.html" %}
+
+  <!-- Header Card -->
+  <div class="card shadow-sm border mb-4">
+    <div class="card-body p-4">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3">
+        <div>
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <span class="badge {% if work_order.priority == 'CRITICAL' %}bg-danger{% elif work_order.priority == 'HIGH' %}bg-warning text-dark{% elif work_order.priority == 'MEDIUM' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+              {{ work_order.get_priority_display }}
+            </span>
+            <span class="badge bg-light text-dark border">
+              {{ work_order.get_work_type_display }}
+            </span>
+            <span class="badge {% if work_order.status == 'IN_PROGRESS' %}bg-success{% elif work_order.status == 'COMPLETED' or work_order.status == 'CLOSED' %}bg-secondary{% else %}bg-primary{% endif %}">
+              {{ work_order.get_status_display }}
+            </span>
+            {% if checklist_required %}
+              <span class="badge {% if checklist_is_ready %}bg-success{% else %}bg-warning text-dark{% endif %} border">
+                Checklist: {{ checklist_status }}
+              </span>
+            {% endif %}
+          </div>
+          <h1 class="h3 fw-bold mb-1">{{ work_order.order_number }}: {{ work_order.title }}</h1>
+          <div class="text-secondary small">
+            Site: <strong>{{ site.name }} ({{ site.code }})</strong> · 
+            Asset: <strong>{{ asset.name|default:"Facility General" }}</strong>
+            {% if asset.serial_number %}(S/N: {{ asset.serial_number }}){% endif %}
+          </div>
+        </div>
+        <div class="text-md-end">
+          <div class="small text-muted">Assigned Technician</div>
+          <div class="fw-bold">{{ work_order.assigned_to.user.display_name }}</div>
+          <div class="small text-muted">{{ work_order.assigned_to.user.email }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Verification Blocker Alert (if not ready to complete and not already completed) -->
+  {% if not is_completed and not can_complete %}
+    <div class="alert alert-warning shadow-sm border-warning mb-4" role="alert">
+      <div class="d-flex gap-2">
+        <div class="fs-4 text-warning">⚠️</div>
+        <div>
+          <h6 class="alert-heading fw-bold mb-1">Pre-Completion Requirements Incomplete</h6>
+          <p class="small mb-2">The following prerequisites must be fulfilled before this job can be signed off and completed:</p>
+          <ul class="small mb-0 ps-3">
+            {% for blocker in blockers %}
+              <li>{{ blocker }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Already Completed: Verified Customer Sign-off Card -->
+  {% if is_completed and signoff %}
+    <div class="card signature-verified-card shadow-sm mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <div class="bg-success text-white rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+            {% icon 'check' 20 %}
+          </div>
+          <div>
+            <h5 class="fw-bold text-success mb-0">Customer Sign-off Verified & Completed</h5>
+            <div class="small text-muted">Recorded on {{ signoff.signed_at|date:"M j, Y, H:i" }}</div>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="p-3 bg-white rounded border">
+              <div class="small text-muted text-uppercase fw-bold mb-1">Signer Information</div>
+              <div class="fs-5 fw-bold text-dark">{{ signoff.signer_name }}</div>
+              <div class="small text-secondary mb-2">{{ signoff.signer_title|default:"Authorized Representative" }}</div>
+              {% if signoff.customer_notes %}
+                <div class="small text-muted mt-2 border-top pt-2">
+                  <span class="fw-semibold text-dark">Customer Notes:</span> {{ signoff.customer_notes }}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="p-3 bg-white rounded border text-center">
+              <div class="small text-muted text-uppercase fw-bold mb-2">Digital Signature</div>
+              {% if signoff.signature_attachment and signoff.signature_attachment.file %}
+                <img src="{{ signoff.signature_attachment.file.url }}" alt="Customer Digital Signature" class="img-fluid border rounded p-2 bg-light" style="max-height: 120px;" id="verifiedSignatureImg">
+              {% else %}
+                <span class="badge bg-secondary">Signature Record Stored</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- 1. Executive Summary Card with KPI stats -->
+  <div class="card shadow-sm border mb-4">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+      <h5 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
+        {% icon 'clipboard' 18 %} 1. Executive Work Summary
+      </h5>
+      <span class="badge bg-primary-subtle text-primary fw-semibold">Audit Overview</span>
+    </div>
+    <div class="card-body p-4">
+      <div class="row g-3 mb-4">
+        <!-- KPI 1: Labor -->
+        <div class="col-6 col-md-3">
+          <div class="completion-kpi-card text-center">
+            <div class="text-primary mb-1">{% icon 'clock' 22 %}</div>
+            <div class="h4 fw-bold mb-0">{{ total_labor_hours }} hrs</div>
+            <div class="small text-muted">Labor Logged ({{ labor_entries|length }} entry)</div>
+          </div>
+        </div>
+        <!-- KPI 2: Parts -->
+        <div class="col-6 col-md-3">
+          <div class="completion-kpi-card text-center">
+            <div class="text-info mb-1">{% icon 'package' 22 %}</div>
+            <div class="h4 fw-bold mb-0">{{ consumed_parts|length }}</div>
+            <div class="small text-muted">Parts Consumed</div>
+          </div>
+        </div>
+        <!-- KPI 3: Checklists -->
+        <div class="col-6 col-md-3">
+          <div class="completion-kpi-card text-center">
+            <div class="{% if checklist_is_ready %}text-success{% else %}text-warning{% endif %} mb-1">
+              {% icon 'check-square' 22 %}
+            </div>
+            <div class="h5 fw-bold mb-0">{% if not checklist_required %}N/A{% elif checklist_is_ready %}VALIDATED{% else %}PENDING{% endif %}</div>
+            <div class="small text-muted">Checklist Engine</div>
+          </div>
+        </div>
+        <!-- KPI 4: Evidence Photos -->
+        <div class="col-6 col-md-3">
+          <div class="completion-kpi-card text-center">
+            <div class="{% if evidence_is_ready %}text-success{% else %}text-danger{% endif %} mb-1">
+              {% icon 'image' 22 %}
+            </div>
+            <div class="h4 fw-bold mb-0">{{ evidence|length }}</div>
+            <div class="small text-muted">Evidence Files</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Parts Ledger Summary (if any) -->
+      {% if part_lines %}
+        <div class="mb-3">
+          <h6 class="small fw-bold text-uppercase text-secondary mb-2">Allocated Parts & Materials Consumed</h6>
+          <div class="table-responsive border rounded">
+            <table class="table table-sm table-hover align-middle mb-0">
+              <thead class="table-light small">
+                <tr>
+                  <th>Part Reference</th>
+                  <th>Description</th>
+                  <th class="text-center">Issued</th>
+                  <th class="text-center">Consumed</th>
+                  <th class="text-center">Remaining</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody class="small">
+                {% for pl in part_lines %}
+                  <tr>
+                    <td class="fw-bold">{{ pl.part.part_number }}</td>
+                    <td>{{ pl.part.name }}</td>
+                    <td class="text-center">{{ pl.quantity_issued }}</td>
+                    <td class="text-center fw-bold {% if pl.quantity_consumed > 0 %}text-success{% endif %}">{{ pl.quantity_consumed }}</td>
+                    <td class="text-center">{{ pl.outstanding }}</td>
+                    <td>
+                      {% if pl.status == 'CONSUMED' %}
+                        <span class="badge bg-success">CONSUMED</span>
+                      {% elif pl.quantity_consumed > 0 %}
+                        <span class="badge bg-warning text-dark">PARTIAL</span>
+                      {% else %}
+                        <span class="badge bg-secondary">ISSUED</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Labor Breakdown (if any) -->
+      {% if labor_entries %}
+        <div>
+          <h6 class="small fw-bold text-uppercase text-secondary mb-2">Recorded Technician Labor</h6>
+          <div class="list-group list-group-flush border rounded small">
+            {% for lb in labor_entries %}
+              <div class="list-group-item d-flex justify-content-between align-items-center py-2">
+                <div>
+                  <span class="fw-semibold text-dark">{{ lb.technician.user.display_name }}</span> · 
+                  <span class="text-muted">{{ lb.work_date|date:"M j, Y" }}</span>
+                  <div class="text-secondary small">{{ lb.description|default:"On-site execution" }}</div>
+                </div>
+                <span class="badge bg-light text-dark border fs-6">{{ lb.hours }} hrs</span>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Completion & Sign-off Form -->
+  {% if not is_completed %}
+    <form method="post" action="{% url 'workspace:complete' work_order.pk %}" enctype="multipart/form-data" id="jobCompletionForm" class="needs-validation">
+      {% csrf_token %}
+      <input type="hidden" name="is_completion_screen" value="1">
+      <input type="hidden" name="signature_data" id="signatureData">
+
+      <!-- 2. Final Photo Evidence Card -->
+      <div class="card shadow-sm border mb-4">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
+            {% icon 'camera' 18 %} 2. Final Photo Evidence
+          </h5>
+          <span class="small text-muted">Upload work completion verification photo</span>
+        </div>
+        <div class="card-body p-4">
+          <!-- Existing Evidence Gallery (if any) -->
+          {% if evidence %}
+            <div class="mb-3">
+              <div class="small fw-bold text-secondary text-uppercase mb-2">Existing Attachments ({{ evidence|length }})</div>
+              <div class="row g-2">
+                {% for ev in evidence %}
+                  <div class="col-4 col-md-3 col-lg-2">
+                    <div class="border rounded p-1 text-center bg-light">
+                      {% if ev.attachment.mime_type|slice:":5" == "image" %}
+                        <a href="{% url 'files:download' ev.attachment.pk %}" target="_blank" title="Download {{ ev.attachment.original_name }}">
+                          <img src="{{ ev.attachment.file.url }}" alt="{{ ev.attachment.original_name }}" class="img-fluid rounded" style="height: 70px; object-fit: cover;">
+                        </a>
+                      {% else %}
+                        <div class="py-3 text-secondary">{% icon 'file-text' 24 %}</div>
+                      {% endif %}
+                      <div class="small text-truncate mt-1" style="font-size: 0.72rem;">{{ ev.attachment.original_name }}</div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          <!-- Direct Camera & File Upload Dropzone -->
+          <div class="evidence-dropzone mb-3" id="dropzoneContainer">
+            <div class="text-primary mb-2">{% icon 'upload-cloud' 32 %}</div>
+            <h6 class="fw-bold mb-1">Click to Capture or Select Final Photo</h6>
+            <p class="small text-muted mb-0">Supports JPG, PNG, WebP up to 10MB · Mobile camera enabled</p>
+            <input type="file" id="finalPhotoInput" name="final_photo" accept="image/*" capture="environment" class="d-none">
+          </div>
+
+          <!-- Instant Live Image Preview -->
+          <div id="photoPreviewContainer" class="d-none border rounded p-3 bg-light text-center">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="small fw-bold text-success d-flex align-items-center gap-1">
+                {% icon 'check' 14 %} Selected Photo Preview
+              </span>
+              <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" id="clearPhotoBtn">Remove</button>
+            </div>
+            <img id="finalPhotoPreview" src="#" alt="Photo Preview" class="photo-preview-thumbnail">
+            <div id="photoFileName" class="small text-muted mt-1"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Resolution Summary & Customer Sign-off Card -->
+      <div class="card shadow-sm border mb-4">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
+            {% icon 'edit-3' 18 %} 3. Resolution Summary & Digital Signature
+          </h5>
+          <span class="badge bg-danger-subtle text-danger fw-semibold">Sign-off Mandatory</span>
+        </div>
+        <div class="card-body p-4">
+          <!-- Work Resolution Notes -->
+          <div class="mb-4">
+            <label for="resolution_notes" class="form-label fw-bold small text-uppercase">
+              Work Resolution Notes <span class="text-danger">*</span>
+            </label>
+            <textarea
+              id="resolution_notes"
+              name="resolution_notes"
+              class="form-control"
+              rows="3"
+              placeholder="Describe work performed, equipment diagnostic, root cause, and operational tests performed (minimum 10 characters)..."
+              minlength="10"
+              required
+            >{{ initial_resolution_notes|default:work_order.resolution_notes|default:"" }}</textarea>
+            <div class="form-text small text-muted">Authoritative M06 resolution record attached to work order.</div>
+          </div>
+
+          <!-- Signer Details -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label for="signer_name" class="form-label fw-bold small text-uppercase">
+                Customer / Representative Full Name <span class="text-danger">*</span>
+              </label>
+              <input
+                type="text"
+                id="signer_name"
+                name="signer_name"
+                class="form-control"
+                placeholder="e.g. Johnathan Smith"
+                value="{{ initial_signer_name|default:"" }}"
+                required
+              >
+            </div>
+            <div class="col-md-6">
+              <label for="signer_title" class="form-label fw-bold small text-uppercase">
+                Representative Title / Role
+              </label>
+              <input
+                type="text"
+                id="signer_title"
+                name="signer_title"
+                class="form-control"
+                placeholder="e.g. Facility Operations Manager / Owner"
+                value="{{ initial_signer_title|default:"" }}"
+              >
+            </div>
+            <div class="col-12">
+              <label for="customer_notes" class="form-label fw-bold small text-uppercase">
+                Customer Acceptance Remarks (Optional)
+              </label>
+              <input
+                type="text"
+                id="customer_notes"
+                name="customer_notes"
+                class="form-control form-control-sm"
+                placeholder="e.g. System tested and confirmed running smoothly."
+                value="{{ initial_customer_notes|default:"" }}"
+              >
+            </div>
+          </div>
+
+          <!-- Digital Signature Canvas Pad -->
+          <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label fw-bold small text-uppercase mb-0">
+                Customer Digital Signature <span class="text-danger">*</span>
+              </label>
+              <span id="signatureStatus" class="badge bg-light text-secondary border">✍️ Please sign in box</span>
+            </div>
+            
+            <div class="signature-pad-wrapper" id="sigPadWrapper">
+              <canvas id="signaturePad" class="signature-canvas" width="800" height="200"></canvas>
+              <div class="signature-pad-toolbar">
+                <span class="small text-muted" style="font-size: 0.78rem;">Use touch, stylus, or mouse to sign above</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 d-inline-flex align-items-center gap-1" id="clearSignatureBtn">
+                  {% icon 'trash-2' 12 %} Clear Signature
+                </button>
+              </div>
+            </div>
+            <div id="sigErrorAlert" class="small text-danger mt-1 d-none">
+              Please sign the canvas box above before confirming job completion.
+            </div>
+          </div>
+
+          <!-- Final Submit Controls -->
+          <div class="d-grid gap-2 mt-4 pt-2 border-top">
+            <button
+              type="submit"
+              id="submitCompletionBtn"
+              class="btn btn-success btn-lg fw-bold shadow-sm d-inline-flex align-items-center justify-content-center gap-2"
+              {% if not can_complete %}disabled title="Resolve remaining blockers above to complete"{% endif %}
+            >
+              {% icon 'check-circle' 20 %} Sign & Confirm Job Completion
+            </button>
+            <div class="text-center small text-muted">
+              By confirming, this work order transitions to <strong>Completed</strong> and lock-in timestamped audit entries.
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  {% endif %}
+</div>
+
+<!-- Signature Canvas JavaScript -->
+<script nonce="{{ csp_nonce }}">
+  let hasDrawn = false;
+  const canvas = document.getElementById('signaturePad');
+  const signatureDataInput = document.getElementById('signatureData');
+  const statusBadge = document.getElementById('signatureStatus');
+  const sigWrapper = document.getElementById('sigPadWrapper');
+  const clearBtn = document.getElementById('clearSignatureBtn');
+  const form = document.getElementById('jobCompletionForm');
+  const sigError = document.getElementById('sigErrorAlert');
+
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    // Set high resolution scale for crisp lines
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#1e293b';
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+      const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
+    }
+
+    function startDrawing(e) {
+      e.preventDefault();
+      isDrawing = true;
+      const pos = getPos(e);
+      lastX = pos.x;
+      lastY = pos.y;
+    }
+
+    function draw(e) {
+      if (!isDrawing) return;
+      e.preventDefault();
+      const pos = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+      lastX = pos.x;
+      lastY = pos.y;
+      if (!hasDrawn) {
+        hasDrawn = true;
+        statusBadge.className = 'badge bg-success';
+        statusBadge.textContent = '✓ Signature Captured';
+        sigWrapper.classList.add('signed');
+        if (sigError) sigError.classList.add('d-none');
+      }
+    }
+
+    function stopDrawing() {
+      isDrawing = false;
+    }
+
+    // Pointer and mouse event listeners (supports mouse, touch, and pen seamlessly)
+    canvas.addEventListener('pointerdown', startDrawing);
+    canvas.addEventListener('pointermove', draw);
+    canvas.addEventListener('pointerup', stopDrawing);
+    canvas.addEventListener('pointercancel', stopDrawing);
+    canvas.addEventListener('pointerleave', stopDrawing);
+
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseleave', stopDrawing);
+
+    // Clear Button
+    clearBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const dpr = window.devicePixelRatio || 1;
+      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      hasDrawn = false;
+      signatureDataInput.value = '';
+      statusBadge.className = 'badge bg-light text-secondary border';
+      statusBadge.textContent = '✍️ Please sign in box';
+      sigWrapper.classList.remove('signed');
+    });
+
+    // Form submission validation
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        if (!hasDrawn) {
+          e.preventDefault();
+          if (sigError) sigError.classList.remove('d-none');
+          sigWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return false;
+        }
+        // Export signature canvas as PNG data URL
+        signatureDataInput.value = canvas.toDataURL('image/png');
+      });
+    }
+  }
+
+  // Final Photo Client-Side Live Preview
+  function previewFinalPhoto(input) {
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const preview = document.getElementById('finalPhotoPreview');
+        const container = document.getElementById('photoPreviewContainer');
+        const nameLabel = document.getElementById('photoFileName');
+        preview.src = e.target.result;
+        nameLabel.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+        container.classList.remove('d-none');
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  function clearSelectedPhoto() {
+    const input = document.getElementById('finalPhotoInput');
+    const container = document.getElementById('photoPreviewContainer');
+    const preview = document.getElementById('finalPhotoPreview');
+    input.value = '';
+    preview.src = '#';
+    container.classList.add('d-none');
+  }
+
+  // Attach event listeners (CSP-compliant — no inline handlers)
+  const dropzoneEl = document.getElementById('dropzoneContainer');
+  const photoInputEl = document.getElementById('finalPhotoInput');
+  const clearPhotoEl = document.getElementById('clearPhotoBtn');
+
+  if (dropzoneEl && photoInputEl) {
+    dropzoneEl.addEventListener('click', function() { photoInputEl.click(); });
+    photoInputEl.addEventListener('change', function() { previewFinalPhoto(this); });
+  }
+  if (clearPhotoEl) {
+    clearPhotoEl.addEventListener('click', function() { clearSelectedPhoto(); });
+  }
+</script>
+{% endblock %}

@@ -69,7 +69,12 @@
 
           {% if can_complete %}
             <div class="border rounded p-2 bg-light">
-              <label for="complete-notes" class="form-label small fw-bold mb-1">Complete Job</label>
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small fw-bold text-uppercase text-secondary">Final Completion</span>
+                {% if work_order.signoff %}
+                  <span class="badge bg-success" style="font-size: 0.65rem;">Signed</span>
+                {% endif %}
+              </div>
               {% if work_order.checklist_required and work_order.checklist_status != 'COMPLETED' %}
                 <div class="alert alert-warning py-1 px-2 small mb-2 d-flex align-items-center justify-content-between">
                   <span>⚠️ Checklist must be completed first</span>
@@ -82,13 +87,23 @@
                   <a href="{% url 'workspace:job_detail' work_order.pk %}#evidence-section" class="btn btn-sm btn-outline-dark py-0 px-2 fw-semibold" style="font-size: 0.72rem;">Upload</a>
                 </div>
               {% endif %}
-              <form method="post" action="{% url 'workspace:complete' work_order.pk %}" hx-post="{% url 'workspace:complete' work_order.pk %}" hx-target="#jobDrawer" hx-swap="outerHTML">
-                {% csrf_token %}
-                <textarea id="complete-notes" name="resolution_notes" class="form-control form-control-sm mb-2" rows="2" placeholder="Resolution summary (min 10 chars)..." minlength="10" required></textarea>
-                <button type="submit" class="btn btn-primary btn-sm w-100 fw-semibold">
-                  {% icon 'check' 14 %} Complete Work Order
-                </button>
-              </form>
+
+              <div class="mb-2">
+                <a href="{% url 'workspace:complete' work_order.pk %}" class="btn btn-primary btn-sm w-100 fw-bold d-inline-flex align-items-center justify-content-center gap-1 shadow-sm" id="drawerSignoffLink">
+                  {% icon 'edit-3' 14 %} Customer Sign-off & Complete →
+                </a>
+              </div>
+
+              <details class="small">
+                <summary class="text-muted cursor-pointer mb-2" style="font-size: 0.76rem;">Quick Complete without Sign-off</summary>
+                <form method="post" action="{% url 'workspace:complete' work_order.pk %}" hx-post="{% url 'workspace:complete' work_order.pk %}" hx-target="#jobDrawer" hx-swap="outerHTML">
+                  {% csrf_token %}
+                  <textarea id="complete-notes" name="resolution_notes" class="form-control form-control-sm mb-2" rows="2" placeholder="Resolution summary (min 10 chars)..." minlength="10" required></textarea>
+                  <button type="submit" class="btn btn-outline-primary btn-sm w-100 fw-semibold">
+                    {% icon 'check' 14 %} Quick Complete Order
+                  </button>
+                </form>
+              </details>
             </div>
           {% endif %}
         </div>
