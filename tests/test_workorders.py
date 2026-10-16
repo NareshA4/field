@@ -1,4 +1,4 @@
-﻿from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from decimal import Decimal
 from threading import Barrier
@@ -490,13 +490,14 @@ def test_create_work_order_form_contains_only_creation_fields(
     valid = CreateWorkOrderForm(valid_data, membership=planner)
     assert valid.is_valid(), valid.errors
 
-    for invalid_title in ("Pump 2 repair", "Pump-repair", "Pump_repair"):
-        title_form = CreateWorkOrderForm({**valid_data, "title": invalid_title}, membership=planner)
-        assert not title_form.is_valid()
-        assert "Title can contain letters and spaces only." in title_form.errors["title"]
+    for valid_title in ("Pump 2 repair", "Pump-repair", "Pump_repair", "test_002", "Pump repair"):
+        title_form = CreateWorkOrderForm({**valid_data, "title": valid_title}, membership=planner)
+        assert title_form.is_valid(), title_form.errors
 
-    alphabetic_title = CreateWorkOrderForm({**valid_data, "title": "Pump repair"}, membership=planner)
-    assert alphabetic_title.is_valid(), alphabetic_title.errors
+    for too_short in ("a", "ab", "   "):
+        short_form = CreateWorkOrderForm({**valid_data, "title": too_short}, membership=planner)
+        assert not short_form.is_valid()
+        assert any("3" in err or "title" in err for err in short_form.errors["title"])
 
     draft_only = CreateWorkOrderForm({"source_type": WorkOrder.SourceType.MANUAL,
         "site": str(site_a1.pk), "asset": str(asset.pk), "title": "Draft without schedule"}, membership=planner)

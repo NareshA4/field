@@ -46,7 +46,6 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         "validate_checklist": "work_order.complete",
         "submit_for_review": "work_order.complete", "review": "work_order.review",
         "close": "work_order.close", "return_for_rework": "work_order.review",
-        "cancel": "work_order.cancel",
         "provisional_checklist": "work_order.update", "checklist_reference": "work_order.update", "labor": "work_order.record",
         "materials": "work_order.record", "evidence": "work_order.attach", "notes": "work_order.record",
     }
@@ -255,13 +254,6 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
     @action(detail=True, methods=["post"], url_path="return-for-rework")
     def return_for_rework(self, request, pk=None):
         return self._action(pk, services.return_for_rework, ClosureCommentSerializer)
-
-    @extend_schema(request=WorkOrderReasonSerializer,
-        description="Cancel a work order before work begins.",
-        responses=WorkOrderSerializer)
-    @action(detail=True, methods=["post"])
-    def cancel(self, request, pk=None):
-        return self._action(pk, services.cancel_work_order, WorkOrderReasonSerializer)
 
     @extend_schema(request=WorkNoteSerializer, responses=WorkOrderSerializer,
                    description="Append a technician progress note to the work-order event history.")

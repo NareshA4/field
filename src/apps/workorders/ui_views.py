@@ -1,10 +1,11 @@
 import json
+import logging
 from datetime import time, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError as DjangoValidationError
 from django.core.paginator import Paginator
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce
@@ -34,12 +35,13 @@ from .forms import (
     LaborForm,
     MaterialForm,
     PlanForm,
-    ReassignForm,
     ReasonForm,
     ReviewForm,
     WorkUpdateForm,
 )
 from .models import WorkOrder, WorkOrderAssignment
+
+logger = logging.getLogger(__name__)
 
 
 def _site_zone(site):
@@ -641,11 +643,19 @@ class WorkOrderCreateView(TenantPermissionMixin, View):
 
     @staticmethod
     def _context(request, form):
-        sources = {str(sr.pk): {"kind": ("REQUEST" if sr.kind == "SERVICE_REQUEST" else "INCIDENT"),
-                    "site": str(sr.site_id), "asset": str(sr.asset_id), "title": sr.title,
-                    "description": sr.description,
-                    "requester": (sr.reported_by.user.full_name or sr.reported_by.user.email)}
-                   for sr in form.fields["source_request"].queryset.select_related("reported_by__user")}
+        sources = {}
+        for sr in form.fields["source_request"].queryset.select_related("reported_by__user"):
+            requester_name = "Unknown"
+            if sr.reported_by and getattr(sr.reported_by, "user", None):
+                requester_name = sr.reported_by.user.full_name or sr.reported_by.user.email or "Unknown"
+            sources[str(sr.pk)] = {
+                "kind": ("REQUEST" if sr.kind == "SERVICE_REQUEST" else "INCIDENT"),
+                "site": str(sr.site_id),
+                "asset": str(sr.asset_id),
+                "title": sr.title,
+                "description": sr.description,
+                "requester": requester_name,
+            }
         return {"form": form, "title": "Create work order", "submit": "Save Draft",
                 "source_metadata": sources,
                 "has_sites": form.fields["site"].queryset.exists(),
@@ -675,8 +685,12 @@ class WorkOrderCreateView(TenantPermissionMixin, View):
                         membership=request.membership, request=request,
                         asset=asset, component=component.child if component else None,
                         source_type=source_type, **values)
-            except DomainError as exc:
-                form.add_error(None, exc.message)
+            except (DomainError, DjangoValidationError) as exc:
+                msg = exc.message_dict if hasattr(exc, "message_dict") else getattr(exc, "message", str(exc))
+                form.add_error(None, msg)
+            except Exception as exc:
+                logger.exception("Unexpected error creating work order: %s", exc)
+                form.add_error(None, f"Unable to create work order: {exc}")
             else:
                 messages.success(request, f"Work order {wo.order_number} created as Draft.")
                 return redirect("workorders:detail", pk=wo.pk)
@@ -766,7 +780,6 @@ TAB_TEMPLATES["work"] = "workorder/tabs/parts.html"
 def _work_order_detail_context(request, wo, active_tab="overview"):
     if active_tab not in TAB_TEMPLATES:
         active_tab = "overview"
-    lookup_tab = "parts" if active_tab == "work" else active_tab
     can_record = rbac.has_permission(request.membership, "work_order.record", wo.site)
     can_execute = (wo.assigned_to_id == request.membership.pk or
                    rbac.has_permission(request.membership, "work_order.dispatch", wo.site))
@@ -869,7 +882,9 @@ def _work_order_tab_context(wo, membership, tab):
             "actor", "assigned_to__user")
     elif tab in ("parts", "work"):
         context["material_entries"] = wo.material_entries.all()
-        context["part_lines"] = wo.part_lines.select_related("part", "warehouse", "reservation").all()
+        from django.apps import apps
+        if apps.is_installed("apps.inventory"):
+            context["part_lines"] = wo.part_lines.select_related("part", "warehouse", "reservation")
     elif tab == "labor":
         context["labor_entries"] = wo.labor_entries.select_related("technician__user")
         context["labor_total"] = wo.labor_entries.aggregate(total=Sum("hours"))["total"] or 0
@@ -1010,17 +1025,16 @@ class WorkOrderTabView(TenantPermissionMixin, View):
 
 
 ACTION_PERMISSION = {
-    "plan": "work_order.plan", "assign": "work_order.assign", "reassign": "work_order.assign", "dispatch": "work_order.dispatch",
+    "plan": "work_order.plan", "assign": "work_order.assign", "dispatch": "work_order.dispatch",
     "start": "work_order.start", "hold": "work_order.hold", "resume": "work_order.start",
     "complete": "work_order.complete", "submit_for_review": "work_order.complete",
     "review": "work_order.review",
     "close": "work_order.close", "return_for_rework": "work_order.review",
-    "cancel": "work_order.cancel",
     "checklist": "work_order.update", "work_update": "work_order.record",
     "labor": "work_order.record", "materials": "work_order.record",
     "evidence": "work_order.attach",
 }
-ACTION_FORMS = {"plan": PlanForm, "assign": AssignForm, "reassign": ReassignForm, "hold": ReasonForm, "cancel": ReasonForm,
+ACTION_FORMS = {"plan": PlanForm, "assign": AssignForm, "hold": ReasonForm,
                 "complete": CompleteForm, "review": ReviewForm, "checklist": ChecklistForm,
                 "close": ClosureCommentForm, "return_for_rework": ClosureCommentForm,
                 "work_update": WorkUpdateForm, "labor": LaborForm, "materials": MaterialForm, "evidence": EvidenceForm}
@@ -1054,19 +1068,16 @@ class WorkOrderActionView(TenantPermissionMixin, View):
         if not form_type:
             raise Http404
         kwargs = {}
-        if self.operation in ("assign", "reassign"):
+        if self.operation == "assign":
             kwargs = {"membership": request.membership, "site": wo.site,
                       "work_order": wo,
-                      "initial": {"expected_version": wo.version,
-                                  "assigned_to": wo.assigned_to_id,
-                                  "scheduled_start": wo.planned_start,
-                                  "scheduled_end": wo.planned_end}}
+                      "initial": {"expected_version": wo.version}}
         elif self.operation == "plan":
             kwargs = {"work_order": wo, "initial": {"work_type": wo.work_type, "priority": wo.priority,
                                    "planned_start": wo.planned_start, "planned_end": wo.planned_end,
                                    "due_at": wo.due_at,
                                    "estimated_hours": wo.estimated_hours if wo.estimated_hours and wo.estimated_hours > 0 else ""}}
-        elif self.operation in ("plan", "hold", "complete", "review", "labor", "materials", "evidence", "checklist", "work_update", "cancel"):
+        elif self.operation in ("plan", "hold", "complete", "review", "labor", "materials", "evidence", "checklist", "work_update"):
             kwargs = {}
         form = form_type(**kwargs)
         return render(request, "workorder/action.html", self._action_context(request, wo, form) | {
@@ -1074,8 +1085,8 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                        "operation": self.operation.replace("_", " ").title(),
                        "expected_version": wo.version,
                        "is_close_action": self.operation == "close",
-                       "scheduled_start": wo.planned_start if self.operation in ("assign", "reassign") else None,
-                       "scheduled_end": wo.planned_end if self.operation in ("assign", "reassign") else None,
+                       "scheduled_start": wo.planned_start if self.operation == "assign" else None,
+                       "scheduled_end": wo.planned_end if self.operation == "assign" else None,
                        "labor_entries": wo.labor_entries.all(), "material_entries": wo.material_entries.all(),
                        "evidence_count": wo.evidence_links.count()})
 
@@ -1091,9 +1102,9 @@ class WorkOrderActionView(TenantPermissionMixin, View):
     def post(self, request, pk, operation):
         wo = self._get_order(request, pk)
         form_type = ACTION_FORMS.get(self.operation)
-        form_kwargs = {"membership": request.membership, "site": wo.site, "work_order": wo} if self.operation in ("assign", "reassign") else {}
+        form_kwargs = {"membership": request.membership, "site": wo.site, "work_order": wo} if self.operation == "assign" else {}
         action_data = request.POST
-        if (self.operation in ("assign", "reassign") and "scheduled_start" not in request.POST and
+        if (self.operation == "assign" and "scheduled_start" not in request.POST and
                 wo.planned_start and wo.planned_end):
             action_data = request.POST.copy()
             action_data["scheduled_start"] = timezone.localtime(wo.planned_start).strftime("%Y-%m-%dT%H:%M")
@@ -1108,8 +1119,8 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                            "operation": self.operation.replace("_", " ").title(),
                            "expected_version": wo.version,
                            "is_close_action": self.operation == "close",
-                           "scheduled_start": wo.planned_start if self.operation in ("assign", "reassign") else None,
-                           "scheduled_end": wo.planned_end if self.operation in ("assign", "reassign") else None,
+                           "scheduled_start": wo.planned_start if self.operation == "assign" else None,
+                           "scheduled_end": wo.planned_end if self.operation == "assign" else None,
                            "labor_entries": wo.labor_entries.all(),
                            "material_entries": wo.material_entries.all(),
                            "evidence_count": wo.evidence_links.count()}, status=400)
@@ -1130,13 +1141,6 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                 result = services.assign_work_order(wo, membership=request.membership, actor=request.user,
                     assignee_id=data["assigned_to"].pk, scheduled_start=data["scheduled_start"],
                     scheduled_end=data["scheduled_end"], expected_version=expected_version, request=request)
-            elif self.operation == "reassign":
-                result = services.reassign(wo, technician=data["assigned_to"],
-                    reason=data.get("reason", "Reassigned"), actor=request.user,
-                    membership=request.membership, expected_version=expected_version, request=request)
-            elif self.operation == "cancel":
-                result = services.cancel_work_order(wo, membership=request.membership,
-                    actor=request.user, reason=data["reason"], expected_version=expected_version, request=request)
             elif self.operation == "dispatch": result = services.dispatch_work_order(wo, membership=request.membership, actor=request.user, expected_version=expected_version, request=request)
             elif self.operation == "start": result = services.start_work_order(wo, membership=request.membership, actor=request.user, expected_version=expected_version, request=request)
             elif self.operation == "hold": result = services.hold_work_order(wo, membership=request.membership, actor=request.user, reason=data["reason"], expected_version=expected_version, request=request)
@@ -1192,7 +1196,7 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                 }, status=400)
             messages.error(request, exc.message)
             return redirect("workorders:detail", pk=wo.pk)
-        if self.operation in ("assign", "reassign"):
+        if self.operation == "assign":
             event = result.events.order_by("-created_at").first()
             for warning in (event.metadata.get("warnings", []) if event else []):
                 messages.warning(request, warning)

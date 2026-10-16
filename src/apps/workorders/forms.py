@@ -162,8 +162,8 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
 
     def clean_title(self):
         title = self.cleaned_data["title"].strip()
-        if not title or any(not (character.isalpha() or character.isspace()) for character in title):
-            raise ValidationError("Title can contain letters and spaces only.")
+        if len(title) < 3:
+            raise ValidationError("Enter a clear title with at least 3 non-space characters.")
         return title
 
 class EditWorkOrderForm(BootstrapFormMixin, forms.Form):
@@ -312,16 +312,8 @@ class AssignForm(BootstrapFormMixin, forms.Form):
         return cleaned
 
 
-class ReassignForm(AssignForm):
-    reason = forms.CharField(max_length=500, required=False, label="Reassignment reason",
-                             help_text="Optional reason for changing technician assignment.",
-                             widget=forms.Textarea(attrs={"rows": 3}))
-
-
 class ReasonForm(BootstrapFormMixin, forms.Form):
-    reason = forms.CharField(min_length=3, max_length=500, label="Reason",
-                             help_text="Provide a clear reason for this action (at least 3 characters).",
-                             widget=forms.Textarea(attrs={"rows": 3}))
+    reason = forms.CharField(max_length=500)
 
 
 class WorkUpdateForm(BootstrapFormMixin, forms.Form):
