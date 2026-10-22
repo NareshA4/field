@@ -30,7 +30,7 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     ),
     RoleTemplate(
         "operations_manager", "Operations Manager", "Oversees maintenance and field operations.",
-        ("*.view", "incident.*", "work_order.view", "work_order.create", "work_order.assign",
+        ("*.view", "incident.*", "work_order.view", "work_order.assign",
          "work_order.dispatch", "maintenance.*", "checklist.*", "inspection.*", "sla.view",
          "sla.acknowledge", "inventory.request", "inventory.reserve", "inventory.reconcile", "contract.check",
          "report.*"),

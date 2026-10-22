@@ -25,5 +25,7 @@ urlpatterns = [
     path("inventory/movements/", views.MovementListView.as_view(), name="movements"),
     path("work-orders/<uuid:pk>/parts/", views.WorkOrderPartsView.as_view(), name="wo_parts"),
     path("work-orders/<uuid:pk>/parts/request/", views.PartRequestView.as_view(), name="part_request"),
+    path("workspace/<uuid:pk>/parts/request/", views.PartRequestView.as_view(), name="workspace_part_request"),
+    path("workspace/jobs/<uuid:pk>/parts/request/", views.PartRequestView.as_view(), name="workspace_job_part_request"),
     path("inventory/part-lines/<uuid:pk>/<str:action>/", views.LineActionView.as_view(), name="line_action"),
 ]

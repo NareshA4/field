@@ -1,6 +1,6 @@
 from __future__ import annotations
 import logging
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, models
 """M05 HTML views. Same chain as M01/M02: login -> membership -> permission gate -> organization + site-scope
 restricted lookup (404) -> permission for the request's site (403) -> service (validation, transaction, audit)."""
@@ -36,7 +36,15 @@ def _req(request, pk, code=None) -> ServiceRequest:
 
 
 class IncidentBase(TenantPermissionMixin, View):
-    pass
+    def dispatch(self, request, *args, **kwargs):
+        from apps.ui.utils import is_client_membership
+        if (
+            hasattr(request, "membership")
+            and is_client_membership(request.membership)
+            and not selectors.is_owned_asset_reporter(request.membership)
+        ):
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
 
 
 class RequestListView(IncidentBase):

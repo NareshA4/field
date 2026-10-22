@@ -15,13 +15,12 @@ from . import selectors, services
 
 
 def _get_job(request, pk):
-    org = request.organization
-    wo = WorkOrder.objects.for_organization(org).select_related(
-        "site", "asset", "assigned_to__user"
-    ).filter(pk=pk).first()
-    if wo is None:
+    from apps.workorders import selectors as wo_selectors
+    from apps.core.exceptions import NotFound
+    try:
+        return wo_selectors.get_work_order(request.membership, request.organization, pk)
+    except NotFound:
         raise Http404("Work order not found.")
-    return wo
 
 
 class JobExecutionDrawerView(TenantPermissionMixin, View):
@@ -363,9 +362,13 @@ class JobEvidenceUploadView(TenantPermissionMixin, View):
 class JobPartConsumeView(TenantPermissionMixin, View):
     required_permission = "work_order.record"
 
-    def post(self, request, pk):
+    def post(self, request, pk, line_pk=None):
         wo = _get_job(request, pk)
-        part_line_id = request.POST.get("part_line_id", "").strip()
+        if line_pk:
+            from apps.inventory.models import WorkOrderPart
+            if not WorkOrderPart.objects.filter(work_order=wo, pk=line_pk).exists():
+                raise Http404("Part requirement line not found on this work order.")
+        part_line_id = str(line_pk) if line_pk else request.POST.get("part_line_id", "").strip()
         quantity = request.POST.get("quantity", "").strip()
 
         try:
@@ -392,9 +395,13 @@ class JobPartConsumeView(TenantPermissionMixin, View):
 class JobPartReturnView(TenantPermissionMixin, View):
     required_permission = "work_order.record"
 
-    def post(self, request, pk):
+    def post(self, request, pk, line_pk=None):
         wo = _get_job(request, pk)
-        part_line_id = request.POST.get("part_line_id", "").strip()
+        if line_pk:
+            from apps.inventory.models import WorkOrderPart
+            if not WorkOrderPart.objects.filter(work_order=wo, pk=line_pk).exists():
+                raise Http404("Part requirement line not found on this work order.")
+        part_line_id = str(line_pk) if line_pk else request.POST.get("part_line_id", "").strip()
         quantity = request.POST.get("quantity", "").strip()
         reason = request.POST.get("reason", "").strip()
 
