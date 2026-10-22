@@ -1,5 +1,18 @@
+{% load ui_tags %}
 <div id="wo-workflow-panel">
-  <header class="wo-detail-header"><div><p class="wo-eyebrow">WORK ORDER · {{ wo.order_number }}</p><h1>{{ wo.title }}</h1><p>{{ wo.site.code }} · {{ wo.site.name }}{% if wo.asset_reference %} · Asset {{ wo.asset_reference }}{% endif %}{% if wo.component_reference %} · Component {{ wo.component_reference }}{% endif %}</p></div><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span></header>
+  <header class="wo-detail-header">
+    <div>
+      <p class="wo-eyebrow">WORK ORDER · {{ wo.order_number }}</p>
+      <h1>{{ wo.title }}</h1>
+      <p class="mb-1">{{ wo.site.code }} · {{ wo.site.name }}{% if wo.asset_reference %} · Asset {{ wo.asset_reference }}{% endif %}{% if wo.component_reference %} · Component {{ wo.component_reference }}{% endif %}</p>
+      {% if wo.component %}
+        <div>{% hierarchy_trail wo.component %}</div>
+      {% elif wo.asset %}
+        <div>{% hierarchy_trail wo.asset %}</div>
+      {% endif %}
+    </div>
+    <span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span>
+  </header>
   <section class="wo-detail-card wo-workflow-card" id="workflow-actions">
     <div class="wo-workflow-intro"><div><p class="wo-eyebrow">STATUS</p><h2>Current status: {{ wo.get_status_display }}</h2></div><span class="wo-state state-{{ wo.status|lower }}">{{ wo.get_status_display }}</span></div>
     <div class="wo-status-track" aria-label="Documented work-order workflow">

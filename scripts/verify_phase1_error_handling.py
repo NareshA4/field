@@ -16,8 +16,11 @@ if sys.stdout.encoding != 'utf-8':
     except Exception:
         pass
 
-from dotenv import load_dotenv
-load_dotenv(BASE_DIR / ".env")
+try:
+    from dotenv import load_dotenv
+    load_dotenv(BASE_DIR / ".env")
+except ImportError:
+    pass
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.prod")
 import django
@@ -244,6 +247,7 @@ def run_phase1_verification():
         cur.execute("DELETE FROM assets_assetcomponent WHERE parent_id IN (SELECT id FROM assets_asset WHERE asset_tag LIKE %s) OR child_id IN (SELECT id FROM assets_asset WHERE asset_tag LIKE %s)", [f"%{run_id}%", f"%{run_id}%"])
         cur.execute("DELETE FROM assets_assetlocationhistory WHERE asset_id IN (SELECT id FROM assets_asset WHERE asset_tag LIKE %s)", [f"%{run_id}%"])
         cur.execute("DELETE FROM assets_assetstatushistory WHERE asset_id IN (SELECT id FROM assets_asset WHERE asset_tag LIKE %s)", [f"%{run_id}%"])
+        cur.execute("DELETE FROM identification_assetidentifier WHERE asset_id IN (SELECT id FROM assets_asset WHERE asset_tag LIKE %s)", [f"%{run_id}%"])
         cur.execute("DELETE FROM assets_asset WHERE asset_tag LIKE %s", [f"%{run_id}%"])
     print("  ✅ Cleaned up.")
 

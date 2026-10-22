@@ -36,6 +36,12 @@
 
     if (expandAllBtn) {
       expandAllBtn.addEventListener('click', function () {
+        wrapper.querySelectorAll('.fx-tree-expander[hx-get]').forEach(function (btn) {
+          if (window.htmx && !btn.dataset.lazyLoaded) {
+            btn.dataset.lazyLoaded = 'true';
+            htmx.trigger(btn, 'click');
+          }
+        });
         wrapper.querySelectorAll('.fx-tree-expander').forEach(function (btn) {
           btn.classList.remove('is-collapsed');
           btn.setAttribute('aria-expanded', 'true');

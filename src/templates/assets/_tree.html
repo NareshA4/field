@@ -21,6 +21,11 @@
     
     <div class="d-flex align-items-center gap-2 flex-wrap">
       <!-- View Density and Branch Toggles -->
+      {% if total_nodes and total_nodes > 50 %}
+        <span class="badge text-bg-light border small text-body-secondary d-none d-sm-inline-flex align-items-center gap-1" title="Progressive On-Demand Branching active for plant-scale assemblies">
+          {% icon 'layers' 11 %} {{ total_nodes }} nodes
+        </span>
+      {% endif %}
       <button type="button" class="btn btn-sm btn-outline-secondary" data-action="toggle-density" title="Toggle compact density">
         {% icon 'align-justify' 13 %} Compact
       </button>

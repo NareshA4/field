@@ -1091,6 +1091,20 @@ body.fx-app {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
+.fx-hierarchy-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1.15rem;
+  background: #F8FAFC;
+  border-bottom: 1px solid var(--fx-border);
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
 .fx-hierarchy-container {
   padding: 1rem 1.15rem 2rem;
   overflow-x: auto;
@@ -1110,7 +1124,7 @@ body.fx-app {
 }
 
 .fx-tree-branch {
-  padding-left: 1.75rem;
+  padding-left: 1.5rem;
   position: relative;
   margin-top: 0.4rem;
 }
@@ -1120,9 +1134,9 @@ body.fx-app {
   position: absolute;
   top: 0;
   bottom: 1.2rem;
-  left: 0.8rem;
-  width: 1.5px;
-  background: #CBD5E1;
+  left: 0.7rem;
+  width: 2px;
+  background: #94A3B8;
 }
 
 .fx-tree-node-item {
@@ -1134,23 +1148,25 @@ body.fx-app {
   content: "";
   position: absolute;
   top: 1.25rem;
-  left: -0.95rem;
-  width: 0.95rem;
-  height: 1.5px;
-  background: #CBD5E1;
+  left: -0.8rem;
+  width: 0.8rem;
+  height: 2px;
+  background: #94A3B8;
 }
 
 .fx-tree-node-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
   background: #FFFFFF;
   border: 1px solid var(--fx-border);
   border-left: 4px solid #94A3B8;
   border-radius: 8px;
   padding: 0.65rem 0.85rem;
   transition: all 0.12s ease;
+  min-width: 0;
 }
 
 .fx-tree-node-card:hover {
@@ -1201,7 +1217,8 @@ body.fx-app {
   color: var(--fx-text);
 }
 
-.fx-tree-expander.collapsed {
+.fx-tree-expander.collapsed,
+.fx-tree-expander.is-collapsed {
   transform: rotate(-90deg);
 }
 

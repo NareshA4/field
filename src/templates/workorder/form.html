@@ -5,7 +5,7 @@
 {% block content %}
 <nav aria-label="Breadcrumb" class="mb-3"><a href="{% url 'workorders:list' %}">Work Orders</a> <span class="text-secondary">/ {{ title }}</span></nav>
 <div class="wo-form-card">
-  <p class="wo-eyebrow">MODULE 6 · WORK ORDER</p><h1>{{ title }}</h1>
+  <p class="wo-eyebrow">WORK ORDER</p><h1>{{ title }}</h1>
   <form method="post" autocomplete="off" {% if title != "Create work order" %}data-workorder-date-validation{% endif %}>{% csrf_token %}
     {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
     <div class="wo-form-grid">

@@ -242,7 +242,7 @@ def _notify_transition(wo, action, actor):
 def get_work_order(membership, pk):
     try:
         return WorkOrder.objects.for_organization(membership.organization).select_related(
-            "site", "assigned_to__user", "created_by").get(pk=pk)
+            "site", "assigned_to__user", "created_by", "asset", "component").get(pk=pk)
     except WorkOrder.DoesNotExist as exc:
         raise NotFound("Work order not found.") from exc
 
