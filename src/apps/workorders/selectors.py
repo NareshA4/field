@@ -28,20 +28,57 @@ def work_orders_for(membership, organization):
 
 
 def work_order_list(membership, organization, params=None):
-    qs = WorkOrder.objects.for_organization(organization).select_related("site", "assigned_to__user")
+    qs = WorkOrder.objects.for_organization(organization).select_related(
+        "site", "assigned_to__user", "asset", "source_request"
+    )
     if not rbac.has_permission_anywhere(membership, "work_order.view"):
         from django.db.models import Q
         qs = qs.filter(Q(assigned_to=membership) | Q(assigned_to__isnull=True))
-    site_ids = [sid for sid in qs.values_list("site_id", flat=True).distinct()
-                if rbac.has_permission(membership, "work_order.view", sid) or
-                rbac.has_permission(membership, "work_order.view_assigned", sid)]
-    qs = qs.filter(site_id__in=site_ids)
+    scope = rbac.site_scope(membership, "work_order.view")
+    if not scope.all_sites:
+        scope_assigned = rbac.site_scope(membership, "work_order.view_assigned")
+        if not scope_assigned.all_sites:
+            allowed = set(scope.site_ids) | set(scope_assigned.site_ids)
+            qs = qs.filter(site_id__in=allowed)
     params = params or {}
     if params.get("status"):
         qs = qs.filter(status=params["status"])
     if params.get("q"):
         from django.db.models import Q
         qs = qs.filter(Q(order_number__icontains=params["q"]) | Q(title__icontains=params["q"]))
+    return qs
+
+
+def filter_work_orders(queryset, params, membership):
+    from django.db.models import Q
+    params = params or {}
+    qs = queryset
+    if params.get("status"):
+        qs = qs.filter(status=params["status"])
+    if params.get("work_type"):
+        qs = qs.filter(work_type=params["work_type"])
+    if params.get("priority"):
+        qs = qs.filter(priority=params["priority"])
+    if params.get("site"):
+        qs = qs.filter(site_id=params["site"])
+    if params.get("asset"):
+        qs = qs.filter(asset_id=params["asset"])
+    if params.get("assigned_to"):
+        qs = qs.filter(assigned_to_id=params["assigned_to"])
+    if params.get("mine") in ("1", "true", "True", True):
+        qs = qs.filter(assigned_to=membership)
+    if params.get("q"):
+        query = str(params["q"]).strip()
+        qs = qs.filter(Q(order_number__icontains=query) | Q(title__icontains=query) | Q(description__icontains=query))
+    ordering = params.get("ordering")
+    if ordering:
+        allowed_ordering = {
+            "created_at", "-created_at", "priority", "-priority",
+            "order_number", "-order_number", "planned_start", "-planned_start",
+            "due_date", "-due_date", "updated_at", "-updated_at"
+        }
+        if ordering in allowed_ordering:
+            qs = qs.order_by(ordering)
     return qs
 
 

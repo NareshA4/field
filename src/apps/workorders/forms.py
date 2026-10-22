@@ -162,8 +162,8 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
 
     def clean_title(self):
         title = self.cleaned_data["title"].strip()
-        if len(title) < 3:
-            raise ValidationError("Enter a clear title with at least 3 non-space characters.")
+        if not title or any(not (character.isalnum() or character.isspace() or character in "-_") for character in title):
+            raise ValidationError("Title can contain letters, numbers, hyphens, underscores, and spaces only.")
         return title
 
 class EditWorkOrderForm(BootstrapFormMixin, forms.Form):

@@ -5,8 +5,9 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied, ValidationError as DjangoValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
+from django.db import IntegrityError
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce
 from django.http import Http404, HttpResponse, QueryDict
@@ -24,6 +25,8 @@ from apps.ui.mixins import TenantPermissionMixin
 from . import services
 from .assignment_rules import available_technicians, schedule_warnings
 from .checklist_adapter import get_checklist_summary
+
+logger = logging.getLogger(__name__)
 from .forms import (
     AssignForm,
     ChecklistForm,
@@ -40,8 +43,6 @@ from .forms import (
     WorkUpdateForm,
 )
 from .models import WorkOrder, WorkOrderAssignment
-
-logger = logging.getLogger(__name__)
 
 
 def _site_zone(site):
@@ -643,19 +644,11 @@ class WorkOrderCreateView(TenantPermissionMixin, View):
 
     @staticmethod
     def _context(request, form):
-        sources = {}
-        for sr in form.fields["source_request"].queryset.select_related("reported_by__user"):
-            requester_name = "Unknown"
-            if sr.reported_by and getattr(sr.reported_by, "user", None):
-                requester_name = sr.reported_by.user.full_name or sr.reported_by.user.email or "Unknown"
-            sources[str(sr.pk)] = {
-                "kind": ("REQUEST" if sr.kind == "SERVICE_REQUEST" else "INCIDENT"),
-                "site": str(sr.site_id),
-                "asset": str(sr.asset_id),
-                "title": sr.title,
-                "description": sr.description,
-                "requester": requester_name,
-            }
+        sources = {str(sr.pk): {"kind": ("REQUEST" if sr.kind == "SERVICE_REQUEST" else "INCIDENT"),
+                    "site": str(sr.site_id), "asset": str(sr.asset_id), "title": sr.title,
+                    "description": sr.description,
+                    "requester": (sr.reported_by.user.full_name or sr.reported_by.user.email)}
+                   for sr in form.fields["source_request"].queryset.select_related("reported_by__user")}
         return {"form": form, "title": "Create work order", "submit": "Save Draft",
                 "source_metadata": sources,
                 "has_sites": form.fields["site"].queryset.exists(),
@@ -685,12 +678,31 @@ class WorkOrderCreateView(TenantPermissionMixin, View):
                         membership=request.membership, request=request,
                         asset=asset, component=component.child if component else None,
                         source_type=source_type, **values)
-            except (DomainError, DjangoValidationError) as exc:
-                msg = exc.message_dict if hasattr(exc, "message_dict") else getattr(exc, "message", str(exc))
-                form.add_error(None, msg)
+            except DomainError as exc:
+                form.add_error(None, exc.message)
+            except ValidationError as exc:
+                if hasattr(exc, "message_dict"):
+                    for field, msgs in exc.message_dict.items():
+                        field_name = field if field in form.fields else None
+                        for msg in msgs:
+                            form.add_error(field_name, msg)
+                elif hasattr(exc, "messages"):
+                    for msg in exc.messages:
+                        form.add_error(None, msg)
+                else:
+                    form.add_error(None, str(exc))
+            except IntegrityError as exc:
+                logger.exception("Database integrity error creating work order: %s", exc)
+                exc_str = str(exc)
+                if "source_request" in exc_str.lower() or "source_id" in exc_str.lower():
+                    form.add_error(None, "Could not create work order: a work order is already linked to this incident.")
+                elif "uniq_wo_number_org" in exc_str.lower() or "order_number" in exc_str.lower() or "uniq_work_order_number_per_org" in exc_str.lower():
+                    form.add_error(None, "Could not create work order: sequence number conflict. Please try saving again.")
+                else:
+                    form.add_error(None, f"Could not create work order: {exc_str.splitlines()[0] if exc_str else 'database integrity constraint error'}")
             except Exception as exc:
                 logger.exception("Unexpected error creating work order: %s", exc)
-                form.add_error(None, f"Unable to create work order: {exc}")
+                form.add_error(None, f"An unexpected error occurred while creating the work order: {exc}")
             else:
                 messages.success(request, f"Work order {wo.order_number} created as Draft.")
                 return redirect("workorders:detail", pk=wo.pk)
@@ -740,6 +752,23 @@ class WorkOrderEditView(TenantPermissionMixin, View):
                                                      request=request, **values)
             except DomainError as exc:
                 form.add_error(None, exc.message)
+            except ValidationError as exc:
+                if hasattr(exc, "message_dict"):
+                    for field, msgs in exc.message_dict.items():
+                        field_name = field if field in form.fields else None
+                        for msg in msgs:
+                            form.add_error(field_name, msg)
+                elif hasattr(exc, "messages"):
+                    for msg in exc.messages:
+                        form.add_error(None, msg)
+                else:
+                    form.add_error(None, str(exc))
+            except IntegrityError as exc:
+                logger.exception("Database integrity error updating work order: %s", exc)
+                form.add_error(None, "Could not update work order: a database conflict occurred.")
+            except Exception as exc:
+                logger.exception("Unexpected error updating work order: %s", exc)
+                form.add_error(None, f"An unexpected error occurred while updating the work order: {exc}")
             else:
                 messages.success(request, f"Work order {updated.order_number} updated.")
                 return redirect("workorders:detail", pk=updated.pk)
@@ -774,7 +803,6 @@ class WorkOrderDetailView(TenantPermissionMixin, View):
 
 
 TAB_TEMPLATES = {key: f"workorder/tabs/{key}.html" for key, _ in DETAIL_TABS}
-TAB_TEMPLATES["work"] = "workorder/tabs/parts.html"
 
 
 def _work_order_detail_context(request, wo, active_tab="overview"):
@@ -880,11 +908,8 @@ def _work_order_tab_context(wo, membership, tab):
     if tab == "assignment":
         context["assignment_events"] = wo.events.filter(action="assigned").select_related(
             "actor", "assigned_to__user")
-    elif tab in ("parts", "work"):
+    elif tab == "parts":
         context["material_entries"] = wo.material_entries.all()
-        from django.apps import apps
-        if apps.is_installed("apps.inventory"):
-            context["part_lines"] = wo.part_lines.select_related("part", "warehouse", "reservation")
     elif tab == "labor":
         context["labor_entries"] = wo.labor_entries.select_related("technician__user")
         context["labor_total"] = wo.labor_entries.aggregate(total=Sum("hours"))["total"] or 0
