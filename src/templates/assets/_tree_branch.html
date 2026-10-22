@@ -1,0 +1,8 @@
+{% load ui_tags %}
+{% for child in children %}
+  {% include "assets/_tree_node.html" with node=child current=current can_manage=can_manage %}
+{% empty %}
+  <li class="p-2 text-body-secondary small text-center list-unstyled">
+    No sub-components attached.
+  </li>
+{% endfor %}

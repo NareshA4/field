@@ -140,13 +140,13 @@ def run_verification():
     wo_comp = WorkOrder.objects.create(
         organization=org, site=site, asset=comp_asset,
         title="Bearing Lubrication and Calibration",
-        number="WO-P2-001", work_type="PREVENTIVE", priority="MEDIUM", status="PLANNED",
+        order_number="WO-P2-001", work_type="PREVENTIVE", priority="MEDIUM", status="PLANNED",
         created_by=user
     )
     wo_root = WorkOrder.objects.create(
         organization=org, site=site, asset=root_asset,
         title="Annual Line Overhaul",
-        number="WO-P2-002", work_type="CORRECTIVE", priority="HIGH", status="IN_PROGRESS",
+        order_number="WO-P2-002", work_type="CORRECTIVE", priority="HIGH", status="IN_PROGRESS",
         created_by=user
     )
 

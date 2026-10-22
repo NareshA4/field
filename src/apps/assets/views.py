@@ -104,6 +104,13 @@ class AssetHierarchyHubView(AssetBase):
             selected_root = roots_with_children.first()
 
         tree = hierarchy.build_tree(selected_root) if selected_root else None
+        total_nodes = len(hierarchy.flatten(tree)) if tree else 0
+        if tree and total_nodes > 50 and request.GET.get("full") != "1":
+            depth_param = request.GET.get("depth")
+            threshold = int(depth_param) if (depth_param and depth_param.isdigit()) else (1 if total_nodes > 200 else 2)
+            active_ids = {selected_root.pk}
+            _mark_lazy_nodes(tree, active_ids=active_ids, threshold_depth=threshold)
+
         can_manage = rbac.has_permission(m, "asset.hierarchy.manage", selected_root.site_id) if selected_root else False
 
         return render(request, "assets/hierarchy_hub.html", {
@@ -117,6 +124,7 @@ class AssetHierarchyHubView(AssetBase):
             "tree": tree,
             "can_manage": can_manage,
             "can_create": rbac.has_permission_anywhere(m, "asset.create"),
+            "total_nodes": total_nodes,
         })
 
 
@@ -432,15 +440,60 @@ class AssetDetailView(AssetBase):
         return ctx
 
 
+def _mark_lazy_nodes(node: dict, active_ids: set, threshold_depth: int = 2):
+    """Recursively marks sub-branches as lazy when their depth meets or exceeds threshold_depth,
+    unless the node is along the active traversal path of the focused asset."""
+    for child in node.get("children", []):
+        d = child.get("depth", 1)
+        if child.get("children"):
+            if d >= threshold_depth and child["asset"].pk not in active_ids:
+                child["is_lazy"] = True
+            else:
+                child["is_lazy"] = False
+                _mark_lazy_nodes(child, active_ids, threshold_depth=threshold_depth)
+
+
 class AssetTreeView(AssetBase):
     required_permission = "asset.view"
 
     def get(self, request, pk):
         asset = _asset(request, pk)
+        can = rbac.has_permission(request.membership, "asset.hierarchy.manage", asset.site_id)
+
+        # 1. On-demand HTMX branch expansion
+        if request.GET.get("branch") == "1":
+            current_pk = request.GET.get("current")
+            current = _asset(request, current_pk) if current_pk else asset
+            tree = hierarchy.build_tree(asset)
+            children = tree.get("children", [])
+            active_ids = {a.pk for a in hierarchy.ancestors(current)} | {current.pk}
+            for c in children:
+                if c.get("children") and c["asset"].pk not in active_ids:
+                    c["is_lazy"] = True
+            return render(request, "assets/_tree_branch.html", {
+                "children": children,
+                "current": current,
+                "can_manage": can,
+            })
+
+        # 2. Complete or progressive tree root view
         root = hierarchy.root_of(asset)
         tree = hierarchy.build_tree(root)
-        can = rbac.has_permission(request.membership, "asset.hierarchy.manage", asset.site_id)
-        return render(request, "assets/_tree.html", {"node": tree, "current": asset, "can_manage": can})
+        total_nodes = len(hierarchy.flatten(tree))
+
+        force_full = request.GET.get("full") == "1"
+        if not force_full and total_nodes > 50:
+            depth_param = request.GET.get("depth")
+            threshold = int(depth_param) if (depth_param and depth_param.isdigit()) else (1 if total_nodes > 200 else 2)
+            active_ids = {a.pk for a in hierarchy.ancestors(asset)} | {asset.pk}
+            _mark_lazy_nodes(tree, active_ids=active_ids, threshold_depth=threshold)
+
+        return render(request, "assets/_tree.html", {
+            "node": tree,
+            "current": asset,
+            "can_manage": can,
+            "total_nodes": total_nodes,
+        })
 
 
 # --- state-changing actions (POST only) -------------------------------------------------------------------------

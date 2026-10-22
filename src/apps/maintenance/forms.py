@@ -23,7 +23,7 @@ class PlanForm(BootstrapFormMixin, forms.Form):
     description = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
     priority = forms.ChoiceField(choices=[(p, p.title()) for p in PRIORITIES], initial="MEDIUM")
     estimated_hours = forms.DecimalField(required=False, min_value=0, max_digits=6, decimal_places=2)
-    checklist_key = forms.ChoiceField(required=False, label="Required checklist (M08)")
+    checklist_key = forms.ChoiceField(required=False, label="Required checklist")
 
     def __init__(self, *args, assets=None, checklist_keys=(), editing=False, **kwargs):
         super().__init__(*args, **kwargs)

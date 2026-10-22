@@ -46,7 +46,7 @@ class AgreementForm(BootstrapFormMixin, forms.Form):
     sla_terms = forms.CharField(max_length=300, required=False, label="Provider response terms")
     sla_profile = forms.ModelChoiceField(
         queryset=None, required=False, empty_label="(none - use the site / organization SLA)",
-        label="Internal SLA profile", help_text="Applied by M11 to requests / work orders on the covered assets.")
+        label="Internal SLA profile", help_text="Applied to requests / work orders on the covered assets.")
     renewal_alert_days = forms.IntegerField(min_value=0, max_value=365, initial=30, label="Renewal alert (days before end)")
 
     def __init__(self, *args, providers, sites, assets, sla_profiles, editing=False, **kwargs):

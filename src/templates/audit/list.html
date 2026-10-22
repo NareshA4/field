@@ -233,16 +233,16 @@
         <label class="form-label small fw-semibold text-body-secondary mb-1">Module</label>
         <select class="form-select form-select-sm" name="module" aria-label="Module">
           <option value="">All Modules</option>
-          <option value="workorders" {% if filters.module == "workorders" %}selected{% endif %}>Work Orders (M06/M07)</option>
-          <option value="assets" {% if filters.module == "assets" %}selected{% endif %}>Assets (M02/M03)</option>
-          <option value="incidents" {% if filters.module == "incidents" %}selected{% endif %}>Incidents &amp; Requests (M05)</option>
-          <option value="checklists" {% if filters.module == "checklists" %}selected{% endif %}>Checklists &amp; Inspections (M08)</option>
-          <option value="inventory" {% if filters.module == "inventory" %}selected{% endif %}>Inventory &amp; Stock (M09)</option>
-          <option value="contracts" {% if filters.module == "contracts" %}selected{% endif %}>Contracts &amp; Warranty (M10)</option>
-          <option value="sla" {% if filters.module == "sla" %}selected{% endif %}>SLA Management (M11)</option>
-          <option value="portal" {% if filters.module == "portal" %}selected{% endif %}>Client Portal (M13)</option>
+          <option value="workorders" {% if filters.module == "workorders" %}selected{% endif %}>Work Orders</option>
+          <option value="assets" {% if filters.module == "assets" %}selected{% endif %}>Assets</option>
+          <option value="incidents" {% if filters.module == "incidents" %}selected{% endif %}>Incidents &amp; Requests</option>
+          <option value="checklists" {% if filters.module == "checklists" %}selected{% endif %}>Checklists &amp; Inspections</option>
+          <option value="inventory" {% if filters.module == "inventory" %}selected{% endif %}>Inventory &amp; Stock</option>
+          <option value="contracts" {% if filters.module == "contracts" %}selected{% endif %}>Contracts &amp; Warranty</option>
+          <option value="sla" {% if filters.module == "sla" %}selected{% endif %}>SLA Management</option>
+          <option value="portal" {% if filters.module == "portal" %}selected{% endif %}>Client Portal</option>
           <option value="security" {% if filters.module == "security" %}selected{% endif %}>Security &amp; RBAC</option>
-          <option value="audit" {% if filters.module == "audit" %}selected{% endif %}>Audit &amp; Evidence (M15)</option>
+          <option value="audit" {% if filters.module == "audit" %}selected{% endif %}>Audit &amp; Evidence</option>
         </select>
       </div>
       <div class="col-6 col-md-2">

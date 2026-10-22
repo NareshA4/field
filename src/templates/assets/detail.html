@@ -211,7 +211,7 @@
     {% if can.asset_hierarchy_manage and not terminal %}
       <div class="fx-card mb-3">
         <div class="fx-card-header d-flex align-items-center gap-2">
-          {% icon 'plus' 15 %} Attach Child Component
+          {% icon 'plus' 15 %} Attach Child Component to <span class="badge text-bg-light border ms-1 font-monospace">{{ asset.asset_tag }}</span>
         </div>
         <div class="fx-card-body">
           <form method="post" action="{% url 'assets:component_add' asset.pk %}">{% csrf_token %}
