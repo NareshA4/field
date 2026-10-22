@@ -25,6 +25,32 @@
   </div>
 </div>
 
+<div class="card border-0 shadow-sm mb-3 bg-white px-3 py-2" style="border-radius:10px;">
+  <div class="d-flex flex-wrap align-items-center gap-4 text-secondary small">
+    <div class="d-flex align-items-center gap-2">
+      <span class="text-muted">Status:</span>
+      {% status_badge asset.status %}
+    </div>
+    <div class="vr my-1 d-none d-md-block text-muted opacity-25"></div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="text-muted">Site &amp; Zone:</span>
+      <span class="fw-semibold text-dark">{{ asset.site.code }}{% if asset.zone %} · {{ asset.zone.name }}{% endif %}</span>
+    </div>
+    <div class="vr my-1 d-none d-md-block text-muted opacity-25"></div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="text-muted">Category:</span>
+      <span class="fw-medium text-dark">{{ asset.category.name }}</span>
+    </div>
+    {% if asset.commission_date %}
+    <div class="vr my-1 d-none d-md-block text-muted opacity-25"></div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="text-muted">Commissioned:</span>
+      <span class="fw-medium text-dark">{{ asset.commission_date|date:"d M Y" }}</span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
 <div class="fx-tabs" role="tablist">
   {% for key, label in tabs %}
     <a role="tab" class="{% if tab == key %}active{% endif %}" href="?tab={{ key }}">{{ label }}</a>

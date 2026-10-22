@@ -1,0 +1,53 @@
+{% extends "public/base_public.html" %}
+{% load static ui_tags %}
+
+{% block title %}Enterprise Features — FieldOps Nexus{% endblock %}
+
+{% block public_content %}
+<div class="fx-pub-hero" style="padding: 3.5rem 1.5rem 4rem;">
+  <div class="fx-pub-hero-inner text-center">
+    <div class="fx-pub-pill">Capabilities Matrix</div>
+    <h1 class="fx-pub-hero-title">Core Platform Capabilities</h1>
+    <p class="fx-pub-hero-sub">
+      A comprehensive enterprise suite built for scale, compliance, and multi-tenant isolation.
+    </p>
+  </div>
+</div>
+
+<section class="fx-pub-section">
+  <div class="fx-pub-container">
+    <div class="fx-pub-grid-3">
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">{% icon 'shield' 24 %}</div>
+        <h3 class="fx-pub-card-title">Multi-Tenant Isolation</h3>
+        <p class="fx-pub-card-desc">Complete data isolation across organizational boundaries with strict row-level security and middleware tenancy enforcement.</p>
+      </div>
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">{% icon 'clock' 24 %}</div>
+        <h3 class="fx-pub-card-title">Real-Time SLA Engine</h3>
+        <p class="fx-pub-card-desc">Automated first-response, pause/resume rules during operational holds, and multi-tier escalation triggers backed by Celery.</p>
+      </div>
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">{% icon 'package' 24 %}</div>
+        <h3 class="fx-pub-card-title">Atomic Inventory Control</h3>
+        <p class="fx-pub-card-desc">Zero drift parts accounting with database-level concurrency locking and audit-backed stock transfers.</p>
+      </div>
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">{% icon 'list-check' 24 %}</div>
+        <h3 class="fx-pub-card-title">Inspection Checklists</h3>
+        <p class="fx-pub-card-desc">Configurable safety and quality templates with mandatory photographic evidence and pass/fail thresholds.</p>
+      </div>
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">{% icon 'git-branch' 24 %}</div>
+        <h3 class="fx-pub-card-title">Asset Parent-Child Hierarchy</h3>
+        <p class="fx-pub-card-desc">Multi-tiered equipment relationships with recursive lineage queries, component swappings, and rollup maintenance history.</p>
+      </div>
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">{% icon 'file-text' 24 %}</div>
+        <h3 class="fx-pub-card-title">Immutable Audit Trail</h3>
+        <p class="fx-pub-card-desc">Cryptographically verifiable, append-only operational log recording every state transition, user attribution, and IP address.</p>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

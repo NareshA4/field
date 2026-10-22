@@ -2,7 +2,8 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import include, path
 from django.views.generic import RedirectView
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from drf_spectacular.views import SpectacularSwaggerView
+from apps.core.schema_views import CachedSpectacularAPIView
 from rest_framework.routers import SimpleRouter
 
 from apps.assets.api_views import (
@@ -109,7 +110,7 @@ api_v1 = [
     path("", include("apps.workspace.api_urls")),
     path("", include("apps.dashboards.api_urls")),
     path("sla-metrics/", SLAMetricsView.as_view(), name="sla-metrics"),
-    path("schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("schema/", CachedSpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
 ]
 

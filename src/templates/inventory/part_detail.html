@@ -2,23 +2,124 @@
 {% load ui_tags %}
 {% block title %}{{ part.part_number }} · FieldOps Nexus{% endblock %}
 {% block content %}
-<div class="fx-page-header"><div>
-  <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'inventory:parts' %}">Parts</a></li><li class="breadcrumb-item active">{{ part.part_number }}</li></ol></nav>
-  <h1>{{ part.name }} {% if part.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}</h1>
-  <div class="text-body-secondary">{{ part.part_number }} · unit {{ part.unit }}</div></div>
-  {% if can_manage %}<div class="d-flex gap-2"><a class="btn btn-outline-primary" href="{% url 'inventory:part_edit' part.pk %}">Edit</a>
-    <form method="post" action="{% url 'inventory:part_active' part.pk %}" class="m-0">{% csrf_token %}<input type="hidden" name="active" value="{% if part.is_active %}0{% else %}1{% endif %}">
-      <button class="btn btn-outline-secondary" {% if part.is_active %}data-confirm="Deactivate this part? It can no longer be requested, reserved or issued."{% endif %}>{% if part.is_active %}Deactivate{% else %}Activate{% endif %}</button></form></div>{% endif %}</div>
-<div class="row g-3"><div class="col-lg-5"><div class="fx-card"><div class="fx-card-header">Details</div><div class="fx-card-body"><dl class="fx-kv">
-  <dt>Description</dt><dd>{{ part.description|default:"—"|linebreaksbr }}</dd>
-  <dt>Default minimum</dt><dd>{{ part.min_stock|floatformat:"-3"|default:"—" }}</dd><dt>Default maximum</dt><dd>{{ part.max_stock|floatformat:"-3"|default:"—" }}</dd>
-  <dt>Reorder quantity</dt><dd>{{ part.reorder_quantity|floatformat:"-3"|default:"—" }}</dd></dl></div></div></div>
-{% if can_view_stock %}
-<div class="col-lg-7"><div class="fx-card"><div class="fx-card-header"><span>Stock by warehouse</span><span class="small text-body-secondary">On hand {{ totals.on_hand|floatformat:"-3" }} · reserved {{ totals.reserved|floatformat:"-3" }} · available {{ totals.available|floatformat:"-3" }}</span></div>
-  <div class="table-responsive"><table class="table fx-table" id="part-stock"><thead><tr><th>Warehouse</th><th>On hand</th><th>Reserved</th><th>Available</th><th></th></tr></thead><tbody>
-  {% for b in balances %}<tr><td>{{ b.warehouse.code }} <span class="small text-body-secondary">{{ b.warehouse.site.code }}</span></td><td>{{ b.on_hand|floatformat:"-3" }}</td><td>{{ b.reserved|floatformat:"-3" }}</td><td>{{ b.available|floatformat:"-3" }}{% if b.is_low %} <span class="badge fx-badge fx-badge-warning">Low</span>{% endif %}</td><td><a href="{% url 'inventory:stock_detail' b.pk %}">Open</a></td></tr>
-  {% empty %}<tr><td colspan="5">{% include "components/_empty_state.html" with title="No stock" text="Receive stock to create a balance." %}</td></tr>{% endfor %}</tbody></table></div></div></div>
+<div class="fx-page-header">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item"><a href="{% url 'inventory:parts' %}">Parts</a></li>
+        <li class="breadcrumb-item active">{{ part.part_number }}</li>
+      </ol>
+    </nav>
+    <h1>{{ part.name }} {% if part.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}</h1>
+    <div class="text-body-secondary"><span class="fw-medium text-dark">{{ part.part_number }}</span> · Stock Unit: <span class="badge bg-light text-secondary border">{{ part.unit }}</span></div>
+  </div>
+  {% if can_manage %}
+    <div class="d-flex gap-2 align-items-center">
+      <a class="btn btn-outline-primary" href="{% url 'inventory:part_edit' part.pk %}">
+        {% icon 'edit-2' 14 %} Edit
+      </a>
+      <form method="post" action="{% url 'inventory:part_active' part.pk %}" class="m-0">
+        {% csrf_token %}
+        <input type="hidden" name="active" value="{% if part.is_active %}0{% else %}1{% endif %}">
+        <button class="btn btn-outline-secondary" {% if part.is_active %}data-confirm="Deactivate this part? It can no longer be requested, reserved or issued."{% endif %}>
+          {% if part.is_active %}Deactivate{% else %}Activate{% endif %}
+        </button>
+      </form>
+    </div>
+  {% endif %}
 </div>
-<div class="fx-card mt-3"><div class="fx-card-header">Recent movements</div>{% include "inventory/_movement_table.html" with rows=movements %}</div>
-{% else %}</div>{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm mb-3 bg-white" style="border-radius:10px;">
+      <div class="card-header bg-light border-bottom text-secondary small fw-semibold text-uppercase tracking-wider">
+        Part Specifications
+      </div>
+      <div class="card-body">
+        <dl class="fx-kv mb-0">
+          <dt>Part Number</dt>
+          <dd class="fw-bold font-monospace text-dark">{{ part.part_number }}</dd>
+          <dt>Name</dt>
+          <dd class="fw-medium text-dark">{{ part.name }}</dd>
+          <dt>Unit</dt>
+          <dd>{{ part.unit }}</dd>
+          <dt>Description</dt>
+          <dd>{{ part.description|default:"—"|linebreaksbr }}</dd>
+          <dt>Default Minimum</dt>
+          <dd class="font-monospace">{{ part.min_stock|floatformat:"-3"|default:"—" }}</dd>
+          <dt>Default Maximum</dt>
+          <dd class="font-monospace">{{ part.max_stock|floatformat:"-3"|default:"—" }}</dd>
+          <dt>Reorder Quantity</dt>
+          <dd class="font-monospace text-dark fw-medium">{{ part.reorder_quantity|floatformat:"-3"|default:"—" }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  {% if can_view_stock %}
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm mb-3 bg-white overflow-hidden" style="border-radius:10px;">
+        <div class="card-header bg-light border-bottom d-flex justify-content-between align-items-center">
+          <span class="text-secondary small fw-semibold text-uppercase tracking-wider">Stock by Warehouse</span>
+          <span class="small text-secondary">
+            On hand: <strong class="text-dark">{{ totals.on_hand|floatformat:"-3" }}</strong> · 
+            Reserved: <strong class="text-secondary">{{ totals.reserved|floatformat:"-3" }}</strong> · 
+            Available: <strong class="text-success">{{ totals.available|floatformat:"-3" }}</strong>
+          </span>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" id="part-stock">
+            <thead class="table-light text-secondary small text-uppercase fw-semibold border-bottom">
+              <tr>
+                <th style="padding: 0.65rem 1rem;">Warehouse</th>
+                <th style="padding: 0.65rem 1rem;">On Hand</th>
+                <th style="padding: 0.65rem 1rem;">Reserved</th>
+                <th style="padding: 0.65rem 1rem;">Available</th>
+                <th style="padding: 0.65rem 1rem; width: 80px;" class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for b in balances %}
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 0.65rem 1rem;">
+                    <span class="fw-semibold text-dark">{{ b.warehouse.code }}</span>
+                    <span class="small text-muted ms-1">({{ b.warehouse.site.code }})</span>
+                  </td>
+                  <td style="padding: 0.65rem 1rem;" class="font-monospace fw-medium text-dark">{{ b.on_hand|floatformat:"-3" }}</td>
+                  <td style="padding: 0.65rem 1rem;" class="font-monospace text-secondary">{{ b.reserved|floatformat:"-3" }}</td>
+                  <td style="padding: 0.65rem 1rem;">
+                    <span class="font-monospace fw-bold {% if b.is_low %}text-danger{% else %}text-success{% endif %}">
+                      {{ b.available|floatformat:"-3" }}
+                    </span>
+                    {% if b.is_low %}
+                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1">Low</span>
+                    {% endif %}
+                  </td>
+                  <td style="padding: 0.65rem 1rem;" class="text-end">
+                    <a class="btn btn-sm btn-outline-primary py-0 px-2" href="{% url 'inventory:stock_detail' b.pk %}">Open</a>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="5" class="py-4">
+                    {% include "components/_empty_state.html" with title="No stock" text="Receive stock into a warehouse to create a balance." %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mt-3 bg-white overflow-hidden" style="border-radius:10px;">
+  <div class="card-header bg-light border-bottom text-secondary small fw-semibold text-uppercase tracking-wider">
+    Recent Stock Movements
+  </div>
+  {% include "inventory/_movement_table.html" with rows=movements %}
+</div>
+{% else %}
+</div>
+{% endif %}
 {% endblock %}

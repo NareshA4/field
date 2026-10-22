@@ -113,6 +113,11 @@
           </a>
           {% endif %}
 
+          <button type="button" class="btn btn-outline-danger d-inline-flex align-items-center gap-1 shadow-sm"
+                  data-bs-toggle="modal" data-bs-target="#reportAuxiliaryDefectModal" id="btnReportDefect">
+            {% icon 'alert-triangle' 16 %} Report Defect
+          </button>
+
           <button class="btn btn-outline-secondary"
                   hx-get="{% url 'workspace:drawer' work_order.pk %}"
                   hx-target="#drawer-content"
@@ -128,6 +133,46 @@
   <div class="row g-4">
     <!-- Left Column: Site & Route, Asset, Checklists, Photos & Evidence, Notes -->
     <div class="col-12 col-lg-7">
+
+      <!-- On-Site Auxiliary Defects / Incidents Card (Add-On 5) -->
+      {% if has_auxiliary_defects %}
+      <div class="card mb-4 border-0 shadow-sm" id="auxiliaryDefectsSection">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+          <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2 text-danger">
+            {% icon 'alert-triangle' 18 %} Reported On-Site Defects ({{ auxiliary_defects|length }})
+          </h5>
+          <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#reportAuxiliaryDefectModal">
+            + Report Another
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="list-group list-group-flush">
+            {% for defect in auxiliary_defects %}
+            <div class="list-group-item p-3">
+              <div class="d-flex justify-content-between align-items-start mb-1">
+                <div>
+                  <span class="badge {% if defect.severity == 'CRITICAL' %}bg-danger{% elif defect.severity == 'HIGH' %}bg-warning text-dark{% elif defect.severity == 'MEDIUM' %}bg-info text-dark{% else %}bg-secondary{% endif %} me-1">
+                    {{ defect.get_severity_display }}
+                  </span>
+                  <a href="{% url 'incidents:detail' defect.pk %}" class="fw-bold text-dark text-decoration-none">
+                    {{ defect.number }}: {{ defect.title }}
+                  </a>
+                </div>
+                <span class="badge bg-light text-dark border">{{ defect.get_status_display }}</span>
+              </div>
+              <div class="small text-secondary mb-1">
+                Asset: <strong>{{ defect.asset.asset_tag }} — {{ defect.asset.name }}</strong>
+                &bull; Reported: {{ defect.created_at|date:"M j, H:i" }} by {{ defect.reported_by.user.display_name }}
+              </div>
+              {% if defect.description %}
+              <div class="small text-muted bg-light p-2 rounded border" style="white-space: pre-line;">{{ defect.description }}</div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
 
       <!-- Site & Route Guidance Card -->
       <div class="card mb-4 border-0 shadow-sm">
@@ -197,9 +242,15 @@
           <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
             {% icon 'box' 18 %} Target Asset Context
           </h5>
-          <a href="{% url 'assets:detail' work_order.asset.pk %}" class="btn btn-sm btn-outline-secondary">
-            View Asset Master
-          </a>
+          <div class="d-flex gap-2">
+            <a href="{% url 'identification:scan' %}?work_order={{ work_order.pk }}" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 shadow-sm" id="btnVerifyAsset">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+              Verify Machine (Scan)
+            </a>
+            <a href="{% url 'assets:detail' work_order.asset.pk %}" class="btn btn-sm btn-outline-secondary">
+              View Asset Master
+            </a>
+          </div>
         </div>
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start mb-3">
@@ -238,6 +289,100 @@
               <strong>{{ work_order.asset.warranty_ref|default:"None" }}</strong>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Equipment Meters & Usage Tracking (PRD Section 3.3) -->
+      <div class="card mb-4 border-0 shadow-sm" id="meters-section">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+          <h5 class="h6 mb-0 fw-bold d-flex align-items-center gap-2">
+            {% icon 'clock' 18 %} Equipment Meters &amp; Usage Tracking
+          </h5>
+          {% if has_meters %}
+          <span class="badge bg-success-subtle text-success border border-success-subtle">
+            {{ meters|length }} Active Meter{{ meters|length|pluralize }}
+          </span>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          {% if has_meters %}
+          <div class="table-responsive mb-3">
+            <table class="table table-sm table-hover align-middle mb-0">
+              <thead class="table-light small text-secondary">
+                <tr>
+                  <th>Meter / Counter</th>
+                  <th>Current Reading</th>
+                  <th>Last Recorded</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody class="small">
+                {% for m in meters %}
+                <tr>
+                  <td class="fw-semibold text-dark">{{ m.name }}</td>
+                  <td>
+                    {% if m.latest_value is not None %}
+                      <span class="badge bg-primary-subtle text-primary border font-monospace fs-6">
+                        {{ m.latest_value }} {{ m.unit }}
+                      </span>
+                    {% else %}
+                      <span class="text-muted fst-italic">No readings yet</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-secondary">
+                    {% if m.latest_read_at %}
+                      {{ m.latest_read_at|date:"M j, Y H:i" }}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
+                  <td class="text-muted text-truncate" style="max-width: 180px;">
+                    {{ m.latest_notes|default:"—" }}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Quick Log Meter Reading Form -->
+          <div class="border rounded p-3 bg-light">
+            <h6 class="small fw-bold text-uppercase text-secondary mb-2 d-flex align-items-center gap-1">
+              {% icon 'plus' 14 %} Log New Meter Reading
+            </h6>
+            <form method="post" action="{% url 'workspace:meter_reading' work_order.pk %}" class="row g-2 align-items-end">
+              {% csrf_token %}
+              <div class="col-12 col-md-4">
+                <label class="form-label small fw-semibold text-secondary mb-1">Target Meter *</label>
+                <select name="meter_id" class="form-select form-select-sm" required id="id_meter_select">
+                  {% for m in meters %}
+                  <option value="{{ m.id }}">
+                    {{ m.name }} ({{ m.unit }}){% if m.latest_value is not None %} — Current: {{ m.latest_value }}{% endif %}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label small fw-semibold text-secondary mb-1">Reading Value *</label>
+                <input type="number" step="0.01" min="0" name="value" class="form-control form-control-sm font-monospace" placeholder="e.g. 1250.5" required id="id_meter_value">
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label small fw-semibold text-secondary mb-1">Notes / Remarks</label>
+                <input type="text" name="notes" class="form-control form-control-sm" placeholder="e.g. Regular shift check" id="id_meter_notes">
+              </div>
+              <div class="col-12 col-md-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100 fw-semibold" id="btn_record_meter">
+                  {% icon 'check' 14 %} Log
+                </button>
+              </div>
+            </form>
+          </div>
+          {% else %}
+          <div class="text-center py-3 text-muted small">
+            <div class="mb-1">{% icon 'clock' 24 %}</div>
+            <div>No active meters or usage counters configured for this asset master.</div>
+          </div>
+          {% endif %}
         </div>
       </div>
       {% endif %}
@@ -487,55 +632,131 @@
         </div>
         <div class="card-body">
           {% if has_consumable_parts %}
-          <form method="post" action="{% url 'workspace:consume_part' work_order.pk %}" id="parts-consumption-form" class="mb-4">
-            {% csrf_token %}
-            <div class="mb-2">
-              <label for="part-line-select" class="form-label small fw-semibold">Select Reserved / Issued Part *</label>
-              <select name="part_line_id" id="part-line-select" class="form-select form-select-sm" required>
-                {% for line in consumable_parts %}
-                <option value="{{ line.pk }}"
-                        data-max="{{ line.outstanding }}"
-                        data-unit="{{ line.part.unit }}"
-                        data-name="{{ line.part.name }}"
-                        data-code="{{ line.part.part_number }}"
-                        data-wh="{{ line.warehouse.name|default:line.warehouse.code }}"
-                        {% if forloop.first %}selected{% endif %}>
-                  {{ line.part.part_number }} — {{ line.part.name }} (Outstanding: {{ line.outstanding|floatformat:"-3" }} {{ line.part.unit }})
-                </option>
-                {% endfor %}
-              </select>
-            </div>
+          <ul class="nav nav-pills nav-fill mb-3 p-1 bg-light rounded" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active py-1 px-3 small fw-semibold" id="tab-consume" data-bs-toggle="pill" data-bs-target="#pane-consume" type="button" role="tab">
+                {% icon 'check-circle' 14 %} Record Consumed
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link py-1 px-3 small fw-semibold text-warning-emphasis" id="tab-return" data-bs-toggle="pill" data-bs-target="#pane-return" type="button" role="tab">
+                {% icon 'rotate-ccw' 14 %} Return Unused to Stores
+              </button>
+            </li>
+          </ul>
 
-            <div class="p-2 mb-3 bg-light rounded border small" id="part-selection-summary">
-              <div class="d-flex justify-content-between">
-                <span class="text-secondary">Warehouse:</span>
-                <span class="fw-semibold" id="summary-wh">{% with first_part=consumable_parts.0 %}{{ first_part.warehouse.name|default:first_part.warehouse.code|default:"-" }}{% endwith %}</span>
-              </div>
-              <div class="d-flex justify-content-between mt-1">
-                <span class="text-secondary">Available Outstanding:</span>
-                <span class="fw-bold text-primary" id="summary-outstanding">{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:"-3" }} {{ first_part.part.unit }}{% endwith %}</span>
-              </div>
-            </div>
-
-            <div class="row g-2 mb-3">
-              <div class="col-8">
-                <label for="part-quantity-input" class="form-label small fw-semibold">Quantity Used *</label>
-                <div class="input-group input-group-sm">
-                  <input type="number" step="0.001" min="0.001" name="quantity" id="part-quantity-input" class="form-control form-control-sm" required placeholder="0.000" value="{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:'-3' }}{% endwith %}">
-                  <span class="input-group-text" id="part-unit-label">{{ consumable_parts.0.part.unit|default:"ea" }}</span>
+          <div class="tab-content mb-4">
+            <!-- Consume Form Pane -->
+            <div class="tab-pane fade show active" id="pane-consume" role="tabpanel">
+              <form method="post" action="{% url 'workspace:consume_part' work_order.pk %}" id="parts-consumption-form">
+                {% csrf_token %}
+                <div class="mb-2">
+                  <label for="part-line-select" class="form-label small fw-semibold">Select Reserved / Issued Part *</label>
+                  <select name="part_line_id" id="part-line-select" class="form-select form-select-sm" required>
+                    {% for line in consumable_parts %}
+                    <option value="{{ line.pk }}"
+                            data-max="{{ line.outstanding }}"
+                            data-unit="{{ line.part.unit }}"
+                            data-name="{{ line.part.name }}"
+                            data-code="{{ line.part.part_number }}"
+                            data-wh="{{ line.warehouse.name|default:line.warehouse.code }}"
+                            {% if forloop.first %}selected{% endif %}>
+                      {{ line.part.part_number }} — {{ line.part.name }} (Outstanding: {{ line.outstanding|floatformat:"-3" }} {{ line.part.unit }})
+                    </option>
+                    {% endfor %}
+                  </select>
                 </div>
-              </div>
-              <div class="col-4 d-flex align-items-end">
-                <button type="button" class="btn btn-sm btn-outline-secondary w-100" id="btn-use-all">
-                  Use All
+
+                <div class="p-2 mb-3 bg-light rounded border small" id="part-selection-summary">
+                  <div class="d-flex justify-content-between">
+                    <span class="text-secondary">Warehouse:</span>
+                    <span class="fw-semibold" id="summary-wh">{% with first_part=consumable_parts.0 %}{{ first_part.warehouse.name|default:first_part.warehouse.code|default:"-" }}{% endwith %}</span>
+                  </div>
+                  <div class="d-flex justify-content-between mt-1">
+                    <span class="text-secondary">Available Outstanding:</span>
+                    <span class="fw-bold text-primary" id="summary-outstanding">{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:"-3" }} {{ first_part.part.unit }}{% endwith %}</span>
+                  </div>
+                </div>
+
+                <div class="row g-2 mb-3">
+                  <div class="col-8">
+                    <label for="part-quantity-input" class="form-label small fw-semibold">Quantity Used *</label>
+                    <div class="input-group input-group-sm">
+                      <input type="number" step="0.001" min="0.001" name="quantity" id="part-quantity-input" class="form-control form-control-sm" required placeholder="0.000" value="{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:'-3' }}{% endwith %}">
+                      <span class="input-group-text" id="part-unit-label">{{ consumable_parts.0.part.unit|default:"ea" }}</span>
+                    </div>
+                  </div>
+                  <div class="col-4 d-flex align-items-end">
+                    <button type="button" class="btn btn-sm btn-outline-secondary w-100" id="btn-use-all">
+                      Use All
+                    </button>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold" id="btn-confirm-consumption">
+                  {% icon 'check' 14 %} Confirm Quantity Used
                 </button>
-              </div>
+              </form>
             </div>
 
-            <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold" id="btn-confirm-consumption">
-              {% icon 'check' 14 %} Confirm Quantity Used
-            </button>
-          </form>
+            <!-- Return Form Pane -->
+            <div class="tab-pane fade" id="pane-return" role="tabpanel">
+              <form method="post" action="{% url 'workspace:return_part' work_order.pk %}" id="parts-return-form">
+                {% csrf_token %}
+                <div class="mb-2">
+                  <label for="return-part-line-select" class="form-label small fw-semibold">Select Issued Part to Return *</label>
+                  <select name="part_line_id" id="return-part-line-select" class="form-select form-select-sm" required>
+                    {% for line in consumable_parts %}
+                    <option value="{{ line.pk }}"
+                            data-max="{{ line.outstanding }}"
+                            data-unit="{{ line.part.unit }}"
+                            data-name="{{ line.part.name }}"
+                            data-code="{{ line.part.part_number }}"
+                            data-wh="{{ line.warehouse.name|default:line.warehouse.code }}"
+                            {% if forloop.first %}selected{% endif %}>
+                      {{ line.part.part_number }} — {{ line.part.name }} (Outstanding: {{ line.outstanding|floatformat:"-3" }} {{ line.part.unit }})
+                    </option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="p-2 mb-3 bg-light rounded border small" id="return-part-selection-summary">
+                  <div class="d-flex justify-content-between">
+                    <span class="text-secondary">Destination Warehouse:</span>
+                    <span class="fw-semibold" id="return-summary-wh">{% with first_part=consumable_parts.0 %}{{ first_part.warehouse.name|default:first_part.warehouse.code|default:"-" }}{% endwith %}</span>
+                  </div>
+                  <div class="d-flex justify-content-between mt-1">
+                    <span class="text-secondary">Returnable Outstanding:</span>
+                    <span class="fw-bold text-warning-emphasis" id="return-summary-outstanding">{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:"-3" }} {{ first_part.part.unit }}{% endwith %}</span>
+                  </div>
+                </div>
+
+                <div class="row g-2 mb-2">
+                  <div class="col-8">
+                    <label for="return-part-quantity-input" class="form-label small fw-semibold">Quantity to Return *</label>
+                    <div class="input-group input-group-sm">
+                      <input type="number" step="0.001" min="0.001" name="quantity" id="return-part-quantity-input" class="form-control form-control-sm" required placeholder="0.000" value="{% with first_part=consumable_parts.0 %}{{ first_part.outstanding|floatformat:'-3' }}{% endwith %}">
+                      <span class="input-group-text" id="return-part-unit-label">{{ consumable_parts.0.part.unit|default:"ea" }}</span>
+                    </div>
+                  </div>
+                  <div class="col-4 d-flex align-items-end">
+                    <button type="button" class="btn btn-sm btn-outline-secondary w-100" id="btn-return-all">
+                      Return All
+                    </button>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="return-reason-input" class="form-label small fw-semibold">Return Reason / Notes</label>
+                  <input type="text" name="reason" id="return-reason-input" class="form-control form-control-sm" placeholder="e.g. Unused surplus, packaging intact, job completed">
+                </div>
+
+                <button type="submit" class="btn btn-sm btn-warning w-100 fw-bold" id="btn-confirm-return">
+                  {% icon 'rotate-ccw' 14 %} Return Unused to Stores
+                </button>
+              </form>
+            </div>
+          </div>
           {% elif part_lines %}
             <div class="alert alert-light border small text-muted mb-3 d-flex align-items-center gap-2">
               {% icon 'check-circle' 16 %} All warehouse parts allocated for this job have been consumed or returned.
@@ -546,7 +767,7 @@
             </div>
           {% endif %}
 
-          <!-- Consumed / Issued Parts Table Summary -->
+          <!-- Consumed / Issued / Returned Parts Table Summary -->
           {% if part_lines %}
           <div class="border-top pt-3">
             <div class="small fw-bold text-uppercase text-secondary mb-2">Allocated Parts Ledger</div>
@@ -558,6 +779,7 @@
                     <th class="text-end">Req</th>
                     <th class="text-end">Issued</th>
                     <th class="text-end">Used</th>
+                    <th class="text-end">Returned</th>
                     <th class="text-end">Outstanding</th>
                     <th class="text-center">Status</th>
                   </tr>
@@ -572,9 +794,10 @@
                     <td class="text-end">{{ ln.quantity_requested|floatformat:"-3" }}</td>
                     <td class="text-end">{{ ln.quantity_issued|floatformat:"-3" }}</td>
                     <td class="text-end text-success fw-bold">{{ ln.quantity_consumed|floatformat:"-3" }}</td>
+                    <td class="text-end {% if ln.quantity_returned > 0 %}text-info fw-bold{% else %}text-muted{% endif %}">{{ ln.quantity_returned|floatformat:"-3" }}</td>
                     <td class="text-end {% if ln.outstanding > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">{{ ln.outstanding|floatformat:"-3" }}</td>
                     <td class="text-center">
-                      <span class="badge {% if ln.status == 'CONSUMED' %}bg-success{% elif ln.status == 'ISSUED' %}bg-primary{% elif ln.status == 'RESERVED' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+                      <span class="badge {% if ln.status == 'CONSUMED' %}bg-success{% elif ln.status == 'RETURNED' %}bg-info text-dark{% elif ln.status == 'ISSUED' %}bg-primary{% elif ln.status == 'RESERVED' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
                         {{ ln.status }}
                       </span>
                     </td>
@@ -728,6 +951,106 @@
     </div>
   </div>
 </div>
+
+<!-- Modal: Report Auxiliary Defect / Service Request (Add-On 5) -->
+<div class="modal fade" id="reportAuxiliaryDefectModal" tabindex="-1" aria-labelledby="reportAuxiliaryDefectModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <form method="post" action="{% url 'workspace:report_defect' work_order.pk %}" id="reportDefectForm">
+        {% csrf_token %}
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title h6 fw-bold mb-0 d-flex align-items-center gap-2" id="reportAuxiliaryDefectModalLabel">
+            {% icon 'alert-triangle' 20 %} Report Auxiliary Defect / Breakdown
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="alert alert-light border small text-secondary mb-3">
+            Noticed an auxiliary equipment fault, fluid leak, abnormal noise, or safety hazard while on-site?
+            Raise an authoritative M05 Service Request directly tied to <strong>{{ route.site_name }}</strong> ({{ route.site_code }}).
+          </div>
+
+          <!-- Target Asset -->
+          <div class="mb-3">
+            <label for="defect-asset-select" class="form-label small fw-bold">Affected Asset *</label>
+            <select name="asset_id" id="defect-asset-select" class="form-select form-select-sm" required>
+              {% if work_order.asset %}
+              <option value="{{ work_order.asset.pk }}" selected>
+                {{ work_order.asset.asset_tag }} — {{ work_order.asset.name }} (Current Work Order Asset)
+              </option>
+              {% endif %}
+              {% for sa in site_assets %}
+                {% if not work_order.asset or sa.pk != work_order.asset.pk %}
+                <option value="{{ sa.pk }}">
+                  {{ sa.asset_tag }} — {{ sa.name }}{% if sa.zone %} [Zone: {{ sa.zone.name }}]{% endif %}
+                </option>
+                {% endif %}
+              {% endfor %}
+            </select>
+            <div class="form-text small">Lists all active equipment located at {{ route.site_name }}.</div>
+          </div>
+
+          <!-- Defect Title -->
+          <div class="mb-3">
+            <label for="defect-title-input" class="form-label small fw-bold">Defect / Fault Summary *</label>
+            <input type="text" name="title" id="defect-title-input" class="form-control form-control-sm" required minlength="3" maxlength="200"
+                   placeholder="e.g. Auxiliary cooling line hydraulic leak, abnormal bearing vibration">
+          </div>
+
+          <!-- Kind & Severity & Impact -->
+          <div class="row g-2 mb-3">
+            <div class="col-12 col-md-4">
+              <label for="defect-kind-select" class="form-label small fw-bold">Type</label>
+              <select name="kind" id="defect-kind-select" class="form-select form-select-sm">
+                <option value="INCIDENT" selected>Incident / Breakdown</option>
+                <option value="SERVICE_REQUEST">Service Request</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-4">
+              <label for="defect-severity-select" class="form-label small fw-bold">Severity</label>
+              <select name="severity" id="defect-severity-select" class="form-select form-select-sm">
+                <option value="LOW">Low</option>
+                <option value="MEDIUM" selected>Medium</option>
+                <option value="HIGH">High</option>
+                <option value="CRITICAL">Critical</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-4">
+              <label for="defect-impact-select" class="form-label small fw-bold">Service Impact</label>
+              <select name="service_impact" id="defect-impact-select" class="form-select form-select-sm">
+                <option value="NONE" selected>No Service Impact</option>
+                <option value="DEGRADED">Degraded Performance</option>
+                <option value="PARTIAL_OUTAGE">Partial Outage</option>
+                <option value="FULL_OUTAGE">Full Plant Outage</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Failure Category -->
+          <div class="mb-3">
+            <label for="defect-category-input" class="form-label small fw-bold">Failure Category (Optional)</label>
+            <input type="text" name="failure_category" id="defect-category-input" class="form-control form-control-sm" maxlength="100"
+                   placeholder="e.g. Mechanical, Electrical, Hydraulic, Piping, Instrumentation">
+          </div>
+
+          <!-- Detailed Observations -->
+          <div class="mb-3">
+            <label for="defect-description-input" class="form-label small fw-bold">Detailed Observations &amp; Immediate Action Taken</label>
+            <textarea name="description" id="defect-description-input" class="form-control form-control-sm" rows="3"
+                      placeholder="Describe visual symptoms, fluid leak origin, containment actions applied, or parts required..."></textarea>
+            <div class="form-text small text-muted">A reference to work order {{ work_order.order_number }} will be attached automatically.</div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light p-3">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-danger fw-bold d-inline-flex align-items-center gap-1 shadow-sm" id="btnSubmitDefect">
+            {% icon 'alert-triangle' 16 %} Submit Defect Report
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -769,6 +1092,47 @@ document.addEventListener('DOMContentLoaded', function() {
       var opt = partSelect.options[partSelect.selectedIndex];
       if (opt) {
         qtyInput.value = opt.getAttribute('data-max') || '';
+      }
+    });
+  }
+
+  // Return Part Dropdown Synchronization
+  var returnPartSelect = document.getElementById('return-part-line-select');
+  var returnQtyInput = document.getElementById('return-part-quantity-input');
+  var returnUnitLabel = document.getElementById('return-part-unit-label');
+  var btnReturnAll = document.getElementById('btn-return-all');
+  var returnSummaryWh = document.getElementById('return-summary-wh');
+  var returnSummaryOutstanding = document.getElementById('return-summary-outstanding');
+
+  function updateReturnSelectedPart() {
+    if (!returnPartSelect) return;
+    var opt = returnPartSelect.options[returnPartSelect.selectedIndex];
+    if (!opt) return;
+    var maxVal = opt.getAttribute('data-max') || '1';
+    var unit = opt.getAttribute('data-unit') || 'ea';
+    var wh = opt.getAttribute('data-wh') || '-';
+
+    if (returnQtyInput) {
+      returnQtyInput.max = maxVal;
+      if (!returnQtyInput.value || parseFloat(returnQtyInput.value) > parseFloat(maxVal)) {
+        returnQtyInput.value = maxVal;
+      }
+    }
+    if (returnUnitLabel) returnUnitLabel.textContent = unit;
+    if (returnSummaryWh) returnSummaryWh.textContent = wh;
+    if (returnSummaryOutstanding) returnSummaryOutstanding.textContent = maxVal + ' ' + unit;
+  }
+
+  if (returnPartSelect) {
+    returnPartSelect.addEventListener('change', updateReturnSelectedPart);
+    updateReturnSelectedPart();
+  }
+
+  if (btnReturnAll && returnPartSelect && returnQtyInput) {
+    btnReturnAll.addEventListener('click', function() {
+      var opt = returnPartSelect.options[returnPartSelect.selectedIndex];
+      if (opt) {
+        returnQtyInput.value = opt.getAttribute('data-max') || '';
       }
     });
   }

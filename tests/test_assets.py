@@ -553,3 +553,56 @@ def test_transaction_rollback_on_failed_asset_creation(org_a, site_a1, make_cate
     assert Asset.objects.filter(organization=org_a).count() == initial_count
     assert AssetStatusHistory.objects.filter(organization=org_a).count() == initial_history
 
+
+
+# ===================================================================================================
+# 10. UI/UX FORM VALIDATION & FIELD HIGHLIGHTING
+# ===================================================================================================
+
+
+def test_asset_form_tag_error_highlights_field(org_a, site_a1, make_category, make_asset):
+    from apps.assets.forms import AssetForm
+
+    cat = make_category(org_a, "Pumps")
+    make_asset(org_a, site_a1, "PUMP-DUP-1")
+
+    form = AssetForm(
+        data={
+            "asset_tag": "PUMP-DUP-1",
+            "name": "Duplicate Pump",
+            "category": str(cat.pk),
+            "site": str(site_a1.pk),
+        },
+        sites=site_a1.__class__.objects.filter(pk=site_a1.pk),
+        org=org_a,
+    )
+    assert not form.is_valid()
+    assert "asset_tag" in form.errors
+    assert "An asset with this tag already exists." in form.errors["asset_tag"]
+    assert "is-invalid" in form.fields["asset_tag"].widget.attrs.get("class", "")
+
+
+def test_asset_create_ui_view_highlights_invalid_asset_tag(client, org_a, site_a1, make_category, make_asset, owner_a):
+    cat = make_category(org_a, "Motors")
+    make_asset(org_a, site_a1, "MTR-EXISTS")
+
+    client.force_login(owner_a)
+    session = client.session
+    session["active_org_id"] = str(org_a.pk)
+    session.save()
+
+    response = client.post(
+        "/app/assets/new/",
+        {
+            "asset_tag": "MTR-EXISTS",
+            "name": "Another Motor",
+            "category": str(cat.pk),
+            "site": str(site_a1.pk),
+        },
+    )
+    assert response.status_code == 400
+    form = response.context["form"]
+    assert "asset_tag" in form.errors
+    content = response.content.decode("utf-8")
+    assert "is-invalid" in content
+    assert 'name="asset_tag"' in content

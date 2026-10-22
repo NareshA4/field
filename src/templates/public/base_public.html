@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% load static ui_tags %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/public.css' %}">
+{% endblock %}
+
+{% block body_class %}fx-public-site{% endblock %}
+
+{% block body %}
+<!-- Top Sticky Public Navigation -->
+<header class="fx-pub-header" role="banner">
+  <div class="fx-pub-nav-container">
+    <a href="{% url 'ui:root' %}" class="fx-pub-brand" aria-label="FieldOps Nexus Home">
+      <div class="fx-pub-brand-badge">FX</div>
+      <div>
+        <div class="fx-pub-brand-text">FieldOps Nexus</div>
+        <div class="fx-pub-brand-sub">Enterprise Asset & Field Service ERP</div>
+      </div>
+    </a>
+
+    <!-- Desktop Navigation Menu -->
+    <nav class="d-none d-lg-block" aria-label="Main Navigation">
+      <ul class="fx-pub-nav-menu">
+        <li class="fx-pub-nav-item">
+          <a href="{% url 'ui:public_features' %}" class="fx-pub-nav-link {% if active_page == 'features' %}active{% endif %}">Features</a>
+        </li>
+        <li class="fx-pub-nav-item">
+          <a href="{% url 'ui:public_solutions' %}" class="fx-pub-nav-link {% if active_page == 'solutions' %}active{% endif %}">
+            Solutions {% icon 'arrow-up-right' 12 %}
+          </a>
+          <div class="fx-pub-dropdown-menu">
+            <a href="{% url 'ui:public_solution' 'enterprise-operations' %}" class="fx-pub-dropdown-item">
+              <strong>Enterprise Operations</strong>
+              <span>Multi-site asset coordination & SLA management</span>
+            </a>
+            <a href="{% url 'ui:public_solution' 'multi-site-management' %}" class="fx-pub-dropdown-item">
+              <strong>Multi-Site Management</strong>
+              <span>Location hierarchies, campus & plant registries</span>
+            </a>
+            <a href="{% url 'ui:public_solution' 'sla-management' %}" class="fx-pub-dropdown-item">
+              <strong>SLA & Escalation</strong>
+              <span>Automated first-response & resolution timers</span>
+            </a>
+            <a href="{% url 'ui:public_solution' 'connected-data' %}" class="fx-pub-dropdown-item">
+              <strong>Connected Data & IoT</strong>
+              <span>Telemetry ingestion, meters & sensor monitoring</span>
+            </a>
+            <a href="{% url 'ui:public_solution' 'service-maintenance' %}" class="fx-pub-dropdown-item">
+              <strong>Service & Maintenance</strong>
+              <span>Work orders, dispatch & technician workspace</span>
+            </a>
+            <a href="{% url 'ui:public_solution' 'infrastructure' %}" class="fx-pub-dropdown-item">
+              <strong>Critical Infrastructure</strong>
+              <span>High-availability uptime & compliance auditing</span>
+            </a>
+          </div>
+        </li>
+        <li class="fx-pub-nav-item">
+          <a href="{% url 'ui:public_modules' %}" class="fx-pub-nav-link {% if active_page == 'modules' %}active{% endif %}">
+            PRD Modules {% icon 'arrow-up-right' 12 %}
+          </a>
+          <div class="fx-pub-dropdown-menu">
+            <a href="{% url 'ui:public_module' 'FON-M01' %}" class="fx-pub-dropdown-item">
+              <strong>FON-M01: Sites & Locations</strong>
+              <span>Multi-tenant hierarchy & facility mapping</span>
+            </a>
+            <a href="{% url 'ui:public_module' 'FON-M02' %}" class="fx-pub-dropdown-item">
+              <strong>FON-M02: Asset Registry</strong>
+              <span>Lifecycle, documentation & depreciation</span>
+            </a>
+            <a href="{% url 'ui:public_module' 'FON-M04' %}" class="fx-pub-dropdown-item">
+              <strong>FON-M04: Preventive Maintenance</strong>
+              <span>Recurrence rules & calendar scheduling</span>
+            </a>
+            <a href="{% url 'ui:public_module' 'FON-M06' %}" class="fx-pub-dropdown-item">
+              <strong>FON-M06: Work Orders</strong>
+              <span>Lifecycle states, assignment & approvals</span>
+            </a>
+            <a href="{% url 'ui:public_module' 'FON-M07' %}" class="fx-pub-dropdown-item">
+              <strong>FON-M07: Technician Workspace</strong>
+              <span>Mobile task execution & photo evidence</span>
+            </a>
+            <a href="{% url 'ui:public_module' 'FON-M09' %}" class="fx-pub-dropdown-item">
+              <strong>FON-M09: Spare Parts & Inventory</strong>
+              <span>Atomic stock ledger & reservations</span>
+            </a>
+          </div>
+        </li>
+        <li class="fx-pub-nav-item">
+          <a href="{% url 'ui:public_resources' %}" class="fx-pub-nav-link {% if active_page == 'resources' %}active{% endif %}">Resources</a>
+        </li>
+        <li class="fx-pub-nav-item">
+          <a href="{% url 'ui:public_about' %}" class="fx-pub-nav-link {% if active_page == 'about' %}active{% endif %}">About</a>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Public Actions -->
+    <div class="fx-pub-nav-actions">
+      {% if request.user.is_authenticated %}
+        <a href="{% url 'ui:home' %}" class="btn-fx-gold">
+          {% icon 'grid' 16 %} Launch ERP
+        </a>
+      {% else %}
+        <a href="{% url 'accounts:login' %}" class="btn btn-sm btn-outline-light d-none d-sm-inline-flex align-items-center gap-1">
+          Sign In
+        </a>
+        <a href="{% url 'accounts:login' %}" class="btn-fx-gold">
+          Launch ERP {% icon 'arrow-up-right' 14 %}
+        </a>
+      {% endif %}
+      <button class="fx-pub-mobile-toggle" type="button" aria-label="Toggle menu" data-fx-pub-toggle aria-expanded="false">
+        {% icon 'menu' 22 %}
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile Collapsible Menu -->
+  <div class="d-none d-lg-none bg-dark border-top border-secondary p-3" data-fx-pub-nav>
+    <div class="d-flex flex-column gap-2">
+      <a href="{% url 'ui:public_features' %}" class="text-light py-2 text-decoration-none">Features</a>
+      <a href="{% url 'ui:public_solutions' %}" class="text-light py-2 text-decoration-none">Solutions</a>
+      <a href="{% url 'ui:public_modules' %}" class="text-light py-2 text-decoration-none">PRD Modules</a>
+      <a href="{% url 'ui:public_resources' %}" class="text-light py-2 text-decoration-none">Resources</a>
+      <a href="{% url 'ui:public_about' %}" class="text-light py-2 text-decoration-none">About</a>
+      <hr class="border-secondary my-1">
+      {% if not request.user.is_authenticated %}
+        <a href="{% url 'accounts:login' %}" class="btn btn-outline-light w-100 mb-2">Sign In</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+<!-- Main Page Content Block -->
+<main id="main-content" role="main">
+  {% block public_content %}{% endblock %}
+</main>
+
+<!-- Standardized Public Footer -->
+<footer class="fx-pub-footer" role="contentinfo">
+  <div class="fx-pub-footer-inner">
+    <div class="fx-pub-footer-grid">
+      <!-- Col 1: Brand & Specs -->
+      <div class="fx-pub-footer-col">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <div class="fx-pub-brand-badge" style="width:32px; height:32px; font-size:0.85rem;">FX</div>
+          <span class="text-white fw-bold fs-5">FieldOps Nexus</span>
+        </div>
+        <p class="small text-secondary mb-3" style="max-width: 320px;">
+          Enterprise Asset Management, Maintenance & Field Service ERP. Real-time multi-tenant operations, automated SLAs, and atomic transactional integrity.
+        </p>
+        <div class="small text-secondary">
+          <div><strong>Spec:</strong> HPE-PRD-2026-FOPS02/VER-1.0-DRAFT</div>
+          <div><strong>Authority:</strong> HPE Delivery Oversight</div>
+          <div><strong>Partner:</strong> VPD Technologies Pvt. Ltd.</div>
+        </div>
+      </div>
+
+      <!-- Col 2: Solutions -->
+      <div class="fx-pub-footer-col">
+        <h5>Solutions</h5>
+        <ul class="fx-pub-footer-links">
+          <li><a href="{% url 'ui:public_solution' 'enterprise-operations' %}">Enterprise Operations</a></li>
+          <li><a href="{% url 'ui:public_solution' 'multi-site-management' %}">Multi-Site Management</a></li>
+          <li><a href="{% url 'ui:public_solution' 'sla-management' %}">SLA & Escalation</a></li>
+          <li><a href="{% url 'ui:public_solution' 'connected-data' %}">Connected Data / IoT</a></li>
+          <li><a href="{% url 'ui:public_solution' 'service-maintenance' %}">Service Maintenance</a></li>
+          <li><a href="{% url 'ui:public_solution' 'infrastructure' %}">Critical Infrastructure</a></li>
+        </ul>
+      </div>
+
+      <!-- Col 3: Core Modules -->
+      <div class="fx-pub-footer-col">
+        <h5>PRD Modules</h5>
+        <ul class="fx-pub-footer-links">
+          <li><a href="{% url 'ui:public_module' 'FON-M01' %}">FON-M01 Sites & Locations</a></li>
+          <li><a href="{% url 'ui:public_module' 'FON-M02' %}">FON-M02 Asset Registry</a></li>
+          <li><a href="{% url 'ui:public_module' 'FON-M04' %}">FON-M04 Preventive Maint.</a></li>
+          <li><a href="{% url 'ui:public_module' 'FON-M06' %}">FON-M06 Work Orders</a></li>
+          <li><a href="{% url 'ui:public_module' 'FON-M07' %}">FON-M07 Technician Desk</a></li>
+          <li><a href="{% url 'ui:public_module' 'FON-M09' %}">FON-M09 Parts & Inventory</a></li>
+        </ul>
+      </div>
+
+      <!-- Col 4: Governance & Legal -->
+      <div class="fx-pub-footer-col">
+        <h5>Compliance & Legal</h5>
+        <ul class="fx-pub-footer-links">
+          <li><a href="{% url 'ui:public_legal' 'privacy-policy' %}">Privacy Policy</a></li>
+          <li><a href="{% url 'ui:public_legal' 'terms-and-conditions' %}">Terms and Conditions</a></li>
+          <li><a href="{% url 'ui:public_legal' 'disclaimer' %}">System Disclaimer</a></li>
+          <li><a href="{% url 'ui:public_legal' 'cookie-policy' %}">Cookie Policy</a></li>
+          <li><a href="{% url 'accounts:login' %}">SSO / Employee Portal</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Bottom Attribution Bar -->
+    <div class="fx-pub-footer-bottom">
+      <div>
+        &copy; 2026 Hewlett Packard Enterprise &middot; VPD Technologies Pvt. Ltd. All rights reserved.
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        <span class="badge bg-dark text-warning border border-warning px-2 py-1">Proprietary &amp; Confidential</span>
+        <span class="text-secondary small">Minimum 90-Day Execution Gate</span>
+      </div>
+    </div>
+  </div>
+</footer>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{% static 'js/public.js' %}"></script>
+{% endblock %}

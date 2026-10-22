@@ -124,6 +124,13 @@ class Migration(migrations.Migration):
                             ALTER TABLE portal_portalaccount ALTER COLUMN is_active DROP NOT NULL;
                         END IF;
 
+                        IF EXISTS (
+                            SELECT 1 FROM information_schema.columns
+                            WHERE table_name = 'portal_portalaccount' AND column_name = 'phone_number'
+                        ) THEN
+                            ALTER TABLE portal_portalaccount ALTER COLUMN phone_number DROP NOT NULL;
+                        END IF;
+
                         -- In portal_portalassetgrant, ensure portal_account_id exists and is linked
                         IF NOT EXISTS (
                             SELECT 1 FROM information_schema.columns

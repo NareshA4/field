@@ -25,7 +25,7 @@ def is_owned_asset_reporter(membership) -> bool:
 
 
 def requests_for(membership, org, code: str = "incident.view"):
-    qs = ServiceRequest.objects.for_organization(org).select_related("asset", "site", "reported_by__user")
+    qs = ServiceRequest.objects.for_organization(org).select_related("asset", "site", "reported_by__user", "work_order", "downtime")
     from apps.rbac.models import MembershipRole
 
     role_keys = set(MembershipRole.objects.filter(membership=membership).values_list("role__system_key", flat=True))

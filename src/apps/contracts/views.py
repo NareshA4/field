@@ -50,8 +50,13 @@ def _redirect_next(request, default):
 class AgreementListView(CBase):
     def get(self, request):
         m, org = request.membership, request.organization
-        qs = selectors.filter_agreements(selectors.agreements_for(m, org), request.GET)
+        base_agreements = selectors.agreements_for(m, org)
         today = datetime.date.today()
+        total_agreements = base_agreements.count()
+        active_agreements = sum(1 for a in base_agreements if a.state(today) == "ACTIVE")
+        expired_agreements = sum(1 for a in base_agreements if a.state(today) == "EXPIRED")
+        upcoming_agreements = sum(1 for a in base_agreements if a.state(today) == "UPCOMING")
+        qs = selectors.filter_agreements(base_agreements, request.GET)
         page = _paged(request, qs)
         for a in page:
             a.current_state = a.state(today)
@@ -60,7 +65,11 @@ class AgreementListView(CBase):
             "states": ("ACTIVE", "UPCOMING", "EXPIRED", "INACTIVE"),
             "sites": site_selectors.sites_for(m, org, "contract.view").order_by("code"),
             "providers": selectors.providers_for(org).order_by("name"),
-            "can_create": rbac.has_permission_anywhere(m, "contract.create")})
+            "can_create": rbac.has_permission_anywhere(m, "contract.create"),
+            "total_agreements": total_agreements,
+            "active_agreements": active_agreements,
+            "expired_agreements": expired_agreements,
+            "upcoming_agreements": upcoming_agreements})
 
 
 class AgreementCreateView(CBase):

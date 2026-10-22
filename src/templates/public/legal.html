@@ -1,0 +1,34 @@
+{% extends "public/base_public.html" %}
+{% load static ui_tags %}
+
+{% block title %}{{ title }} — FieldOps Nexus{% endblock %}
+
+{% block public_content %}
+<div class="fx-pub-hero" style="padding: 3.5rem 1.5rem 4rem;">
+  <div class="fx-pub-hero-inner text-center">
+    <div class="fx-pub-pill">Legal &amp; Compliance</div>
+    <h1 class="fx-pub-hero-title">{{ title }}</h1>
+    <p class="fx-pub-hero-sub">
+      Document Reference: HPE-PRD-2026-FOPS02 &middot; Version 1.0
+    </p>
+  </div>
+</div>
+
+<section class="fx-pub-section">
+  <div class="fx-pub-container" style="max-width: 860px;">
+    <div class="card border-0 shadow-sm p-4 p-md-5 bg-white" style="border-radius:12px;">
+      <div class="small text-secondary mb-4 pb-2 border-bottom">
+        <strong>Last Updated:</strong> October 2026 &middot; <strong>Effective Date:</strong> Immediate upon provisioning
+      </div>
+      
+      <div class="legal-content text-secondary lh-lg">
+        {{ content|safe }}
+      </div>
+
+      <div class="mt-5 pt-3 border-top text-center">
+        <a href="{% url 'ui:root' %}" class="btn btn-sm btn-outline-secondary">&larr; Return to Home</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

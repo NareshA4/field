@@ -10,7 +10,11 @@
       <p class="small text-uppercase text-secondary fw-semibold mb-1">OPERATIONS &bull; M07 TECHNICIAN WORKSPACE</p>
       <h1 class="h3 mb-0">My Assigned Jobs</h1>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{% url 'identification:scan' %}" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm" id="btnScanQR">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+        Scan Asset QR
+      </a>
       <a href="{% url 'workorders:schedule' %}" class="btn btn-outline-secondary btn-sm">
         {% icon 'clock' 14 %} Schedule Board
       </a>
@@ -20,59 +24,69 @@
     </div>
   </div>
 
-  <!-- Metric Badges Row -->
+  <!-- Workday Capacity & Utilization Gauge (Add-On 4) -->
+  {% if capacity %}
+  <div class="card border shadow-sm mb-4" id="dailyCapacityCard" style="border-radius: 8px;">
+    <div class="card-body p-3">
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+        <div class="d-flex align-items-center gap-2">
+          <div class="p-2 rounded bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+            {% icon 'clock' 20 %}
+          </div>
+          <div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="fw-bold text-dark">Today's Workday Capacity</span>
+              <span class="badge bg-light text-secondary border small">{{ capacity.date_display }}</span>
+              {% if capacity.is_overtime %}
+              <span class="badge bg-warning text-dark small fw-semibold">Overtime</span>
+              {% endif %}
+            </div>
+            <div class="text-secondary small">
+              Logged <strong class="text-dark">{{ capacity.total_logged_hours|floatformat:1 }}h</strong> of <strong class="text-dark">{{ capacity.standard_capacity_hours|floatformat:1 }}h</strong> standard capacity
+              {% if capacity.travel_hours > 0 %}
+                &bull; Direct: <span class="text-dark fw-semibold">{{ capacity.direct_wrench_hours|floatformat:1 }}h</span> &bull; Transit: <span class="text-dark fw-semibold">{{ capacity.travel_hours|floatformat:1 }}h</span>
+              {% endif %}
+              {% if not capacity.is_overtime %}
+                &bull; Remaining: <span class="text-muted">{{ capacity.remaining_hours|floatformat:1 }}h</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+          <div class="text-end">
+            <span class="h4 mb-0 fw-bold {% if capacity.is_overtime %}text-warning{% elif capacity.utilization_pct >= 80 %}text-success{% else %}text-primary{% endif %}">
+              {{ capacity.utilization_pct }}%
+            </span>
+            <div class="small text-secondary text-uppercase fw-semibold" style="font-size: 0.7rem;">Utilization</div>
+          </div>
+          <a href="{% url 'dashboards:my_work' %}" class="btn btn-sm btn-outline-secondary d-none d-sm-inline-flex align-items-center gap-1" title="View comprehensive metrics in My Work Cockpit">
+            {% icon 'trending-up' 14 %} Full Analytics &rarr;
+          </a>
+        </div>
+      </div>
+      <div class="progress" style="height: 10px; background-color: #E2E8F0; border-radius: 5px;">
+        <div class="progress-bar" role="progressbar"
+             style="width: {{ capacity.progress_pct }}%; background: {% if capacity.is_overtime %}linear-gradient(90deg, #F59E0B 0%, #D97706 100%){% elif capacity.utilization_pct >= 80 %}linear-gradient(90deg, #10B981 0%, #059669 100%){% else %}linear-gradient(90deg, #3B82F6 0%, #1D4ED8 100%){% endif %}; border-radius: 5px;"
+             aria-valuenow="{{ capacity.utilization_pct }}" aria-valuemin="0" aria-valuemax="100">
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Standardized KPI Cards Row -->
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
-      <div class="card bg-success-subtle border-success-subtle">
-        <div class="card-body p-3">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <div class="small text-success fw-bold text-uppercase">Active Execution</div>
-              <div class="h3 mb-0 text-success fw-bold">{{ active_count }}</div>
-            </div>
-            <div class="text-success opacity-75">{% icon 'check' 28 %}</div>
-          </div>
-        </div>
-      </div>
+      {% include "components/_kpi_card.html" with title="Active Execution" value=active_count tone="success" icon="check" %}
     </div>
     <div class="col-6 col-md-3">
-      <div class="card bg-info-subtle border-info-subtle">
-        <div class="card-body p-3">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <div class="small text-info-emphasis fw-bold text-uppercase">Upcoming / Assigned</div>
-              <div class="h3 mb-0 text-info-emphasis fw-bold">{{ upcoming_count }}</div>
-            </div>
-            <div class="text-info opacity-75">{% icon 'clock' 28 %}</div>
-          </div>
-        </div>
-      </div>
+      {% include "components/_kpi_card.html" with title="Upcoming / Assigned" value=upcoming_count tone="info" icon="clock" %}
     </div>
     <div class="col-6 col-md-3">
-      <div class="card bg-secondary-subtle border-secondary-subtle">
-        <div class="card-body p-3">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <div class="small text-secondary fw-bold text-uppercase">Completed</div>
-              <div class="h3 mb-0 text-secondary fw-bold">{{ completed_count }}</div>
-            </div>
-            <div class="text-secondary opacity-75">{% icon 'clipboard-check' 28 %}</div>
-          </div>
-        </div>
-      </div>
+      {% include "components/_kpi_card.html" with title="Completed" value=completed_count tone="secondary" icon="clipboard-check" %}
     </div>
     <div class="col-6 col-md-3">
-      <div class="card bg-light border">
-        <div class="card-body p-3">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <div class="small text-secondary fw-bold text-uppercase">Total Assigned</div>
-              <div class="h3 mb-0 fw-bold">{{ all_count }}</div>
-            </div>
-            <div class="text-secondary opacity-75">{% icon 'wrench' 28 %}</div>
-          </div>
-        </div>
-      </div>
+      {% include "components/_kpi_card.html" with title="Total Assigned" value=all_count tone="primary" icon="wrench" %}
     </div>
   </div>
 

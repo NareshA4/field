@@ -1,0 +1,210 @@
+{% extends "public/base_public.html" %}
+{% load static ui_tags %}
+
+{% block title %}FieldOps Nexus — Enterprise Asset, Maintenance & Field Service ERP{% endblock %}
+
+{% block public_content %}
+<!-- Hero Section -->
+<section class="fx-pub-hero">
+  <div class="fx-pub-hero-inner">
+    <div class="fx-pub-pill">
+      {% icon 'shield' 14 %} HPE-PRD-2026-FOPS02 &middot; Enterprise Grade ERP
+    </div>
+    <h1 class="fx-pub-hero-title">
+      Intelligent Field Operations &amp; <br>
+      <span class="fx-pub-gradient-text">Unified Asset Governance</span>
+    </h1>
+    <p class="fx-pub-hero-sub">
+      A single multi-tenant platform unifying preventative maintenance, automated SLA escalations, atomic inventory management, and real-time field technician execution.
+    </p>
+    <div class="fx-pub-hero-cta">
+      <a href="{% url 'accounts:login' %}" class="btn-fx-gold" style="padding: 0.75rem 1.8rem; font-size: 1rem;">
+        Launch ERP System {% icon 'arrow-up-right' 16 %}
+      </a>
+      <a href="{% url 'ui:public_modules' %}" class="btn-fx-outline-gold" style="padding: 0.75rem 1.8rem; font-size: 1rem;">
+        Explore PRD Modules
+      </a>
+    </div>
+
+    <!-- Hero Visual Preview -->
+    <div class="fx-pub-hero-visual">
+      <img src="{% static 'images/center.jpg' %}" alt="FieldOps Nexus Command Center" loading="eager">
+    </div>
+  </div>
+</section>
+
+<!-- Connected Operations Matrix -->
+<section class="fx-pub-section">
+  <div class="fx-pub-container">
+    <div class="fx-pub-section-header">
+      <div class="fx-pub-section-label">Core Architecture</div>
+      <h2 class="fx-pub-section-title">Connected Enterprise Operations</h2>
+      <p class="fx-pub-section-desc">
+        Engineered from the ground up for high-availability industrial, healthcare, and multi-site facility management.
+      </p>
+    </div>
+
+    <div class="fx-pub-grid-3">
+      <!-- Card 1 -->
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">
+          {% icon 'building' 24 %}
+        </div>
+        <h3 class="fx-pub-card-title">Multi-Site &amp; Location Master</h3>
+        <p class="fx-pub-card-desc">
+          Unified hierarchy spanning organizations, campus sites, buildings, floors, and specific rooms with precise spatial coordinate tracking.
+        </p>
+        <a href="{% url 'ui:public_module' 'FON-M01' %}" class="text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);">
+          Module Details &rarr;
+        </a>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">
+          {% icon 'box' 24 %}
+        </div>
+        <h3 class="fx-pub-card-title">Comprehensive Asset Registry</h3>
+        <p class="fx-pub-card-desc">
+          Complete asset lifecycle governance, critical telemetry readings, depreciation curves, parent-child component trees, and warranty records.
+        </p>
+        <a href="{% url 'ui:public_module' 'FON-M02' %}" class="text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);">
+          Module Details &rarr;
+        </a>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">
+          {% icon 'wrench' 24 %}
+        </div>
+        <h3 class="fx-pub-card-title">Preventive Maintenance Engine</h3>
+        <p class="fx-pub-card-desc">
+          Automated work-order generation rules, recurrence schedules, seasonal blackout calendars, and overdue compliance tracking.
+        </p>
+        <a href="{% url 'ui:public_module' 'FON-M04' %}" class="text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);">
+          Module Details &rarr;
+        </a>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">
+          {% icon 'clipboard' 24 %}
+        </div>
+        <h3 class="fx-pub-card-title">Work Order Lifecycle Control</h3>
+        <p class="fx-pub-card-desc">
+          Strict state transitions from draft triage to scheduling, dispatch, execution, supervisor review, and cryptographic sign-off.
+        </p>
+        <a href="{% url 'ui:public_module' 'FON-M06' %}" class="text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);">
+          Module Details &rarr;
+        </a>
+      </div>
+
+      <!-- Card 5 -->
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">
+          {% icon 'people' 24 %}
+        </div>
+        <h3 class="fx-pub-card-title">Technician Workspace</h3>
+        <p class="fx-pub-card-desc">
+          Dedicated field interface for live task execution, checklist verification, labor hour timesheets, and mandatory photo evidence uploads.
+        </p>
+        <a href="{% url 'ui:public_module' 'FON-M07' %}" class="text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);">
+          Module Details &rarr;
+        </a>
+      </div>
+
+      <!-- Card 6 -->
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">
+          {% icon 'package' 24 %}
+        </div>
+        <h3 class="fx-pub-card-title">Spare Parts &amp; Inventory Ledger</h3>
+        <p class="fx-pub-card-desc">
+          Atomic double-entry stock ledger, multi-warehouse bin storage, reservations, issuance, returns, and automatic reorder thresholds.
+        </p>
+        <a href="{% url 'ui:public_module' 'FON-M09' %}" class="text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);">
+          Module Details &rarr;
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Visual End-to-End Workflow Showcase -->
+<section class="fx-pub-section fx-pub-section-alt border-top border-bottom">
+  <div class="fx-pub-container">
+    <div class="fx-pub-section-header">
+      <div class="fx-pub-section-label">Operational Workflow</div>
+      <h2 class="fx-pub-section-title">End-to-End Field Service Execution</h2>
+      <p class="fx-pub-section-desc">
+        Explore how service incidents flow seamlessly into work order dispatch, inventory reservations, and customer closure sign-offs.
+      </p>
+    </div>
+
+    <!-- Workflow Visual Cards Grid -->
+    <div class="row g-4">
+      <div class="col-12 col-md-4">
+        <div class="card h-100 border-0 shadow-sm overflow-hidden" style="border-radius:12px;">
+          <img src="{% static 'images/workflow-service-requests.jpg' %}" class="card-img-top" alt="Incident Logging">
+          <div class="card-body p-3">
+            <span class="badge bg-primary-subtle text-primary mb-2">Stage 1</span>
+            <h5 class="card-title fw-bold">Incident &amp; Triage</h5>
+            <p class="card-text text-secondary small">
+              Clients log breakdowns via QR code or portal. Automated SLA timers initialize immediately.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="card h-100 border-0 shadow-sm overflow-hidden" style="border-radius:12px;">
+          <img src="{% static 'images/workflow-field-operations.jpg' %}" class="card-img-top" alt="Field Execution">
+          <div class="card-body p-3">
+            <span class="badge bg-warning-subtle text-warning-emphasis mb-2">Stage 2</span>
+            <h5 class="card-title fw-bold">Dispatch &amp; Execution</h5>
+            <p class="card-text text-secondary small">
+              Dispatchers schedule qualified technicians. Techs execute checklists and log parts usage.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="card h-100 border-0 shadow-sm overflow-hidden" style="border-radius:12px;">
+          <img src="{% static 'images/workflow-approval.jpg' %}" class="card-img-top" alt="Supervisor Verification">
+          <div class="card-body p-3">
+            <span class="badge bg-success-subtle text-success mb-2">Stage 3</span>
+            <h5 class="card-title fw-bold">Approval &amp; Audit</h5>
+            <p class="card-text text-secondary small">
+              Supervisors review evidence photos and labor hours before irreversible ledger closure.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRD Compliance & Acceptance Callout -->
+<section class="fx-pub-section" style="background:var(--fx-pub-navy-950); color:#ffffff;">
+  <div class="fx-pub-container text-center">
+    <div class="mx-auto" style="max-width:820px;">
+      <div class="fx-pub-pill mb-3">
+        Governance &middot; HPE-PRD-2026-FOPS02
+      </div>
+      <h2 class="display-6 fw-bold mb-3">Enterprise Architectural Non-Negotiables</h2>
+      <p class="text-secondary fs-5 mb-4">
+        FieldOps Nexus adheres strictly to real database persistence, full RBAC verification at the API layer, and atomic transactional control.
+      </p>
+      <div class="d-flex justify-content-center gap-3 flex-wrap">
+        <a href="{% url 'accounts:login' %}" class="btn-fx-gold">
+          Sign In to Production Workspace
+        </a>
+        <a href="{% url 'ui:public_about' %}" class="btn-fx-outline-gold">
+          Read Architecture Specification
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

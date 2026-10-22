@@ -1,0 +1,70 @@
+{% extends "public/base_public.html" %}
+{% load static ui_tags %}
+
+{% block title %}About FieldOps Nexus — Enterprise ERP{% endblock %}
+
+{% block public_content %}
+<div class="fx-pub-hero" style="padding: 3.5rem 1.5rem 4rem;">
+  <div class="fx-pub-hero-inner text-center">
+    <div class="fx-pub-pill">Corporate Overview</div>
+    <h1 class="fx-pub-hero-title">Engineering Excellence &amp; Accountability</h1>
+    <p class="fx-pub-hero-sub">
+      Delivered under HPE Enterprise Technology Solutions &amp; Delivery Oversight.
+    </p>
+  </div>
+</div>
+
+<section class="fx-pub-section">
+  <div class="fx-pub-container" style="max-width: 900px;">
+    <div class="card border-0 shadow-sm p-4 p-md-5 bg-white" style="border-radius:12px;">
+      <h2 class="h4 fw-bold text-dark mb-3">Project Metadata &amp; Governance</h2>
+      <div class="table-responsive mb-4">
+        <table class="table table-bordered">
+          <tbody>
+            <tr>
+              <th class="bg-light text-secondary" style="width: 35%;">Project Title</th>
+              <td>FieldOps Nexus (Enterprise Asset, Maintenance &amp; Field Service ERP)</td>
+            </tr>
+            <tr>
+              <th class="bg-light text-secondary">Document Reference</th>
+              <td><code>HPE-PRD-2026-FOPS02/VER-1.0-DRAFT</code></td>
+            </tr>
+            <tr>
+              <th class="bg-light text-secondary">Review Authority</th>
+              <td>HPE Team – Enterprise Technology Solutions &amp; Delivery Oversight</td>
+            </tr>
+            <tr>
+              <th class="bg-light text-secondary">Development Partner</th>
+              <td>VPD Technologies Pvt. Ltd.</td>
+            </tr>
+            <tr>
+              <th class="bg-light text-secondary">Mandatory Duration</th>
+              <td>Minimum 90 calendar days; final technical acceptance no earlier than Day 90</td>
+            </tr>
+            <tr>
+              <th class="bg-light text-secondary">Formal Review Gates</th>
+              <td>Day 15, Day 45, and Day 90</td>
+            </tr>
+            <tr>
+              <th class="bg-light text-secondary">Classification</th>
+              <td>Proprietary &amp; Confidential – Draft for Technical Allocation</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="h5 fw-bold text-dark mb-2">Architectural Principles</h3>
+      <ul class="text-secondary mb-4">
+        <li class="mb-2"><strong>Zero Mock Invariant:</strong> Every workflow is backed by transactional PostgreSQL persistence.</li>
+        <li class="mb-2"><strong>Server-Side RBAC Enforcement:</strong> Authorization checks occur in domain services and view layer, never solely in UI display logic.</li>
+        <li class="mb-2"><strong>Audit Trail Immutability:</strong> Security-critical events and state transitions produce append-only audit entries.</li>
+        <li class="mb-2"><strong>Concurrency Protection:</strong> Inventory parts movements and technician time tracking use atomic database locks.</li>
+      </ul>
+
+      <div class="text-center pt-3">
+        <a href="{% url 'accounts:login' %}" class="btn-fx-gold px-4 py-2">Access FieldOps Nexus ERP &rarr;</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

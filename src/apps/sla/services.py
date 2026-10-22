@@ -608,10 +608,10 @@ def _sync_pause(t: SLATracking, now: datetime, *, actor=None) -> None:
                                      workflow_state=workflow_state, started_at=now, paused_by=actor or state_actor)
         _event(t, "PAUSED", at=now, detail=f"{workflow_state}: {reason}"[:300], actor=actor or state_actor)
     elif not want and t.status == Status.PAUSED:
-        delta = now - t.paused_at
-        if t.response_met_at is None:
+        delta = (now - t.paused_at) if t.paused_at else timedelta()
+        if t.response_due_at is not None and t.response_met_at is None:
             t.response_due_at += delta
-        if t.resolution_met_at is None:
+        if t.resolution_due_at is not None and t.resolution_met_at is None:
             t.resolution_due_at += delta
         t.paused_seconds += int(delta.total_seconds())
         has_open_breach = SLABreach.objects.for_organization(t.organization).filter(

@@ -1,0 +1,31 @@
+{% load ui_tags %}
+{# Standardized ERP Filter Bar Component #}
+{# Parameters: search_query, search_placeholder, filters (list or extra content slot), action_url, reset_url #}
+<div class="card border-0 shadow-sm mb-4 p-3 bg-white" style="border-radius:10px;">
+  <form method="get" action="{{ action_url|default:'' }}" class="row g-2 align-items-center">
+    <div class="col-12 col-md-5">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-light border-end-0">
+          {% icon 'search' 16 %}
+        </span>
+        <input type="search" name="q" value="{{ request.GET.q|default:'' }}"
+               class="form-control form-control-sm border-start-0 bg-light"
+               placeholder="{{ search_placeholder|default:'Search records...' }}"
+               aria-label="Search">
+      </div>
+    </div>
+    <div class="col-12 col-md-5 d-flex gap-2">
+      {% block extra_filters %}{% endblock %}
+    </div>
+    <div class="col-12 col-md-2 d-flex justify-content-md-end gap-2">
+      <button type="submit" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+        Filter
+      </button>
+      {% if request.GET.q or request.GET.status or request.GET.site %}
+        <a href="{{ reset_url|default:'?' }}" class="btn btn-sm btn-link text-decoration-none text-secondary">
+          Clear
+        </a>
+      {% endif %}
+    </div>
+  </form>
+</div>

@@ -63,11 +63,18 @@ class SiteListView(SiteBase):
     required_permission = "site.view"
 
     def get(self, request):
+        base_sites = selectors.sites_for(request.membership, request.organization)
+        total_sites = base_sites.count()
+        active_sites = base_sites.filter(status="ACTIVE").count()
+        inactive_sites = base_sites.filter(status="INACTIVE").count()
         qs = selectors.site_list(request.membership, request.organization, request.GET)
         page = Paginator(qs, 20).get_page(request.GET.get("page"))
         return render(request, "sites/list.html", {
             "page": page, "q": request.GET.get("q", ""), "status": request.GET.get("status", ""),
-            "can_create": rbac.has_permission(request.membership, "site.create")})
+            "can_create": rbac.has_permission(request.membership, "site.create"),
+            "total_sites": total_sites,
+            "active_sites": active_sites,
+            "inactive_sites": inactive_sites})
 
 
 class SiteCreateView(SiteBase):

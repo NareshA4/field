@@ -145,8 +145,12 @@
     stopCamera();
     viewport.classList.add("fx-scan-found");
     setStatus("Label detected. Opening the asset…", "ok");
-    showError("", false);
-    window.location.assign(resolveBase.replace("__TOKEN__", encodeURIComponent(token)) + "?open=asset");
+    var navUrl = resolveBase.replace("__TOKEN__", encodeURIComponent(token)) + "?open=asset";
+    var urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("work_order")) {
+      navUrl += "&work_order=" + encodeURIComponent(urlParams.get("work_order"));
+    }
+    window.location.assign(navUrl);
   }
 
   /* ---- camera -------------------------------------------------------------------------------------------- */

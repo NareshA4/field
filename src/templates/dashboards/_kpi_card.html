@@ -1,18 +1,18 @@
 <div class="col-12 col-sm-6 col-lg-3">
-  <div class="fx-card h-100 p-3 d-flex flex-column justify-content-between shadow-sm">
+  <div class="card fx-kpi-card h-100 p-3 d-flex flex-column justify-content-between shadow-sm border-0" style="border-left: 4px solid var(--fx-accent) !important; border-radius: 10px; background: #ffffff;">
     <div>
       <div class="d-flex justify-content-between align-items-start mb-2">
-        <span class="text-uppercase fw-semibold small text-body-secondary">{{ title }}</span>
+        <span class="text-uppercase fw-semibold small text-secondary tracking-wider">{{ title }}</span>
         {% if unit %}
         <span class="badge bg-light text-dark border">{{ unit }}</span>
         {% endif %}
       </div>
       <div class="my-2">
-        <div class="display-6 fw-bold text-dark">{{ value }}</div>
+        <div class="fs-2 fw-bold text-dark">{{ value }}</div>
       </div>
     </div>
     {% if hint %}
-    <div class="mt-2 pt-2 border-top text-body-secondary small" style="line-height: 1.35; white-space: normal; word-wrap: break-word;" title="{{ hint }}">
+    <div class="mt-2 pt-2 border-top text-secondary small" style="line-height: 1.35; white-space: normal; word-wrap: break-word;" title="{{ hint }}">
       {{ hint }}
     </div>
     {% endif %}

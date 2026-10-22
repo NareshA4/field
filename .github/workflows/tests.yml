@@ -1,0 +1,57 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [main, staging, dev]
+  pull_request:
+    branches: [main, staging, dev]
+
+jobs:
+  test:
+    name: Run Pytest Suite
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: fieldops
+          POSTGRES_USER: fieldops
+          POSTGRES_PASSWORD: ci_only_password
+        ports:
+          - 5432:5432
+        options: --health-cmd "pg_isready -U fieldops" --health-interval 5s --health-timeout 5s --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            requirements.lock
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.lock pytest pytest-django pytest-cov
+
+      - name: Run Test Suites with Coverage
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
+          DATABASE_URL: postgres://fieldops:ci_only_password@localhost:5432/fieldops
+          REDIS_URL: redis://localhost:6379/0
+          CELERY_BROKER_URL: redis://localhost:6379/0
+          DJANGO_SECRET_KEY: ci-test-secret-key-not-for-production
+        run: |
+          pytest --cov=src/apps --cov-report=xml --cov-report=term-missing tests/

@@ -49,7 +49,7 @@ WORK_ORDER_STATUS = StateMachine(
         Transition("start_review", (COMPLETED,), SUPERVISOR_REVIEW, label="Start supervisor review"),
         Transition("close", (SUPERVISOR_REVIEW,), CLOSED, label="Close"),
         Transition("reject_review", (SUPERVISOR_REVIEW,), IN_PROGRESS, label="Return for rework"),
-        Transition("cancel", (DRAFT, PLANNED, ASSIGNED, DISPATCHED), CANCELLED, label="Cancel"),
+        Transition("cancel", (DRAFT, PLANNED), CANCELLED, label="Cancel"),
     ],
 )
 

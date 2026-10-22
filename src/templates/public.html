@@ -1,11 +1,98 @@
 {% extends "base.html" %}
-{% block body_class %}fx-public{% endblock %}
+{% load static ui_tags %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/public.css' %}">
+{% endblock %}
+
+{% block body_class %}fx-auth-split-body{% endblock %}
+
 {% block body %}
-<main class="fx-auth-wrap">
-  <div class="fx-auth-card">
-    <div class="fx-brand mb-4"><span class="fx-brand-mark">FX</span> FieldOps Nexus</div>
-    {% include "components/_messages.html" %}
-    {% block content %}{% endblock %}
-  </div>
-</main>
+<div class="d-flex min-vh-100 flex-column flex-lg-row overflow-hidden">
+  <!-- Left Enterprise Branding Panel (Desktop) -->
+  <aside class="col-lg-5 col-xl-5 d-none d-lg-flex flex-column justify-content-between p-5 text-white position-relative overflow-hidden"
+         style="background: radial-gradient(circle at 0% 0%, #102A43 0%, #0B1F3A 50%, #040D1A 100%); border-right: 1px solid rgba(255,255,255,0.08);">
+    
+    <!-- Top Brand Badge -->
+    <div class="position-relative z-1">
+      <a href="{% url 'ui:root' %}" class="d-flex align-items-center gap-2 text-decoration-none text-white">
+        <div class="fx-pub-brand-badge" style="width:38px; height:38px;">FX</div>
+        <div>
+          <div class="fw-bold fs-5 text-white lh-1">FieldOps Nexus</div>
+          <div class="small text-uppercase fw-semibold" style="color:var(--fx-pub-gold-400); letter-spacing:0.08em; font-size:0.7rem;">Enterprise Platform</div>
+        </div>
+      </a>
+    </div>
+
+    <!-- Center Hero Copy & Capabilities -->
+    <div class="position-relative z-1 my-auto py-5">
+      <div class="text-uppercase fw-bold mb-3 small" style="color:var(--fx-pub-gold-400); letter-spacing:0.12em;">
+        HPE-PRD-2026-FOPS03 Verified
+      </div>
+      <h2 class="display-6 fw-bold mb-3 text-white lh-sm">
+        Field Operations.<br>
+        Asset Management.<br>
+        <span class="fx-pub-gradient-text">One Unified Platform.</span>
+      </h2>
+      <p class="text-secondary mb-4 small lh-base" style="max-width: 440px;">
+        Multi-tenant enterprise ERP governing asset lifecycle, automated preventive maintenance, real-time dispatch, atomic inventory, and immutable audit logs.
+      </p>
+
+      <div class="d-flex flex-column gap-2 small text-light">
+        <div class="d-flex align-items-center gap-2">
+          <div style="width:6px; height:6px; border-radius:50%; background:var(--fx-pub-gold-500);"></div>
+          <span style="color:#CBD5E1;">Asset lifecycle &amp; parent-child telemetry trees</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <div style="width:6px; height:6px; border-radius:50%; background:var(--fx-pub-gold-500);"></div>
+          <span style="color:#CBD5E1;">Preventive maintenance auto-generation rules</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <div style="width:6px; height:6px; border-radius:50%; background:var(--fx-pub-gold-500);"></div>
+          <span style="color:#CBD5E1;">Real-time field dispatch &amp; checklist execution</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <div style="width:6px; height:6px; border-radius:50%; background:var(--fx-pub-gold-500);"></div>
+          <span style="color:#CBD5E1;">SLA countdown timers &amp; automated breach alerts</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <div style="width:6px; height:6px; border-radius:50%; background:var(--fx-pub-gold-500);"></div>
+          <span style="color:#CBD5E1;">Double-entry atomic inventory stock ledger</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Footer Meta -->
+    <div class="position-relative z-1 pt-3 border-top border-secondary border-opacity-25 small text-secondary">
+      <div>&copy; 2026 FieldOps Nexus &middot; Enterprise Field Service ERP</div>
+      <div class="mt-1" style="font-size: 0.75rem;">HPE Delivery Oversight &middot; Minimum 90-Day Gate</div>
+    </div>
+  </aside>
+
+  <!-- Right Form Container -->
+  <main class="flex-grow-1 d-flex flex-column justify-content-center align-items-center p-4 p-md-5 fx-auth-wrap" style="background:#F8FAFC;">
+    <div class="w-100" style="max-width: 440px;">
+      <!-- Mobile Brand Header -->
+      <div class="d-lg-none d-flex align-items-center gap-2 mb-4 pb-2 border-bottom">
+        <a href="{% url 'ui:root' %}" class="d-flex align-items-center gap-2 text-decoration-none">
+          <div class="fx-pub-brand-badge" style="width:32px; height:32px; font-size:0.85rem;">FX</div>
+          <span class="fw-bold fs-5 text-dark">FieldOps Nexus</span>
+        </a>
+      </div>
+
+      <!-- Auth Card -->
+      <div class="card border-0 shadow-sm p-4 p-md-5 bg-white fx-auth-card" style="border-radius:14px; border:1px solid #E2E8F0 !important;">
+        {% include "components/_messages.html" %}
+        {% block content %}{% endblock %}
+      </div>
+
+      <!-- Back to Public Site Link -->
+      <div class="text-center mt-4">
+        <a href="{% url 'ui:root' %}" class="small text-decoration-none text-secondary">
+          &larr; Return to FieldOps Nexus Overview
+        </a>
+      </div>
+    </div>
+  </main>
+</div>
 {% endblock %}

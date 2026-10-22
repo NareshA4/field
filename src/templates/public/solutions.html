@@ -1,0 +1,59 @@
+{% extends "public/base_public.html" %}
+{% load static ui_tags %}
+
+{% block title %}Industry Solutions — FieldOps Nexus{% endblock %}
+
+{% block public_content %}
+<div class="fx-pub-hero" style="padding: 3.5rem 1.5rem 4rem;">
+  <div class="fx-pub-hero-inner text-center">
+    <div class="fx-pub-pill">Engineered Verticals</div>
+    <h1 class="fx-pub-hero-title">Specialized Enterprise Solutions</h1>
+    <p class="fx-pub-hero-sub">
+      Tailored maintenance workflows, asset tracking, and SLA frameworks for critical operational sectors.
+    </p>
+  </div>
+</div>
+
+<section class="fx-pub-section">
+  <div class="fx-pub-container">
+    <div class="fx-pub-grid-3">
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">{% icon 'building' 24 %}</div>
+        <h3 class="fx-pub-card-title">Enterprise Operations</h3>
+        <p class="fx-pub-card-desc">Centralized multi-facility management with unified governance, global RBAC, and executive performance KPI dashboards.</p>
+        <a href="{% url 'ui:public_solution' 'enterprise-operations' %}" class="fw-semibold text-decoration-none" style="color:var(--fx-pub-gold-600);">Explore Architecture &rarr;</a>
+      </div>
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">{% icon 'pin' 24 %}</div>
+        <h3 class="fx-pub-card-title">Multi-Site Campus Management</h3>
+        <p class="fx-pub-card-desc">Geographic distribution across manufacturing plants, hospital networks, educational campuses, and corporate real estate.</p>
+        <a href="{% url 'ui:public_solution' 'multi-site-management' %}" class="fw-semibold text-decoration-none" style="color:var(--fx-pub-gold-600);">Explore Architecture &rarr;</a>
+      </div>
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">{% icon 'clock' 24 %}</div>
+        <h3 class="fx-pub-card-title">High-Stakes SLA Management</h3>
+        <p class="fx-pub-card-desc">Contractual response and resolution guarantees with automated breach escalations and Celery periodic monitoring.</p>
+        <a href="{% url 'ui:public_solution' 'sla-management' %}" class="fw-semibold text-decoration-none" style="color:var(--fx-pub-gold-600);">Explore Architecture &rarr;</a>
+      </div>
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">{% icon 'refresh-cw' 24 %}</div>
+        <h3 class="fx-pub-card-title">Connected Data &amp; Telemetry</h3>
+        <p class="fx-pub-card-desc">IoT sensor data ingestion, continuous runtime meter readings, and threshold-driven predictive work orders.</p>
+        <a href="{% url 'ui:public_solution' 'connected-data' %}" class="fw-semibold text-decoration-none" style="color:var(--fx-pub-gold-600);">Explore Architecture &rarr;</a>
+      </div>
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">{% icon 'wrench' 24 %}</div>
+        <h3 class="fx-pub-card-title">Service Maintenance &amp; Field Dispatch</h3>
+        <p class="fx-pub-card-desc">Intelligent route scheduling, technician skill matching, mobile checklists, and inventory consumption logs.</p>
+        <a href="{% url 'ui:public_solution' 'service-maintenance' %}" class="fw-semibold text-decoration-none" style="color:var(--fx-pub-gold-600);">Explore Architecture &rarr;</a>
+      </div>
+      <div class="fx-pub-card">
+        <div class="fx-pub-card-icon">{% icon 'shield' 24 %}</div>
+        <h3 class="fx-pub-card-title">Critical Infrastructure</h3>
+        <p class="fx-pub-card-desc">Power grid, telecom, and datacentre uptime assurance with strict compliance audits and MTBF/MTTR analytics.</p>
+        <a href="{% url 'ui:public_solution' 'infrastructure' %}" class="fw-semibold text-decoration-none" style="color:var(--fx-pub-gold-600);">Explore Architecture &rarr;</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

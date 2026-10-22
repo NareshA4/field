@@ -151,6 +151,7 @@ class MyJobsView(TenantPermissionMixin, View):
         upcoming_count = selectors.my_jobs(request.membership, status_filter="upcoming").count()
         completed_count = selectors.my_jobs(request.membership, status_filter="completed").count()
         all_count = selectors.my_jobs(request.membership, status_filter="all").count()
+        capacity = selectors.daily_capacity_summary(request.membership)
 
         ctx = {
             "jobs": jobs,
@@ -160,6 +161,7 @@ class MyJobsView(TenantPermissionMixin, View):
             "upcoming_count": upcoming_count,
             "completed_count": completed_count,
             "all_count": all_count,
+            "capacity": capacity,
         }
 
         if request.headers.get("HX-Request"):
@@ -385,4 +387,112 @@ class JobPartConsumeView(TenantPermissionMixin, View):
             return render(request, "workspace/_drawer.html", summary)
 
         return redirect("workspace:job_detail", pk=wo.pk)
+
+
+class JobPartReturnView(TenantPermissionMixin, View):
+    required_permission = "work_order.record"
+
+    def post(self, request, pk):
+        wo = _get_job(request, pk)
+        part_line_id = request.POST.get("part_line_id", "").strip()
+        quantity = request.POST.get("quantity", "").strip()
+        reason = request.POST.get("reason", "").strip()
+
+        try:
+            line = services.return_job_part(
+                wo,
+                part_line_id=part_line_id,
+                quantity=quantity,
+                reason=reason,
+                membership=request.membership,
+                actor=request.user,
+                request=request,
+            )
+            messages.success(request, f"Returned {quantity} {line.part.unit} of {line.part.name} ({line.part.part_number}) to warehouse.")
+        except DomainError as exc:
+            messages.error(request, exc.message)
+
+        if request.headers.get("HX-Request"):
+            wo.refresh_from_db()
+            summary = services.get_drawer_summary(wo, membership=request.membership)
+            return render(request, "workspace/_drawer.html", summary)
+
+        return redirect("workspace:job_detail", pk=wo.pk)
+
+
+class JobMeterReadingView(TenantPermissionMixin, View):
+    required_permission = "work_order.record"
+
+    def post(self, request, pk):
+        wo = _get_job(request, pk)
+        meter_id = request.POST.get("meter_id", "").strip()
+        value = request.POST.get("value", "").strip()
+        notes = request.POST.get("notes", "").strip()
+
+        try:
+            reading = services.record_job_meter_reading(
+                wo,
+                meter_id=meter_id,
+                value=value,
+                notes=notes,
+                membership=request.membership,
+                actor=request.user,
+                request=request,
+            )
+            messages.success(request, f"Meter reading recorded: {reading.value} {reading.meter.unit} for {reading.meter.name}.")
+        except DomainError as exc:
+            messages.error(request, exc.message)
+
+        if request.headers.get("HX-Request"):
+            wo.refresh_from_db()
+            summary = services.get_drawer_summary(wo, membership=request.membership)
+            return render(request, "workspace/_drawer.html", summary)
+
+        return redirect("workspace:job_detail", pk=wo.pk)
+
+
+class JobReportDefectView(TenantPermissionMixin, View):
+    """Technician reports an auxiliary defect or incident discovered on-site."""
+
+    required_permission = "work_order.view_assigned"
+
+    def post(self, request, pk):
+        wo = _get_job(request, pk)
+        title = request.POST.get("title", "").strip()
+        asset_id = request.POST.get("asset_id", "").strip()
+        description = request.POST.get("description", "").strip()
+        kind = request.POST.get("kind", "INCIDENT").strip()
+        severity = request.POST.get("severity", "MEDIUM").strip()
+        service_impact = request.POST.get("service_impact", "NONE").strip()
+        failure_category = request.POST.get("failure_category", "").strip()
+        override_dup = request.POST.get("override_duplicate") in ("true", "1", "on")
+        override_reason = request.POST.get("override_reason", "").strip()
+
+        target_asset = None
+        if asset_id:
+            from apps.assets.models import Asset
+            target_asset = Asset.objects.for_organization(request.organization).filter(pk=asset_id).first()
+
+        try:
+            sr = services.report_auxiliary_defect(
+                wo,
+                title=title,
+                membership=request.membership,
+                actor=request.user,
+                asset=target_asset,
+                description=description,
+                kind=kind,
+                severity=severity,
+                service_impact=service_impact,
+                failure_category=failure_category,
+                override_duplicate=override_dup,
+                override_reason=override_reason,
+                request=request,
+            )
+            messages.success(request, f"Auxiliary defect {sr.number} reported successfully.")
+        except DomainError as exc:
+            messages.error(request, exc.message)
+
+        return redirect("workspace:job_detail", pk=wo.pk)
+
 

@@ -148,10 +148,15 @@ class ScanView(LabelBase):
 
     def post(self, request):
         token = request.POST.get("token", "").strip()
+        work_order_id = request.POST.get("work_order") or request.GET.get("work_order")
         if not token:
             messages.error(request, "Please enter a code or link.")
             return render(request, "identification/scan.html")
-        return redirect("identification:resolve", token=token)
+        from django.urls import reverse
+        url = reverse("identification:resolve", kwargs={"token": token})
+        if work_order_id:
+            url += f"?work_order={work_order_id}"
+        return redirect(url)
 
 
 class ResolveView(LabelBase):
@@ -167,7 +172,32 @@ class ResolveView(LabelBase):
         except (NotFound, PermissionDenied, DomainError):
             return render(request, "identification/not_found.html", {"throttled": False}, status=404)
 
+        work_order_id = request.GET.get("work_order")
+        if work_order_id:
+            from apps.workorders.models import WorkOrder
+            wo = WorkOrder.objects.filter(
+                organization=request.organization, pk=work_order_id
+            ).select_related("asset").first()
+            if wo:
+                if wo.asset_id and wo.asset_id == asset.pk:
+                    messages.success(request, f"Asset Verified: Machine {asset.name} ({asset.asset_tag}) matches this work order.")
+                elif wo.asset_id:
+                    messages.error(request, f"Mismatch Warning! Scanned asset {asset.asset_tag} ({asset.name}) does NOT match assigned work order asset ({wo.asset.asset_tag}).")
+                else:
+                    messages.info(request, f"Scanned asset {asset.name} ({asset.asset_tag}) for work order {wo.order_number}.")
+                return redirect("workspace:job_detail", pk=wo.pk)
+
         if is_active and request.GET.get("preview") != "1":
+            from apps.workorders.models import WorkOrder
+            my_wo = WorkOrder.objects.filter(
+                organization=request.organization,
+                asset=asset,
+                assigned_to=request.membership,
+                status__in=[WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.DISPATCHED, WorkOrder.Status.PLANNED],
+            ).order_by("-started_at", "-created_at").first()
+            if my_wo:
+                messages.info(request, f"Found assigned work order {my_wo.order_number} for {asset.name}.")
+                return redirect("workspace:job_detail", pk=my_wo.pk)
             return redirect("assets:detail", pk=asset.pk)
 
         return render(

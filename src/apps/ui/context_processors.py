@@ -4,6 +4,7 @@ from apps.rbac import services as rbac
 from apps.tenancy import selectors
 
 from . import navigation
+from .utils import is_client_membership
 
 
 def shell(request):
@@ -12,11 +13,22 @@ def shell(request):
         return {}
     membership = getattr(request, "membership", None)
     nav = []
+    is_client = False
     if membership is not None:
+        is_client = is_client_membership(membership)
         raw_items = []
         for item in navigation.items():
-            if item.permission and not rbac.has_permission_anywhere(membership, item.permission):
-                continue
+            if is_client:
+                # Client user should ONLY see client sub-modules (Portal section, excluding staff portal.manage)
+                if item.section != "Portal" or item.permission == "portal.manage":
+                    continue
+            else:
+                # Internal staff should NOT see client portal requester navigation items
+                if item.section == "Portal":
+                    continue
+                if item.permission and not rbac.has_permission_anywhere(membership, item.permission):
+                    continue
+
             try:
                 url = reverse(item.url_name)
             except NoReverseMatch:
@@ -52,4 +64,5 @@ def shell(request):
         "shell_nav_sections": sections,
         "shell_memberships": getattr(request, "active_memberships", None) or list(selectors.active_memberships(user)),
         "shell_tenant_error": getattr(request, "tenant_error", None),
+        "is_client": is_client,
     }

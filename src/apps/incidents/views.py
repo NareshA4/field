@@ -1,6 +1,9 @@
+from __future__ import annotations
+import logging
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, models
 """M05 HTML views. Same chain as M01/M02: login -> membership -> permission gate -> organization + site-scope
 restricted lookup (404) -> permission for the request's site (403) -> service (validation, transaction, audit)."""
-from __future__ import annotations
 
 from django.contrib import messages
 from django.core.paginator import Paginator
@@ -22,10 +25,11 @@ from .workflow import ACTION_PERMISSIONS, BUTTON_STYLES, REASON_REQUIRED, REQUES
 
 TABS = [("overview", "Overview"), ("evidence", "Evidence"), ("history", "History")]
 CONFIRMS = {"reject": "Reject this request?", "close": "Close this request?"}
+logger = logging.getLogger(__name__)
 
 
 def _req(request, pk, code=None) -> ServiceRequest:
-    sr = or404(selectors.get_request, request.membership, request.organization, pk, "incident.view")
+    sr = or404(selectors.get_request, request.membership, request.organization, pk, "incident.view_assigned")
     if code:
         need(request, code, sr.site_id)
     return sr
@@ -66,12 +70,22 @@ class RequestListView(IncidentBase):
                 not wo
             )
 
+        base_reqs = selectors.requests_for(m, org)
+        total_incidents = base_reqs.count()
+        open_incidents = base_reqs.filter(status__in=("NEW", "TRIAGED", "APPROVED", "IN_SERVICE", "IN_PROGRESS", "ON_HOLD")).count()
+        critical_incidents = base_reqs.filter(severity="CRITICAL").exclude(status__in=("CLOSED", "REJECTED", "CANCELLED")).count()
+        closed_incidents = base_reqs.filter(status="CLOSED").count()
+
         return render(request, "incidents/list.html", {
             "page": page, "filters": request.GET, "statuses": ServiceRequest.Status.choices,
             "severities": ServiceRequest.Severity.choices, "kinds": ServiceRequest.Kind.choices,
             "sites": site_selectors.sites_for(m, org, "incident.view").order_by("code"),
             "can_create": (rbac.has_permission_anywhere(m, "incident.create") or
-                           selectors.is_owned_asset_reporter(m))})
+                           selectors.is_owned_asset_reporter(m)),
+            "total_incidents": total_incidents,
+            "open_incidents": open_incidents,
+            "critical_incidents": critical_incidents,
+            "closed_incidents": closed_incidents})
 
 
 class RequestCheckDuplicateView(IncidentBase):
@@ -184,18 +198,14 @@ class RequestCreateView(IncidentBase):
                     "subtitle": "Review the report details before linking it.",
                     "detected_duplicates": None,
                 }, status=400)
-            matches = services.find_duplicate_incidents(
-                request.organization, asset_id=d["asset"].pk, kind=d["kind"],
-                description=d["description"], title=d["title"],
-            )
-            if str(existing_sr.pk) not in {item["id"] for item in matches}:
+            if existing_sr.status not in services.ACTIVE_INCIDENT_STATUSES:
                 form.add_error(None, "Select one of the matching active incidents shown above.")
                 return render(request, "incidents/create.html", {
                     "title": "Report an incident / request", "form": form,
                     "owned_asset_reporter": selectors.is_owned_asset_reporter(request.membership),
                     "cancel_url": "/app/incidents/", "crumbs": self.crumbs,
                     "subtitle": "Review the matching incident before linking this report.",
-                    "detected_duplicates": matches,
+                    "detected_duplicates": None,
                 }, status=400)
             try:
                 linked = services.link_duplicate_request(
@@ -294,7 +304,7 @@ class RequestEditView(IncidentBase):
 
 
 class RequestDetailView(IncidentBase):
-    required_permission = "incident.view"
+    required_permission = "incident.view_assigned"
 
     def dispatch(self, request, *args, **kwargs):
         if request.GET.get("duplicate_review") == "1":
@@ -320,9 +330,11 @@ class RequestDetailView(IncidentBase):
         if apps.is_installed("apps.workorders"):
             from apps.workorders.models import WorkOrder
 
-            linked_orders = WorkOrder.objects.for_organization(org).filter(
-                source_reference=sr.number,
-                source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
+            linked_orders = WorkOrder.objects.filter(
+                models.Q(source_request=sr) |
+                models.Q(source_id=sr.pk) |
+                models.Q(organization=org, source_reference=sr.number,
+                         source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT))
             )
             if linked_orders.exists():
                 can["create_work_order"] = False
@@ -467,9 +479,11 @@ class RequestWorkOrderView(_Post):
         need(request, "work_order.create", sr.site_id)
 
         from apps.workorders.models import WorkOrder
-        existing_wo = WorkOrder.objects.for_organization(request.organization).filter(
-            source_reference=sr.number,
-            source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT),
+        existing_wo = WorkOrder.objects.filter(
+            models.Q(source_request=sr) |
+            models.Q(source_id=sr.pk) |
+            models.Q(organization=request.organization, source_reference=sr.number,
+                     source_type__in=(WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT))
         ).first()
         if existing_wo:
             messages.error(
@@ -483,6 +497,24 @@ class RequestWorkOrderView(_Post):
                 sr, actor=request.user, membership=request.membership, request=request)
         except DomainError as exc:
             messages.error(request, exc.message)
+            return self.done(request, sr)
+        except ValidationError as exc:
+            msg = exc.message_dict if hasattr(exc, "message_dict") else (exc.messages if hasattr(exc, "messages") else str(exc))
+            messages.error(request, f"Validation failed: {msg}")
+            return self.done(request, sr)
+        except IntegrityError as exc:
+            logger.exception("Database integrity error converting request %s to work order: %s", sr.number, exc)
+            exc_str = str(exc)
+            if "source_request" in exc_str.lower() or "source_id" in exc_str.lower():
+                messages.error(request, "Could not create work order: a work order is already linked to this incident.")
+            elif "uniq_wo_number_org" in exc_str.lower() or "order_number" in exc_str.lower():
+                messages.error(request, "Could not create work order: sequence number conflict. Please try again.")
+            else:
+                messages.error(request, f"Could not create work order: {exc_str.splitlines()[0] if exc_str else 'database integrity constraint error'}")
+            return self.done(request, sr)
+        except Exception as exc:
+            logger.exception("Unexpected error converting request %s to work order: %s", sr.number, exc)
+            messages.error(request, f"An unexpected error occurred while converting to work order: {exc}")
             return self.done(request, sr)
         messages.success(request, f"Work order {wo.order_number} created from {sr.number}.")
         return redirect("workorders:detail", pk=wo.pk)

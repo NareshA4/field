@@ -170,9 +170,6 @@ class CreateWorkOrderSerializer(StrictInputSerializer):
         hours = attrs.get("estimated_hours")
         if start and end and hours is not None and hours > Decimal(str((end - start).total_seconds())) / Decimal("3600"):
             raise serializers.ValidationError({"estimated_hours": "Estimated hours cannot exceed the planned start-to-end window."})
-        schedule_values = (start, end, due, hours)
-        if any(value is not None for value in schedule_values) and not all(value is not None for value in schedule_values):
-            raise serializers.ValidationError({"planned_start": "Provide planned start, planned end, due date, and estimated hours together, or leave them blank and plan the Draft later."})
         return attrs
 
 

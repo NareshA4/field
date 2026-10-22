@@ -66,9 +66,17 @@ class PartListView(InvBase):
     required_permission = "inventory.part.view"
 
     def get(self, request):
-        qs = selectors.filter_parts(selectors.parts_for(request.organization), request.GET)
+        base_parts = selectors.parts_for(request.organization)
+        qs = selectors.filter_parts(base_parts, request.GET)
+        total_parts = base_parts.count()
+        active_parts = base_parts.filter(is_active=True).count()
+        inactive_parts = total_parts - active_parts
+
         return render(request, "inventory/parts.html", {
             "page": _paged(request, qs), "filters": request.GET,
+            "total_parts": total_parts,
+            "active_parts": active_parts,
+            "inactive_parts": inactive_parts,
             "can_manage": rbac.has_permission(request.membership, "inventory.part.manage")})
 
 
@@ -257,10 +265,17 @@ class WarehouseActiveView(InvBase):
 class StockListView(InvBase):
     def get(self, request):
         m, org = request.membership, request.organization
-        qs = selectors.filter_balances(selectors.balances_for(m, org), request.GET)
+        base_balances = selectors.balances_for(m, org)
+        qs = selectors.filter_balances(base_balances, request.GET)
+        warehouses = selectors.warehouses_for(m, org).order_by("code")
+        total_items = base_balances.count()
+        warehouse_count = warehouses.count()
+
         return render(request, "inventory/stock.html", {
             "page": _paged(request, qs), "filters": request.GET,
-            "warehouses": selectors.warehouses_for(m, org).order_by("code"),
+            "warehouses": warehouses,
+            "total_items": total_items,
+            "warehouse_count": warehouse_count,
             "can_receive": rbac.has_permission_anywhere(m, "inventory.receive"),
             "can_transfer": rbac.has_permission_anywhere(m, "inventory.transfer")})
 

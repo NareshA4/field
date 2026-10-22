@@ -15,5 +15,10 @@ urlpatterns = [
     path("workspace/jobs/<uuid:pk>/labor/", api_views.JobLaborAPIView.as_view(), name="api_job_labor"),
     path("workspace/jobs/<uuid:pk>/materials/", api_views.JobMaterialAPIView.as_view(), name="api_job_materials"),
     path("workspace/jobs/<uuid:pk>/parts/consume/", api_views.JobPartConsumeAPIView.as_view(), name="api_job_parts_consume"),
+    path("workspace/jobs/<uuid:pk>/parts/return/", api_views.JobPartReturnAPIView.as_view(), name="api_job_parts_return"),
     path("workspace/jobs/<uuid:pk>/evidence/", api_views.JobEvidenceAPIView.as_view(), name="api_job_evidence"),
+    path("workspace/jobs/<uuid:pk>/meters/reading/", api_views.JobMeterReadingAPIView.as_view(), name="api_job_meter_reading"),
+    path("workspace/jobs/<uuid:pk>/verify-asset/", api_views.JobAssetVerifyAPIView.as_view(), name="api_job_verify_asset"),
+    path("workspace/jobs/<uuid:pk>/defects/", api_views.JobReportDefectAPIView.as_view(), name="api_job_report_defect"),
+    path("workspace/capacity/", api_views.TechnicianCapacityAPIView.as_view(), name="api_technician_capacity"),
 ]

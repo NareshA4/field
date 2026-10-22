@@ -83,13 +83,20 @@ class TrackingDetailView(SlaBase):
 class BreachListView(SlaBase):
     def get(self, request):
         m, org = request.membership, request.organization
-        page = _paged(request, selectors.filter_breaches(selectors.breaches_for(m, org), request.GET))
+        base_breaches = selectors.breaches_for(m, org)
+        total_breaches = base_breaches.count()
+        open_breaches = base_breaches.filter(acknowledged_at__isnull=True).count()
+        ack_breaches = total_breaches - open_breaches
+        page = _paged(request, selectors.filter_breaches(base_breaches, request.GET))
         for breach in page:
             breach.can_ack = rbac.has_permission(m, "sla.acknowledge", breach.site_id)
         return render(request, "sla/breaches.html", {
             "page": page, "filters": request.GET,
             "sites": site_selectors.sites_for(m, org, "sla.view").order_by("code"),
             "can_manage": rbac.has_permission(m, "sla.manage"),
+            "total_breaches": total_breaches,
+            "open_breaches": open_breaches,
+            "ack_breaches": ack_breaches,
         })
 
 
@@ -152,8 +159,18 @@ class ProfileListView(SlaBase):
     required_permission = "sla.manage"
 
     def get(self, request):
-        page = _paged(request, selectors.profiles_for(request.organization).prefetch_related("targets"))
-        return render(request, "sla/profiles.html", {"page": page, "can_manage": True})
+        base_profiles = selectors.profiles_for(request.organization)
+        total_profiles = base_profiles.count()
+        active_profiles = base_profiles.filter(is_active=True).count()
+        inactive_profiles = total_profiles - active_profiles
+        page = _paged(request, base_profiles.prefetch_related("targets"))
+        return render(request, "sla/profiles.html", {
+            "page": page,
+            "can_manage": True,
+            "total_profiles": total_profiles,
+            "active_profiles": active_profiles,
+            "inactive_profiles": inactive_profiles,
+        })
 
 
 class ProfileCreateView(SlaBase):

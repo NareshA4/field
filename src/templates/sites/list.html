@@ -17,6 +17,19 @@
   {% endif %}
 </div>
 
+<!-- Standardized KPI Cards Row -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Total Sites" value=total_sites|default:0 tone="primary" icon="pin" %}
+  </div>
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Active Facilities" value=active_sites|default:0 tone="success" icon="check" %}
+  </div>
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Inactive Sites" value=inactive_sites|default:0 tone="warning" icon="clock" %}
+  </div>
+</div>
+
 <div class="fx-card" id="site-list-card" hx-get="{% url 'sites:list' %}" hx-trigger="siteSaved from:body" hx-target="#site-list-card" hx-select="#site-list-card" hx-swap="outerHTML" hx-include="#site-filter-form" hx-disinherit="*">
   <form method="get" id="site-filter-form" class="d-flex flex-wrap gap-2 p-3 border-bottom">
     <input class="form-control form-control-sm" style="max-width:280px" type="search" name="q" value="{{ q }}" placeholder="Code, name or city" aria-label="Search sites">

@@ -198,7 +198,10 @@ class MyWorkDashboardView(MemberOnlyMixin, View):
     template_name = "dashboards/my_work.html"
 
     def get(self, request):
-        if not rbac.has_permission_anywhere(request.membership, "work_order.view"):
+        if not (
+            rbac.has_permission_anywhere(request.membership, "work_order.view")
+            or rbac.has_permission_anywhere(request.membership, "work_order.view_assigned")
+        ):
             raise PermissionDenied("Work order permissions are required to access My Work Cockpit.")
 
         from_str = request.GET.get("from")

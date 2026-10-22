@@ -1,0 +1,117 @@
+{% extends "public.html" %}
+{% load ui_tags %}
+
+{% block title %}Client Onboarding &middot; FieldOps Nexus{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-1 small mb-2">Requester Portal</span>
+  <h1 class="h3 fw-bold text-dark mb-1">Client Onboarding</h1>
+  <p class="text-secondary small mb-0">Request access to the FieldOps Nexus service portal</p>
+</div>
+
+{% if submitted %}
+  <div class="alert alert-success border-0 shadow-sm p-4 text-center my-3" style="border-radius:10px;">
+    <div class="mb-2">{% icon 'check' 32 %}</div>
+    <h2 class="h5 fw-bold text-dark">Onboarding Request Received</h2>
+    <p class="small text-secondary mb-3">
+      Thank you, <strong>{{ submitted_name }}</strong>. Your access request for <strong>{{ submitted_company }}</strong> has been queued for verification.
+    </p>
+    <div class="small text-secondary p-3 bg-white rounded border mb-3 text-start">
+      <strong>Next steps:</strong>
+      <ol class="mb-0 ps-3 mt-1">
+        <li>The Service Manager will review your company details and asset scope.</li>
+        <li>Upon approval, an activation link will be dispatched to <code>{{ submitted_email }}</code>.</li>
+        <li>You will be prompted to set your password and access your dedicated requester dashboard.</li>
+      </ol>
+    </div>
+    <a href="{% url 'accounts:login' %}" class="btn-fx-gold w-100 py-2">
+      Return to Sign In
+    </a>
+  </div>
+{% else %}
+  <form method="post" novalidate>{% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger py-2 small mb-3">
+        {% for err in form.non_field_errors %}{{ err }}{% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="row g-2 mb-3">
+      <div class="col-12 col-sm-6">
+        <label for="id_full_name" class="form-label small fw-semibold text-dark">Full name <span class="text-danger">*</span></label>
+        <input type="text" name="full_name" id="id_full_name"
+               class="form-control form-control-sm bg-light {% if form.full_name.errors %}is-invalid{% endif %}"
+               value="{{ form.full_name.value|default:'' }}" required placeholder="Jane Doe">
+        {% if form.full_name.errors %}
+          <div class="invalid-feedback d-block small">{{ form.full_name.errors.0 }}</div>
+        {% endif %}
+      </div>
+
+      <div class="col-12 col-sm-6">
+        <label for="id_email" class="form-label small fw-semibold text-dark">Work email <span class="text-danger">*</span></label>
+        <input type="email" name="email" id="id_email"
+               class="form-control form-control-sm bg-light {% if form.email.errors %}is-invalid{% endif %}"
+               value="{{ form.email.value|default:'' }}" required placeholder="jane@company.com">
+        {% if form.email.errors %}
+          <div class="invalid-feedback d-block small">{{ form.email.errors.0 }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="row g-2 mb-3">
+      <div class="col-12 col-sm-6">
+        <label for="id_phone" class="form-label small fw-semibold text-dark">Phone number</label>
+        <input type="text" name="phone" id="id_phone"
+               class="form-control form-control-sm bg-light"
+               value="{{ form.phone.value|default:'' }}" placeholder="+1 (555) 000-0000">
+      </div>
+
+      <div class="col-12 col-sm-6">
+        <label for="id_company_name" class="form-label small fw-semibold text-dark">Company name <span class="text-danger">*</span></label>
+        <input type="text" name="company_name" id="id_company_name"
+               class="form-control form-control-sm bg-light {% if form.company_name.errors %}is-invalid{% endif %}"
+               value="{{ form.company_name.value|default:'' }}" required placeholder="Acme Logistics Corp">
+        {% if form.company_name.errors %}
+          <div class="invalid-feedback d-block small">{{ form.company_name.errors.0 }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="id_facility_address" class="form-label small fw-semibold text-dark">Facility address / Site location</label>
+      <input type="text" name="facility_address" id="id_facility_address"
+             class="form-control form-control-sm bg-light"
+             value="{{ form.facility_address.value|default:'' }}" placeholder="100 Enterprise Way, Suite 400">
+    </div>
+
+    <div class="mb-3">
+      <label for="id_service_scope" class="form-label small fw-semibold text-dark">Asset maintenance scope</label>
+      <textarea name="service_scope" id="id_service_scope" rows="2"
+                class="form-control form-control-sm bg-light"
+                placeholder="Briefly describe facilities or equipment needing service...">{{ form.service_scope.value|default:'' }}</textarea>
+    </div>
+
+    <div class="mb-4 form-check">
+      <input type="checkbox" name="terms_accepted" id="id_terms_accepted" class="form-check-input {% if form.terms_accepted.errors %}is-invalid{% endif %}" required>
+      <label for="id_terms_accepted" class="form-check-label small text-secondary">
+        I accept the <a href="{% url 'ui:public_legal' 'terms-and-conditions' %}" target="_blank">Enterprise Terms</a> and <a href="{% url 'ui:public_legal' 'privacy-policy' %}" target="_blank">Privacy Policy</a> <span class="text-danger">*</span>
+      </label>
+      {% if form.terms_accepted.errors %}
+        <div class="invalid-feedback d-block small">{{ form.terms_accepted.errors.0 }}</div>
+      {% endif %}
+    </div>
+
+    <button type="submit" class="btn-fx-gold w-100 py-2">
+      Submit Onboarding Request
+    </button>
+  </form>
+
+  <div class="mt-4 pt-3 border-top text-center">
+    <div class="small text-secondary mb-1">Already registered or have an account?</div>
+    <a href="{% url 'accounts:login' %}" class="small fw-semibold text-decoration-none" style="color:var(--fx-accent);">
+      Sign In &rarr;
+    </a>
+  </div>
+{% endif %}
+{% endblock %}

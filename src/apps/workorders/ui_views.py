@@ -1,11 +1,13 @@
 import json
+import logging
 from datetime import time, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
+from django.db import IntegrityError
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce
 from django.http import Http404, HttpResponse, QueryDict
@@ -23,6 +25,8 @@ from apps.ui.mixins import TenantPermissionMixin
 from . import services
 from .assignment_rules import available_technicians, schedule_warnings
 from .checklist_adapter import get_checklist_summary
+
+logger = logging.getLogger(__name__)
 from .forms import (
     AssignForm,
     ChecklistForm,
@@ -676,6 +680,29 @@ class WorkOrderCreateView(TenantPermissionMixin, View):
                         source_type=source_type, **values)
             except DomainError as exc:
                 form.add_error(None, exc.message)
+            except ValidationError as exc:
+                if hasattr(exc, "message_dict"):
+                    for field, msgs in exc.message_dict.items():
+                        field_name = field if field in form.fields else None
+                        for msg in msgs:
+                            form.add_error(field_name, msg)
+                elif hasattr(exc, "messages"):
+                    for msg in exc.messages:
+                        form.add_error(None, msg)
+                else:
+                    form.add_error(None, str(exc))
+            except IntegrityError as exc:
+                logger.exception("Database integrity error creating work order: %s", exc)
+                exc_str = str(exc)
+                if "source_request" in exc_str.lower() or "source_id" in exc_str.lower():
+                    form.add_error(None, "Could not create work order: a work order is already linked to this incident.")
+                elif "uniq_wo_number_org" in exc_str.lower() or "order_number" in exc_str.lower() or "uniq_work_order_number_per_org" in exc_str.lower():
+                    form.add_error(None, "Could not create work order: sequence number conflict. Please try saving again.")
+                else:
+                    form.add_error(None, f"Could not create work order: {exc_str.splitlines()[0] if exc_str else 'database integrity constraint error'}")
+            except Exception as exc:
+                logger.exception("Unexpected error creating work order: %s", exc)
+                form.add_error(None, f"An unexpected error occurred while creating the work order: {exc}")
             else:
                 messages.success(request, f"Work order {wo.order_number} created as Draft.")
                 return redirect("workorders:detail", pk=wo.pk)
@@ -725,6 +752,23 @@ class WorkOrderEditView(TenantPermissionMixin, View):
                                                      request=request, **values)
             except DomainError as exc:
                 form.add_error(None, exc.message)
+            except ValidationError as exc:
+                if hasattr(exc, "message_dict"):
+                    for field, msgs in exc.message_dict.items():
+                        field_name = field if field in form.fields else None
+                        for msg in msgs:
+                            form.add_error(field_name, msg)
+                elif hasattr(exc, "messages"):
+                    for msg in exc.messages:
+                        form.add_error(None, msg)
+                else:
+                    form.add_error(None, str(exc))
+            except IntegrityError as exc:
+                logger.exception("Database integrity error updating work order: %s", exc)
+                form.add_error(None, "Could not update work order: a database conflict occurred.")
+            except Exception as exc:
+                logger.exception("Unexpected error updating work order: %s", exc)
+                form.add_error(None, f"An unexpected error occurred while updating the work order: {exc}")
             else:
                 messages.success(request, f"Work order {updated.order_number} updated.")
                 return redirect("workorders:detail", pk=updated.pk)

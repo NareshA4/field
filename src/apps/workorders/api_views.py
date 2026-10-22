@@ -1,20 +1,32 @@
+from decimal import Decimal
+
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
 from apps.assets import selectors as asset_selectors
 from apps.core.apiutils import ID_PARAM, paginate, query_param, require_permission
-from apps.core.exceptions import NotFound
+from apps.core.exceptions import Conflict, NotFound, ValidationFailed
+from apps.sites.models import Site
 from apps.sites.selectors import scoped_get
 from apps.tenancy.api import TenantAPIMixin
 from apps.tenancy.models import Membership
 
 from . import selectors, services
-from .models import WorkOrder, WorkOrderLabor, WorkOrderMaterial
+from .models import ClosureApproval, WorkOrder, WorkOrderLabor, WorkOrderMaterial
+from .serializers import PlanSerializer
 from .workflow import ACTION_PERMISSIONS, WORK_ORDER_STATUS
+
+
+class ClosureApprovalSerializer(serializers.ModelSerializer):
+    approver_name = serializers.CharField(source="approver.display_name", read_only=True)
+
+    class Meta:
+        model = ClosureApproval
+        fields = ["id", "approver", "approver_name", "decision", "comment", "created_at"]
 
 
 class WorkOrderSerializer(serializers.ModelSerializer):
@@ -26,14 +38,16 @@ class WorkOrderSerializer(serializers.ModelSerializer):
     source_request_number = serializers.CharField(source="source_request.number", read_only=True, default=None)
     available_actions = serializers.SerializerMethodField()
     total_hours = serializers.SerializerMethodField()
+    closure_approvals = ClosureApprovalSerializer(many=True, read_only=True)
 
     class Meta:
         model = WorkOrder
-        fields = ["id", "number", "title", "description", "work_type", "priority", "status", "asset", "asset_tag",
-                  "asset_name", "site", "site_code", "source_request", "source_request_number", "source_type",
-                  "source_id", "planned_start",
-                  "planned_end", "estimated_hours", "assigned_to", "assigned_to_name", "dispatched_at", "started_at",
-                  "completed_at", "closed_at", "hold_reason", "resolution_notes",
+        fields = ["id", "number", "order_number", "title", "description", "work_type", "priority", "status", "asset", "asset_tag",
+                  "asset_name", "asset_reference", "component", "component_reference", "site", "site_code",
+                  "source_request", "source_request_number", "source_type", "source_reference",
+                  "source_id", "planned_start", "planned_end", "due_at", "estimated_hours",
+                  "assigned_to", "assigned_to_name", "dispatched_at", "started_at",
+                  "completed_at", "closed_at", "closed_by", "version", "hold_reason", "resolution_notes", "closure_approvals",
                   "available_actions", "total_hours", "created_at", "updated_at"]
         read_only_fields = fields
 
@@ -48,23 +62,49 @@ class WorkOrderSerializer(serializers.ModelSerializer):
 
 
 class WorkOrderWriteSerializer(serializers.Serializer):
+    site = serializers.UUIDField(required=False)
     asset = serializers.UUIDField()
+    component = serializers.UUIDField(required=False, allow_null=True)
+    source_type = serializers.ChoiceField(choices=WorkOrder.SourceType.choices, required=False)
+    source_reference = serializers.CharField(max_length=150, required=False, allow_blank=True)
     title = serializers.CharField(max_length=200)
     description = serializers.CharField(required=False, allow_blank=True)
-    work_type = serializers.ChoiceField(choices=WorkOrder.WorkType.choices, required=False)
-    priority = serializers.ChoiceField(choices=WorkOrder.Priority.choices, required=False)
+    work_type = serializers.ChoiceField(choices=WorkOrder.WorkType.choices, required=False, allow_null=True)
+    priority = serializers.ChoiceField(choices=WorkOrder.Priority.choices, required=False, allow_null=True)
     planned_start = serializers.DateTimeField(required=False, allow_null=True)
     planned_end = serializers.DateTimeField(required=False, allow_null=True)
+    due_at = serializers.DateTimeField(required=False, allow_null=True)
     estimated_hours = serializers.DecimalField(max_digits=6, decimal_places=2, required=False, allow_null=True)
+
+    def validate(self, attrs):
+        start = attrs.get("planned_start")
+        end = attrs.get("planned_end")
+        due_at = attrs.get("due_at")
+        estimated_hours = attrs.get("estimated_hours")
+        if start and end and end <= start:
+            raise serializers.ValidationError({"planned_end": ["Planned end must be later than planned start."]})
+        if due_at and end and due_at <= end:
+            raise serializers.ValidationError({"due_at": ["Due date must be later than planned end."]})
+        if estimated_hours is not None and estimated_hours <= Decimal("0"):
+            raise serializers.ValidationError({"estimated_hours": ["Estimated hours must be greater than zero."]})
+        if start and end and estimated_hours is not None:
+            available_hours = Decimal(str((end - start).total_seconds())) / Decimal("3600")
+            if estimated_hours > available_hours:
+                raise serializers.ValidationError({"estimated_hours": ["Estimated hours cannot exceed the planned start-to-end window."]})
+        return attrs
 
 
 class WorkOrderPatchSerializer(serializers.Serializer):
+    site = serializers.UUIDField(required=False)
+    asset = serializers.UUIDField(required=False)
+    component = serializers.UUIDField(required=False, allow_null=True)
     title = serializers.CharField(max_length=200, required=False)
     description = serializers.CharField(required=False, allow_blank=True)
-    work_type = serializers.ChoiceField(choices=WorkOrder.WorkType.choices, required=False)
-    priority = serializers.ChoiceField(choices=WorkOrder.Priority.choices, required=False)
+    work_type = serializers.ChoiceField(choices=WorkOrder.WorkType.choices, required=False, allow_null=True)
+    priority = serializers.ChoiceField(choices=WorkOrder.Priority.choices, required=False, allow_null=True)
     planned_start = serializers.DateTimeField(required=False, allow_null=True)
     planned_end = serializers.DateTimeField(required=False, allow_null=True)
+    due_at = serializers.DateTimeField(required=False, allow_null=True)
     estimated_hours = serializers.DecimalField(max_digits=6, decimal_places=2, required=False, allow_null=True)
 
     def validate(self, attrs):
@@ -73,6 +113,20 @@ class WorkOrderPatchSerializer(serializers.Serializer):
             raise serializers.ValidationError({"status": "Status cannot be edited; use POST /work-orders/{id}/transition/."})
         if extra:
             raise serializers.ValidationError({k: "This field cannot be edited." for k in sorted(extra)})
+        start = attrs.get("planned_start")
+        end = attrs.get("planned_end")
+        due_at = attrs.get("due_at")
+        estimated_hours = attrs.get("estimated_hours")
+        if start and end and end <= start:
+            raise serializers.ValidationError({"planned_end": ["Planned end must be later than planned start."]})
+        if due_at and end and due_at <= end:
+            raise serializers.ValidationError({"due_at": ["Due date must be later than planned end."]})
+        if estimated_hours is not None and estimated_hours <= Decimal("0"):
+            raise serializers.ValidationError({"estimated_hours": ["Estimated hours must be greater than zero."]})
+        if start and end and estimated_hours is not None:
+            available_hours = Decimal(str((end - start).total_seconds())) / Decimal("3600")
+            if estimated_hours > available_hours:
+                raise serializers.ValidationError({"estimated_hours": ["Estimated hours cannot exceed the planned start-to-end window."]})
         return attrs
 
 
@@ -84,6 +138,7 @@ class WorkOrderTransitionSerializer(serializers.Serializer):
     estimated_hours = serializers.DecimalField(max_digits=6, decimal_places=2, required=False, allow_null=True)
     priority = serializers.ChoiceField(choices=WorkOrder.Priority.choices, required=False)
     technician = serializers.UUIDField(required=False, help_text="Membership id (assign)")
+    assigned_to = serializers.UUIDField(required=False, help_text="Membership id (assign)")
     resolution_notes = serializers.CharField(required=False, allow_blank=True, help_text="Required to complete")
 
 
@@ -122,10 +177,16 @@ class MaterialSerializer(serializers.ModelSerializer):
 
 
 class MaterialWriteSerializer(serializers.Serializer):
-    description = serializers.CharField(max_length=200)
+    description = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    item_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
     part_number = serializers.CharField(max_length=60, required=False, allow_blank=True)
     quantity = serializers.DecimalField(max_digits=10, decimal_places=3)
     unit = serializers.CharField(max_length=20, required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        if not attrs.get("description") and not attrs.get("item_name"):
+            raise serializers.ValidationError({"description": "Description or item name is required."})
+        return attrs
 
 
 class EventSerializer(serializers.Serializer):
@@ -181,8 +242,12 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.ViewSet):
     permission_map = {
         "list": "work_order.view_assigned", "retrieve": "work_order.view_assigned", "create": "work_order.create",
         "partial_update": "work_order.update", "transition": "work_order.view_assigned",
-        "assign": "work_order.view_assigned", "start": "work_order.view_assigned",
-        "hold": "work_order.view_assigned", "complete": "work_order.view_assigned",
+        "plan": "work_order.plan",
+        "assign": "work_order.assign", "dispatch_order": "work_order.dispatch", "start": "work_order.start",
+        "hold": "work_order.hold", "resume": "work_order.start", "complete": "work_order.complete",
+        "submit_for_review": "work_order.complete", "review": "work_order.review",
+        "return_for_rework": "work_order.review", "close": "work_order.close",
+        "notes": "work_order.record",
         "reassign": "work_order.assign", "events": "work_order.view_assigned",
         "closure": "work_order.view_assigned", "labor:get": "work_order.view_assigned",
         "labor:post": "work_order.record", "materials:get": "work_order.view_assigned",
@@ -191,6 +256,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.ViewSet):
         "checklist_reference": "work_order.update",
         "checklist_status": "work_order.view_assigned",
         "validate_checklist": "work_order.view_assigned",
+        "provisional_checklist": "work_order.update",
     }
 
     def _qs(self, request):
@@ -220,17 +286,33 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.ViewSet):
     @extend_schema(request=WorkOrderWriteSerializer, responses={201: WorkOrderSerializer})
     def create(self, request):
         d = dict(_validated(WorkOrderWriteSerializer, request))
-        asset = asset_selectors.get_asset(request.membership, request.organization, d.pop("asset"))
-        require_permission(request.membership, "work_order.create", asset.site_id)
-        wo = services.create_work_order(request.organization, asset=asset, actor=request.user, request=request,
+        asset_id = d.pop("asset")
+        asset = asset_selectors.get_asset(request.membership, request.organization, asset_id)
+        component = None
+        if "component" in d and d["component"]:
+            from apps.assets.models import Asset
+            component = Asset.objects.for_organization(request.organization).filter(pk=d.pop("component")).first()
+        elif "component" in d:
+            d.pop("component")
+        site_id = d.pop("site", None) or asset.site_id
+        require_permission(request.membership, "work_order.create", site_id)
+        wo = services.create_work_order(request.organization, site_id=site_id, asset=asset, component=component,
+                                        actor=request.user, membership=request.membership, request=request,
                                         **d)
         return Response(WorkOrderSerializer(self._obj(request, wo.pk)).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(request=WorkOrderPatchSerializer, responses=WorkOrderSerializer)
     def partial_update(self, request, pk=None):
         wo = self._obj(request, pk, "work_order.update")
-        d = _validated(WorkOrderPatchSerializer, request, partial=True)
-        services.update_work_order(wo, actor=request.user, request=request, **d)
+        d = dict(_validated(WorkOrderPatchSerializer, request, partial=True))
+        if "site" in d and d["site"]:
+            d["site"] = Site.objects.for_organization(request.organization).filter(pk=d["site"]).first()
+        if "asset" in d and d["asset"]:
+            d["asset"] = asset_selectors.get_asset(request.membership, request.organization, d["asset"])
+        if "component" in d:
+            from apps.assets.models import Asset
+            d["component"] = Asset.objects.for_organization(request.organization).filter(pk=d["component"]).first() if d["component"] else None
+        services.update_work_order(wo, membership=request.membership, actor=request.user, request=request, **d)
         return Response(WorkOrderSerializer(self._obj(request, pk)).data)
 
     @extend_schema(request=WorkOrderTransitionSerializer, responses=WorkOrderSerializer)
@@ -241,14 +323,51 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.ViewSet):
     # HPE API group "Work Orders: /assign/, /start/, /hold/, /complete/": the same guarded transition, one URL per action
     def _shortcut(self, request, pk, act):
         body = {k: v for k, v in (request.data.items() if hasattr(request.data, "items") else [])}
+        if "assigned_to" in body and "technician" not in body:
+            body["technician"] = body["assigned_to"]
         ser = WorkOrderTransitionSerializer(data={**body, "action": act})
         ser.is_valid(raise_exception=True)
         return self._transition(request, pk, dict(ser.validated_data))
 
+    @extend_schema(request=PlanSerializer, responses=WorkOrderSerializer)
+    @action(detail=True, methods=["post"])
+    def plan(self, request, pk=None):
+        wo = self._obj(request, pk, "work_order.plan")
+        ser = PlanSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        services.plan_work_order(
+            wo,
+            membership=request.membership,
+            actor=request.user,
+            request=request,
+            **ser.validated_data,
+        )
+        return Response(WorkOrderSerializer(self._obj(request, pk)).data)
+
     @extend_schema(request=OpenApiTypes.OBJECT, responses=WorkOrderSerializer)
     @action(detail=True, methods=["post"])
     def assign(self, request, pk=None):
+        wo = self._obj(request, pk, "work_order.assign")
+        body = {k: v for k, v in (request.data.items() if hasattr(request.data, "items") else [])}
+        assignee_id = body.get("assigned_to") or body.get("technician")
+        if assignee_id:
+            services.assign_work_order(
+                wo,
+                assignee_id=assignee_id,
+                membership=request.membership,
+                actor=request.user,
+                scheduled_start=body.get("scheduled_start"),
+                scheduled_end=body.get("scheduled_end"),
+                expected_version=body.get("expected_version"),
+                request=request,
+            )
+            return Response(WorkOrderSerializer(self._obj(request, pk)).data)
         return self._shortcut(request, pk, "assign")
+
+    @extend_schema(request=OpenApiTypes.OBJECT, responses=WorkOrderSerializer)
+    @action(detail=True, methods=["post"], url_path="dispatch")
+    def dispatch_order(self, request, pk=None):
+        return self._shortcut(request, pk, "dispatch")
 
     @extend_schema(request=OpenApiTypes.OBJECT, responses=WorkOrderSerializer)
     @action(detail=True, methods=["post"])
@@ -262,8 +381,109 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.ViewSet):
 
     @extend_schema(request=OpenApiTypes.OBJECT, responses=WorkOrderSerializer)
     @action(detail=True, methods=["post"])
+    def resume(self, request, pk=None):
+        return self._shortcut(request, pk, "resume")
+
+    @extend_schema(request=OpenApiTypes.OBJECT, responses=WorkOrderSerializer)
+    @action(detail=True, methods=["post"])
     def complete(self, request, pk=None):
+        wo = self._obj(request, pk, "work_order.complete")
+        resolution_notes = request.data.get("resolution_notes") or request.data.get("notes")
+        if resolution_notes is not None:
+            expected_version = request.data.get("expected_version")
+            services.complete_work_order(
+                wo,
+                membership=request.membership,
+                actor=request.user,
+                resolution_notes=resolution_notes,
+                expected_version=expected_version,
+                request=request,
+            )
+            return Response(WorkOrderSerializer(self._obj(request, pk)).data)
         return self._shortcut(request, pk, "complete")
+
+    @extend_schema(request=OpenApiTypes.OBJECT, responses=WorkOrderSerializer)
+    @action(detail=True, methods=["post"])
+    def notes(self, request, pk=None):
+        wo = self._obj(request, pk, "work_order.record")
+        text = request.data.get("text") or request.data.get("update") or ""
+        services.record_work_update(
+            wo,
+            update=text,
+            membership=request.membership,
+            actor=request.user,
+            request=request,
+        )
+        return Response(WorkOrderSerializer(self._obj(request, pk)).data)
+
+    @extend_schema(request=OpenApiTypes.OBJECT, responses=WorkOrderSerializer)
+    @action(detail=True, methods=["post"], url_path="submit-for-review")
+    def submit_for_review(self, request, pk=None):
+        wo = self._obj(request, pk)
+        expected_version = request.data.get("expected_version")
+        services.submit_for_review(
+            wo,
+            membership=request.membership,
+            actor=request.user,
+            expected_version=expected_version,
+            request=request,
+        )
+        return Response(WorkOrderSerializer(self._obj(request, pk)).data)
+
+    @extend_schema(request=OpenApiTypes.OBJECT, responses=WorkOrderSerializer)
+    @action(detail=True, methods=["post"], url_path="review")
+    def review(self, request, pk=None):
+        wo = self._obj(request, pk)
+        approved = request.data.get("approved")
+        if approved is None:
+            raise ValidationFailed("Approved status is required (boolean).", code="approval_required")
+        notes = request.data.get("notes") or request.data.get("comment") or ""
+        expected_version = request.data.get("expected_version")
+        services.review_work_order(
+            wo,
+            membership=request.membership,
+            actor=request.user,
+            approved=bool(approved),
+            notes=notes,
+            expected_version=expected_version,
+            request=request,
+        )
+        return Response(WorkOrderSerializer(self._obj(request, pk)).data)
+
+    @extend_schema(request=OpenApiTypes.OBJECT, responses=WorkOrderSerializer)
+    @action(detail=True, methods=["post"], url_path="return-for-rework")
+    def return_for_rework(self, request, pk=None):
+        wo = self._obj(request, pk, "work_order.review")
+        comment = request.data.get("comment") or request.data.get("notes") or ""
+        comment = str(comment).strip()
+        if not comment:
+            raise ValidationFailed("A comment is required to return a work order for rework.", code="comment_required")
+        expected_version = request.data.get("expected_version")
+        services.return_for_rework(
+            wo,
+            membership=request.membership,
+            actor=request.user,
+            comment=comment,
+            expected_version=expected_version,
+            request=request,
+        )
+        return Response(WorkOrderSerializer(self._obj(request, pk)).data)
+
+    @extend_schema(request=OpenApiTypes.OBJECT, responses=WorkOrderSerializer)
+    @action(detail=True, methods=["post"], url_path="close")
+    def close(self, request, pk=None):
+        wo = self._obj(request, pk, "work_order.close")
+        comment = request.data.get("comment") or request.data.get("notes") or ""
+        expected_version = request.data.get("expected_version")
+        services.close_work_order(
+            wo,
+            membership=request.membership,
+            actor=request.user,
+            comment=comment,
+            expected_version=expected_version,
+            request=request,
+        )
+        return Response(WorkOrderSerializer(self._obj(request, pk)).data)
 
     def _transition(self, request, pk, d):
         wo = self._obj(request, pk)
@@ -289,7 +509,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.ViewSet):
     @action(detail=True, methods=["get"])
     def events(self, request, pk=None):
         wo = self._obj(request, pk)
-        return paginate(request, selectors.events_for(request.organization, wo), EventSerializer)
+        return paginate(request, wo.events.all().order_by("-created_at"), EventSerializer)
 
     @extend_schema(responses={200: OpenApiTypes.OBJECT})
     @action(detail=True, methods=["get"])
@@ -323,20 +543,24 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.ViewSet):
             return paginate(request, selectors.materials_for(request.organization, wo), MaterialSerializer)
         require_permission(request.membership, "work_order.record", wo.site_id)
         d = _validated(MaterialWriteSerializer, request)
-        row = services.record_material(wo, description=d["description"], quantity=d["quantity"],
+        desc = d.get("description") or d.get("item_name") or ""
+        row = services.record_material(wo, description=desc, quantity=d["quantity"],
                                        unit=d.get("unit", "pcs"), part_number=d.get("part_number", ""),
                                        actor=request.user, membership=request.membership, request=request)
         return Response(MaterialSerializer(row).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(methods=["GET"], responses=WorkOrderEvidenceSerializer(many=True))
-    @extend_schema(methods=["POST"], request={"multipart/form-data": WorkOrderEvidenceUploadSerializer},
-                   responses={201: WorkOrderEvidenceSerializer})
-    @action(detail=True, methods=["get", "post"], parser_classes=[MultiPartParser, FormParser])
+    @extend_schema(methods=["POST"], responses={201: WorkOrderEvidenceSerializer})
+    @action(detail=True, methods=["get", "post"], parser_classes=[MultiPartParser, FormParser, JSONParser])
     def evidence(self, request, pk=None):
         wo = self._obj(request, pk)
         if request.method == "GET":
             return paginate(request, services.evidence_for(wo).select_related("uploaded_by"), WorkOrderEvidenceSerializer)
         require_permission(request.membership, "work_order.attach", wo.site_id)
+        if "attachment_id" in request.data:
+            att = services.add_evidence(wo, attachment_id=request.data["attachment_id"], actor=request.user,
+                                        membership=request.membership, request=request)
+            return Response({"id": str(att.pk), "work_order": str(wo.pk)}, status=status.HTTP_201_CREATED)
         d = _validated(WorkOrderEvidenceUploadSerializer, request)
         att = services.add_evidence(wo, d["file"], description=d.get("description", ""), actor=request.user,
                                     membership=request.membership, request=request)
@@ -373,4 +597,13 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.ViewSet):
             get_checklist_summary(wo),
             status=status.HTTP_200_OK if result.is_valid else status.HTTP_409_CONFLICT,
         )
+
+    @extend_schema(request=OpenApiTypes.OBJECT, responses=WorkOrderSerializer,
+                   description="Store provisional checklist notes.")
+    @action(detail=True, methods=["post"], url_path="provisional-checklist")
+    def provisional_checklist(self, request, pk=None):
+        wo = self._obj(request, pk, "work_order.update")
+        items = request.data.get("items", [])
+        services.set_checklist(wo, items=items, membership=request.membership, actor=request.user, request=request)
+        return Response(WorkOrderSerializer(self._obj(request, pk)).data)
 

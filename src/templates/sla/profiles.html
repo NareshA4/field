@@ -4,7 +4,22 @@
 {% block content %}
 <div class="fx-page-header"><div><h1>SLA profiles</h1><div class="text-body-secondary">Targets per priority and the escalation rules that notify people.</div></div>
   <div><a class="btn btn-primary" href="{% url 'sla:profile_new' %}">{% icon 'plus' 16 %} New profile</a></div></div>
-{% include "sla/_tabs.html" %}<div class="fx-card"><div class="table-responsive"><table class="table fx-table" id="profiles-table"><thead><tr><th>Profile</th><th>Applies to</th><th>Scope</th><th>Targets</th><th>Status</th></tr></thead><tbody>
+{% include "sla/_tabs.html" %}
+
+<!-- Standardized KPI Cards Row -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Total SLA Profiles" value=total_profiles|default:0 tone="primary" icon="shield" %}
+  </div>
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Active Profiles" value=active_profiles|default:0 tone="success" icon="check" %}
+  </div>
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Inactive Profiles" value=inactive_profiles|default:0 tone="neutral" icon="clock" %}
+  </div>
+</div>
+
+<div class="fx-card"><div class="table-responsive"><table class="table fx-table" id="profiles-table"><thead><tr><th>Profile</th><th>Applies to</th><th>Scope</th><th>Targets</th><th>Status</th></tr></thead><tbody>
   {% for p in page %}<tr><td><a href="{% url 'sla:profile' p.pk %}">{{ p.name }}</a></td><td>{{ p.get_applies_to_display }}</td>
     <td>{% if p.client %}Client: {{ p.client.user.display_name }}{% elif p.contract %}Contract / AMC: {{ p.contract.reference }}{% elif p.asset %}Asset: {{ p.asset.asset_tag }}{% elif p.asset_category %}Category: {{ p.asset_category.name }}{% elif p.site %}Site: {{ p.site.code }}{% elif p.service_type or p.work_type %}Service type: {{ p.service_type|default:p.work_type|title }}{% else %}Organization default{% endif %}{% if p.coverage_only %} &middot; <span class="badge fx-badge fx-badge-info">Coverage only</span>{% endif %}</td><td>{{ p.targets.all|length }}</td>
     <td>{% if p.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}</td></tr>

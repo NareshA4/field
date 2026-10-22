@@ -1,0 +1,539 @@
+/* FieldOps Nexus — Public Marketing & Design System CSS
+   Preserves Deep Navy (#0B1F3A, #071426, #040D1A) and Industrial Gold (#C9A227, #D9B33F)
+   Designed for server-rendered Django templates without external CDN dependencies. */
+
+:root {
+  --fx-pub-navy-950: #040d1a;
+  --fx-pub-navy-900: #071426;
+  --fx-pub-navy-800: #0B1F3A;
+  --fx-pub-navy-700: #102A43;
+  --fx-pub-navy-600: #163450;
+  --fx-pub-gold-600: #A8841E;
+  --fx-pub-gold-500: #C9A227;
+  --fx-pub-gold-400: #D9B33F;
+  --fx-pub-gold-100: #F7EFCF;
+  --fx-pub-gold-50: #FDF9EC;
+  --fx-pub-surface: #F8FAFC;
+  --fx-pub-surface-card: #FFFFFF;
+  --fx-pub-border: #E2E8F0;
+  --fx-pub-border-dark: rgba(255, 255, 255, 0.1);
+  --fx-pub-text-dark: #172033;
+  --fx-pub-text-muted: #64748B;
+  --fx-pub-text-light: #F8FAFC;
+  --fx-pub-text-light-muted: #94A3B8;
+  --fx-pub-radius-sm: 6px;
+  --fx-pub-radius: 12px;
+  --fx-pub-radius-lg: 18px;
+  --fx-pub-shadow: 0 4px 20px -2px rgba(11, 31, 58, 0.08);
+  --fx-pub-shadow-lg: 0 20px 40px -15px rgba(11, 31, 58, 0.15);
+}
+
+/* Base Body Override for Public Pages */
+body.fx-public-site {
+  background-color: var(--fx-pub-surface);
+  color: var(--fx-pub-text-dark);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+
+/* ==========================================================================
+   Public Navigation Header
+   ========================================================================== */
+.fx-pub-header {
+  position: sticky;
+  top: 0;
+  z-index: 1040;
+  background-color: rgba(7, 20, 38, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--fx-pub-border-dark);
+  transition: all 0.25s ease-in-out;
+}
+
+.fx-pub-nav-container {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0.85rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fx-pub-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: #FFFFFF;
+}
+
+.fx-pub-brand:hover {
+  color: #FFFFFF;
+}
+
+.fx-pub-brand-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--fx-pub-navy-800);
+  border: 1.5px solid var(--fx-pub-gold-500);
+  color: var(--fx-pub-gold-500);
+  font-size: 0.95rem;
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.fx-pub-brand-text {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.fx-pub-brand-sub {
+  font-size: 0.68rem;
+  color: var(--fx-pub-gold-400);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.fx-pub-nav-menu {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fx-pub-nav-item {
+  position: relative;
+}
+
+.fx-pub-nav-link {
+  color: #CBD5E1;
+  text-decoration: none;
+  font-size: 0.92rem;
+  font-weight: 500;
+  padding: 0.5rem 0.25rem;
+  transition: color 0.15s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.fx-pub-nav-link:hover,
+.fx-pub-nav-link.active {
+  color: #FFFFFF;
+}
+
+.fx-pub-nav-link.active {
+  border-bottom: 2px solid var(--fx-pub-gold-500);
+}
+
+/* Public Dropdowns */
+.fx-pub-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  display: none;
+  min-width: 280px;
+  background: var(--fx-pub-navy-900);
+  border: 1px solid var(--fx-pub-border-dark);
+  border-radius: var(--fx-pub-radius);
+  padding: 0.75rem 0.5rem;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+  z-index: 1050;
+}
+
+.fx-pub-nav-item:hover .fx-pub-dropdown-menu,
+.fx-pub-nav-item:focus-within .fx-pub-dropdown-menu {
+  display: block;
+}
+
+.fx-pub-dropdown-item {
+  display: block;
+  padding: 0.55rem 0.85rem;
+  color: #94A3B8;
+  text-decoration: none;
+  border-radius: var(--fx-pub-radius-sm);
+  font-size: 0.88rem;
+  transition: all 0.15s ease-in-out;
+}
+
+.fx-pub-dropdown-item:hover {
+  color: #FFFFFF;
+  background-color: var(--fx-pub-navy-800);
+  padding-left: 1.1rem;
+}
+
+.fx-pub-dropdown-item strong {
+  display: block;
+  color: #F1F5F9;
+  font-size: 0.88rem;
+}
+
+.fx-pub-dropdown-item span {
+  display: block;
+  font-size: 0.75rem;
+  color: #64748B;
+}
+
+.fx-pub-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+/* ==========================================================================
+   Buttons & Action Tokens
+   ========================================================================== */
+.btn-fx-gold {
+  background: linear-gradient(135deg, var(--fx-pub-gold-500) 0%, var(--fx-pub-gold-400) 100%);
+  color: var(--fx-pub-navy-950);
+  border: 1px solid var(--fx-pub-gold-400);
+  font-weight: 600;
+  font-size: 0.92rem;
+  padding: 0.55rem 1.25rem;
+  border-radius: var(--fx-pub-radius-sm);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 10px rgba(201, 162, 39, 0.25);
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-fx-gold:hover {
+  background: linear-gradient(135deg, #B58F1C 0%, #C9A227 100%);
+  color: var(--fx-pub-navy-950);
+  box-shadow: 0 4px 16px rgba(201, 162, 39, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-fx-outline-gold {
+  background: transparent;
+  color: var(--fx-pub-gold-400);
+  border: 1.5px solid var(--fx-pub-gold-500);
+  font-weight: 600;
+  font-size: 0.92rem;
+  padding: 0.5rem 1.2rem;
+  border-radius: var(--fx-pub-radius-sm);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-fx-outline-gold:hover {
+  background: rgba(201, 162, 39, 0.12);
+  color: #FFFFFF;
+  border-color: var(--fx-pub-gold-400);
+}
+
+.btn-fx-navy {
+  background: var(--fx-pub-navy-800);
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-weight: 600;
+  font-size: 0.92rem;
+  padding: 0.55rem 1.25rem;
+  border-radius: var(--fx-pub-radius-sm);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-fx-navy:hover {
+  background: var(--fx-pub-navy-700);
+  color: #FFFFFF;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* ==========================================================================
+   Public Hero & Sections
+   ========================================================================== */
+.fx-pub-hero {
+  background: radial-gradient(circle at 50% 0%, var(--fx-pub-navy-800) 0%, var(--fx-pub-navy-950) 70%);
+  color: #FFFFFF;
+  padding: 4.5rem 1.5rem 5rem;
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--fx-pub-border-dark);
+}
+
+.fx-pub-hero-inner {
+  max-width: 1140px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.fx-pub-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(201, 162, 39, 0.12);
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  color: var(--fx-pub-gold-400);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.95rem;
+  border-radius: 9999px;
+  margin-bottom: 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fx-pub-hero-title {
+  font-size: clamp(2.2rem, 4.5vw, 3.8rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-bottom: 1.25rem;
+}
+
+.fx-pub-gradient-text {
+  background: linear-gradient(135deg, #FFFFFF 30%, var(--fx-pub-gold-400) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.fx-pub-hero-sub {
+  font-size: 1.15rem;
+  color: var(--fx-pub-text-light-muted);
+  max-width: 780px;
+  margin: 0 auto 2.25rem;
+  font-weight: 400;
+}
+
+.fx-pub-hero-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 3.5rem;
+}
+
+/* Hero Showcase Visuals */
+.fx-pub-hero-visual {
+  max-width: 1200px;
+  margin: 0 auto;
+  border-radius: var(--fx-pub-radius);
+  border: 1px solid var(--fx-pub-border-dark);
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  background: var(--fx-pub-navy-900);
+}
+
+.fx-pub-hero-visual img,
+.fx-pub-hero-visual video {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ==========================================================================
+   Public Cards & Grids
+   ========================================================================== */
+.fx-pub-section {
+  padding: 5rem 1.5rem;
+}
+
+.fx-pub-section-alt {
+  background-color: #FFFFFF;
+}
+
+.fx-pub-container {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.fx-pub-section-header {
+  text-align: center;
+  max-width: 760px;
+  margin: 0 auto 3.5rem;
+}
+
+.fx-pub-section-label {
+  color: var(--fx-pub-gold-600);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+}
+
+.fx-pub-section-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--fx-pub-navy-950);
+  letter-spacing: -0.02em;
+  margin-bottom: 0.85rem;
+}
+
+.fx-pub-section-desc {
+  font-size: 1.05rem;
+  color: var(--fx-pub-text-muted);
+}
+
+.fx-pub-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 2rem;
+}
+
+.fx-pub-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+
+.fx-pub-card {
+  background: var(--fx-pub-surface-card);
+  border: 1px solid var(--fx-pub-border);
+  border-radius: var(--fx-pub-radius);
+  padding: 1.75rem;
+  box-shadow: var(--fx-pub-shadow);
+  transition: all 0.25s ease-in-out;
+  display: flex;
+  flex-direction: column;
+}
+
+.fx-pub-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--fx-pub-shadow-lg);
+  border-color: #CBD5E1;
+}
+
+.fx-pub-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: var(--fx-pub-gold-50);
+  color: var(--fx-pub-gold-600);
+  border: 1px solid var(--fx-pub-gold-100);
+  display: grid;
+  place-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.fx-pub-card-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--fx-pub-navy-900);
+  margin-bottom: 0.65rem;
+}
+
+.fx-pub-card-desc {
+  font-size: 0.95rem;
+  color: var(--fx-pub-text-muted);
+  margin-bottom: 1.25rem;
+  flex-grow: 1;
+}
+
+/* ==========================================================================
+   Public Footer
+   ========================================================================== */
+.fx-pub-footer {
+  background-color: var(--fx-pub-navy-950);
+  color: var(--fx-pub-text-light-muted);
+  padding: 4.5rem 1.5rem 2.5rem;
+  border-top: 2px solid var(--fx-pub-gold-500);
+}
+
+.fx-pub-footer-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.fx-pub-footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.2fr;
+  gap: 3rem;
+  margin-bottom: 3.5rem;
+}
+
+.fx-pub-footer-col h5 {
+  color: #FFFFFF;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1.25rem;
+}
+
+.fx-pub-footer-links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.fx-pub-footer-links li {
+  margin-bottom: 0.65rem;
+}
+
+.fx-pub-footer-links a {
+  color: #94A3B8;
+  text-decoration: none;
+  font-size: 0.88rem;
+  transition: color 0.15s ease-in-out;
+}
+
+.fx-pub-footer-links a:hover {
+  color: var(--fx-pub-gold-400);
+}
+
+.fx-pub-footer-bottom {
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.82rem;
+}
+
+/* ==========================================================================
+   Mobile Navigation Drawer
+   ========================================================================== */
+.fx-pub-mobile-toggle {
+  display: none;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #FFFFFF;
+  border-radius: var(--fx-pub-radius-sm);
+  padding: 0.4rem 0.65rem;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+@media (max-width: 991px) {
+  .fx-pub-nav-menu {
+    display: none;
+  }
+  .fx-pub-mobile-toggle {
+    display: inline-block;
+  }
+  .fx-pub-footer-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .fx-pub-footer-grid {
+    grid-template-columns: 1fr;
+  }
+}

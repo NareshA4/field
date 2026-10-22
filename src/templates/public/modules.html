@@ -1,0 +1,38 @@
+{% extends "public/base_public.html" %}
+{% load static ui_tags %}
+
+{% block title %}PRD Modules — FieldOps Nexus{% endblock %}
+
+{% block public_content %}
+<div class="fx-pub-hero" style="padding: 3.5rem 1.5rem 4rem;">
+  <div class="fx-pub-hero-inner text-center">
+    <div class="fx-pub-pill">PRD Traceability &middot; FON-M01 to FON-M15</div>
+    <h1 class="fx-pub-hero-title">Core ERP Module Architecture</h1>
+    <p class="fx-pub-hero-sub">
+      Strict adherence to Hewlett Packard Enterprise Specification HPE-PRD-2026-FOPS02.
+    </p>
+  </div>
+</div>
+
+<section class="fx-pub-section">
+  <div class="fx-pub-container">
+    <div class="row g-4">
+      {% for mod in module_list %}
+        <div class="col-12 col-md-6 col-lg-4">
+          <div class="fx-pub-card h-100">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <span class="badge bg-dark text-warning border border-warning px-2 py-1">{{ mod.id }}</span>
+              <span class="small text-secondary fw-semibold">{{ mod.category }}</span>
+            </div>
+            <h3 class="fx-pub-card-title fs-5">{{ mod.name }}</h3>
+            <p class="fx-pub-card-desc small">{{ mod.desc }}</p>
+            <div class="mt-auto pt-2 border-top">
+              <span class="small text-secondary">Backend App: <code>{{ mod.app }}</code></span>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

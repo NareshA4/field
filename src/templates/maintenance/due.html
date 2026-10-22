@@ -2,22 +2,81 @@
 {% load ui_tags %}
 {% block title %}Due &amp; upcoming maintenance · FieldOps Nexus{% endblock %}
 {% block content %}
-<div class="fx-page-header"><div><h1>Due &amp; upcoming</h1><div class="text-body-secondary">Enabled schedules, soonest first. DUE = an occurrence is due now (the scheduler generates it; you can also generate it here).</div></div></div>
+<div class="fx-page-header">
+  <div>
+    <h1>Due &amp; upcoming</h1>
+    <div class="text-body-secondary">Enabled schedules, soonest first. DUE = an occurrence is due now (the scheduler generates it; you can also generate it here).</div>
+  </div>
+</div>
+
 {% include "components/_section_tabs.html" with section="Maintenance" %}
-<div class="fx-card">
+
+<!-- Standardized KPI Cards Row -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Total Monitored" value=total_schedules|default:0 tone="primary" icon="sliders" %}
+  </div>
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Due Now" value=due_count|default:0 tone="danger" icon="alert-triangle" %}
+  </div>
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Scheduled" value=scheduled_count|default:0 tone="info" icon="clock" %}
+  </div>
+</div>
+
+<div class="fx-card mb-4">
   <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
-    <select class="form-select form-select-sm" style="max-width:160px" name="state" aria-label="State"><option value="">All states</option>
-      <option value="DUE" {% if filters.state == "DUE" %}selected{% endif %}>Due</option><option value="SCHEDULED" {% if filters.state == "SCHEDULED" %}selected{% endif %}>Scheduled</option></select>
-    <select class="form-select form-select-sm" style="max-width:160px" name="site" aria-label="Site"><option value="">All sites</option>
-      {% for s in sites %}<option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>{% endfor %}</select>
-    <button class="btn btn-sm btn-outline-secondary">Filter</button></form>
-  <div class="table-responsive"><table class="table fx-table" id="due-table"><thead><tr><th>Plan</th><th>Asset</th><th>Schedule</th><th>Next due</th><th>State</th><th></th></tr></thead><tbody>
-  {% for r in page %}<tr><td><a href="{% url 'maintenance:plan' r.schedule.plan_id %}">{{ r.schedule.plan.name }}</a></td><td>{{ r.schedule.plan.asset.asset_tag }}</td>
-    <td><a href="{% url 'maintenance:schedule' r.schedule.pk %}">{{ r.schedule.describe }}</a></td>
-    <td>{% if r.schedule.trigger_type == "TIME" %}{{ r.schedule.next_due_date|date:"d M Y" }}{% else %}{{ r.schedule.next_due_value|floatformat:"-3" }} {{ r.schedule.meter.unit }}{% endif %}</td>
-    <td>{% status_badge r.state %}</td>
-    <td>{% if can_generate %}<form method="post" action="{% url 'maintenance:schedule_action' r.schedule.pk 'generate' %}" class="m-0">{% csrf_token %}<input type="hidden" name="next" value="/app/maintenance/due/"><button class="btn btn-sm btn-outline-primary">Generate now</button></form>{% endif %}</td></tr>
-  {% empty %}<tr><td colspan="6">{% include "components/_empty_state.html" with title="Nothing scheduled" text="Create plans with schedules to see them here." %}</td></tr>{% endfor %}</tbody></table></div>
+    <select class="form-select form-select-sm" style="max-width:160px" name="state" aria-label="State">
+      <option value="">All states</option>
+      <option value="DUE" {% if filters.state == "DUE" %}selected{% endif %}>Due</option>
+      <option value="SCHEDULED" {% if filters.state == "SCHEDULED" %}selected{% endif %}>Scheduled</option>
+    </select>
+    <select class="form-select form-select-sm" style="max-width:160px" name="site" aria-label="Site">
+      <option value="">All sites</option>
+      {% for s in sites %}
+        <option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-sm btn-outline-secondary">Filter</button>
+  </form>
+  <div class="table-responsive">
+    <table class="table fx-table" id="due-table">
+      <thead>
+        <tr>
+          <th>Plan</th>
+          <th>Asset</th>
+          <th>Schedule</th>
+          <th>Next due</th>
+          <th>State</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in page %}
+        <tr>
+          <td><a href="{% url 'maintenance:plan' r.schedule.plan_id %}" class="fw-semibold text-decoration-none">{{ r.schedule.plan.name }}</a></td>
+          <td>{{ r.schedule.plan.asset.asset_tag }}</td>
+          <td><a href="{% url 'maintenance:schedule' r.schedule.pk %}" class="text-decoration-none">{{ r.schedule.describe }}</a></td>
+          <td>{% if r.schedule.trigger_type == "TIME" %}{{ r.schedule.next_due_date|date:"d M Y" }}{% else %}{{ r.schedule.next_due_value|floatformat:"-3" }} {{ r.schedule.meter.unit }}{% endif %}</td>
+          <td>{% status_badge r.state %}</td>
+          <td>
+            {% if can_generate %}
+              <form method="post" action="{% url 'maintenance:schedule_action' r.schedule.pk 'generate' %}" class="m-0">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="/app/maintenance/due/">
+                <button class="btn btn-sm btn-outline-primary">Generate now</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6">{% include "components/_empty_state.html" with title="Nothing scheduled" text="Create plans with schedules to see them here." %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% include "components/_pagination.html" %}
 </div>
 {% endblock %}

@@ -43,8 +43,11 @@ def make_admin(monkeypatch, email="superadmin@fieldops.test", password=PW):
     monkeypatch.setenv("FIELDOPS_ADMIN_PASSWORD", password)
     user, _ = User.objects.get_or_create(
         email=email,
-        defaults={"full_name": "Platform Admin", "is_staff": True, "is_superuser": True},
+        defaults={"full_name": "Platform Admin", "is_platform_admin": True, "is_staff": False, "is_superuser": False},
     )
+    user.is_platform_admin = True
+    user.is_staff = False
+    user.is_superuser = False
     user.set_password(password)
     user.save()
     return user
