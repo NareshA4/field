@@ -608,10 +608,10 @@ def _sync_pause(t: SLATracking, now: datetime, *, actor=None) -> None:
                                      workflow_state=workflow_state, started_at=now, paused_by=actor or state_actor)
         _event(t, "PAUSED", at=now, detail=f"{workflow_state}: {reason}"[:300], actor=actor or state_actor)
     elif not want and t.status == Status.PAUSED:
-        delta = now - t.paused_at
-        if t.response_met_at is None:
+        delta = (now - t.paused_at) if t.paused_at else timedelta()
+        if t.response_due_at is not None and t.response_met_at is None:
             t.response_due_at += delta
-        if t.resolution_met_at is None:
+        if t.resolution_due_at is not None and t.resolution_met_at is None:
             t.resolution_due_at += delta
         t.paused_seconds += int(delta.total_seconds())
         has_open_breach = SLABreach.objects.for_organization(t.organization).filter(
@@ -773,11 +773,7 @@ def on_work_order_updated(wo, previous_priority: str | None, *, actor=None, requ
     if wo.source_request_id or previous_priority == wo.priority or not wo.priority:
         return
     t = _locked(work_order=wo)
-    if t is None:
-        if not previous_priority and wo.priority:
-            on_work_order_created(wo)
-        return
-    if t.status in (Status.COMPLETED, Status.UNDER_REVIEW, Status.CLOSED, Status.CANCELLED):
+    if t is None or t.status in (Status.COMPLETED, Status.UNDER_REVIEW, Status.CLOSED, Status.CANCELLED):
         return
     target = SLATarget.objects.for_organization(t.organization).filter(profile=t.profile,
                                                                        priority=wo.priority).first()

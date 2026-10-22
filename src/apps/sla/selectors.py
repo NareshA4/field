@@ -74,8 +74,12 @@ def filter_trackings(qs, params):
         qs = qs.filter(Q(response_state__in=("BREACHED", "MET_LATE")) | Q(resolution_state__in=("BREACHED", "MET_LATE")))
     q = (params.get("q") or "").strip()
     if q:
-        qs = qs.filter(Q(request__number__icontains=q) | Q(work_order__order_number__icontains=q)
-                       | Q(request__title__icontains=q) | Q(work_order__title__icontains=q))
+        qs = qs.filter(
+            Q(request__number__icontains=q)
+            | Q(work_order__order_number__icontains=q)
+            | Q(request__title__icontains=q)
+            | Q(work_order__title__icontains=q)
+        )
     return qs.order_by("-started_at", "-id")
 
 

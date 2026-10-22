@@ -123,8 +123,35 @@ def consumable_parts_for(work_order: WorkOrder):
     return [ln for ln in part_lines_for(work_order) if ln.quantity_issued > 0 and ln.outstanding > 0]
 
 
+def meters_for(work_order: WorkOrder) -> list[dict]:
+    """Return active asset meters with their latest reading for the work order's target asset."""
+    if not work_order.asset_id:
+        return []
+    from apps.assets.models import AssetMeter
+
+    meters = AssetMeter.objects.filter(
+        organization=work_order.organization,
+        asset_id=work_order.asset_id,
+        is_active=True,
+    ).prefetch_related("readings").order_by("name")
+
+    result = []
+    for m in meters:
+        latest = m.readings.order_by("-read_at", "-created_at").first()
+        result.append({
+            "id": str(m.pk),
+            "name": m.name,
+            "unit": m.unit,
+            "latest_value": latest.value if latest else None,
+            "latest_read_at": latest.read_at if latest else None,
+            "latest_notes": latest.notes if latest else "",
+            "readings_count": m.readings.count(),
+        })
+    return result
+
+
 def get_job_detail(membership: Membership, pk: str) -> dict:
-    """Retrieve full job detail including route, checklists, logs, notes, and actions."""
+    """Retrieve full job detail including route, checklists, logs, notes, meters, and actions."""
     from apps.core.exceptions import NotFound
     from apps.workorders import services as wo_services
     from .services import assert_can_execute_job, get_drawer_summary
@@ -142,12 +169,32 @@ def get_job_detail(membership: Membership, pk: str) -> dict:
     notes = list(work_notes_for(wo))
     travel_logs = list(travel_logs_for(wo))
     drawer_summary = get_drawer_summary(wo, membership=membership)
-    from apps.inventory.models import WorkOrderPart
-    part_lines = list(WorkOrderPart.objects.for_organization(membership.organization).filter(work_order=wo).select_related("part", "warehouse"))
 
     all_parts = part_lines_for(wo)
     consumable_parts = [ln for ln in all_parts if ln.quantity_issued > 0 and ln.outstanding > 0]
     consumed_parts = [ln for ln in all_parts if ln.quantity_consumed > 0]
+    returned_parts = [ln for ln in all_parts if ln.quantity_returned > 0]
+    meters = meters_for(wo)
+
+    from apps.assets.models import Asset
+    from apps.incidents.models import ServiceRequest
+
+    site_assets = []
+    if wo.site_id:
+        site_assets = list(
+            Asset.objects.for_organization(membership.organization)
+            .filter(site_id=wo.site_id)
+            .exclude(status__in=["RETIRED", "DISPOSED"])
+            .select_related("zone")
+            .order_by("asset_tag")
+        )
+
+    auxiliary_defects = list(
+        ServiceRequest.objects.for_organization(membership.organization)
+        .filter(description__icontains=wo.order_number)
+        .select_related("asset", "reported_by__user")
+        .order_by("-created_at")[:10]
+    )
 
     return {
         "work_order": wo,
@@ -157,9 +204,20 @@ def get_job_detail(membership: Membership, pk: str) -> dict:
         "drawer": drawer_summary,
         "labor_entries": list(wo.labor_entries.select_related("technician__user").order_by("-work_date", "-created_at")),
         "materials": list(wo.material_entries.order_by("item_name")),
-        "part_lines": part_lines,
+        "part_lines": all_parts,
+        "consumable_parts": consumable_parts,
+        "has_consumable_parts": bool(consumable_parts),
+        "consumed_parts": consumed_parts,
+        "has_consumed_parts": bool(consumed_parts),
+        "returned_parts": returned_parts,
+        "has_returned_parts": bool(returned_parts),
         "evidence": list(wo.completion_evidence.order_by("-created_at")),
         "allowed_actions": wo_services.allowed_actions(wo, membership),
+        "meters": meters,
+        "has_meters": bool(meters),
+        "site_assets": site_assets,
+        "auxiliary_defects": auxiliary_defects,
+        "has_auxiliary_defects": bool(auxiliary_defects),
     }
 
 
@@ -187,6 +245,7 @@ def get_job_completion_context(membership: Membership, pk: str) -> dict:
     all_parts = part_lines_for(wo)
     consumable_parts = [ln for ln in all_parts if ln.quantity_issued > 0 and ln.outstanding > 0]
     consumed_parts = [ln for ln in all_parts if ln.quantity_consumed > 0]
+    returned_parts = [ln for ln in all_parts if ln.quantity_returned > 0]
 
     evidence_list = list(wo.completion_evidence.select_related("attachment").order_by("-created_at"))
     evidence_required = wo.work_type in (WorkOrder.WorkType.CORRECTIVE, WorkOrder.WorkType.INSTALLATION)
@@ -232,6 +291,8 @@ def get_job_completion_context(membership: Membership, pk: str) -> dict:
         "part_lines": all_parts,
         "consumable_parts": consumable_parts,
         "consumed_parts": consumed_parts,
+        "returned_parts": returned_parts,
+        "has_returned_parts": bool(returned_parts),
         "has_unconsumed_parts": bool(consumable_parts),
         "evidence": evidence_list,
         "evidence_required": evidence_required,
@@ -246,4 +307,59 @@ def get_job_completion_context(membership: Membership, pk: str) -> dict:
         "signoff": signoff,
         "is_completed": wo.status in (WorkOrder.Status.COMPLETED, WorkOrder.Status.SUPERVISOR_REVIEW, WorkOrder.Status.CLOSED),
     }
+
+
+def daily_capacity_summary(
+    membership: Membership,
+    target_date: any = None,
+) -> dict:
+    """Calculate daily workday capacity and labor utilization metrics for the technician."""
+    from decimal import Decimal
+    from django.db.models import Q, Sum
+    from django.utils import timezone
+    from apps.workorders.models import WorkOrderLabor
+
+    if target_date is None:
+        target_date = timezone.localdate()
+
+    org = membership.organization
+    labor_qs = WorkOrderLabor.objects.filter(
+        organization=org,
+        technician=membership,
+        work_date=target_date,
+    )
+    total_hours_dec = labor_qs.aggregate(s=Sum("hours"))["s"] or Decimal("0.00")
+    total_hours = float(total_hours_dec)
+
+    standard_capacity = 8.0
+    util_pct = round((total_hours / standard_capacity) * 100.0, 1) if standard_capacity > 0 else 0.0
+    progress_pct = min(100.0, util_pct)
+    remaining_hours = max(0.0, round(standard_capacity - total_hours, 2))
+    is_overtime = total_hours > standard_capacity
+
+    # Travel time breakdown for target date
+    travel_logs = TravelLog.objects.filter(
+        organization=org,
+        technician=membership,
+    ).filter(
+        Q(labor_entry__work_date=target_date)
+        | Q(created_at__date=target_date, labor_entry__isnull=True)
+    )
+    travel_hours_dec = travel_logs.aggregate(s=Sum("duration_hours"))["s"] or Decimal("0.00")
+    travel_hours = float(travel_hours_dec)
+    direct_hours = max(0.0, round(total_hours - travel_hours, 2))
+
+    return {
+        "date": target_date.isoformat(),
+        "date_display": target_date.strftime("%d %b %Y"),
+        "standard_capacity_hours": standard_capacity,
+        "total_logged_hours": round(total_hours, 2),
+        "direct_wrench_hours": direct_hours,
+        "travel_hours": round(travel_hours, 2),
+        "remaining_hours": remaining_hours,
+        "utilization_pct": util_pct,
+        "progress_pct": progress_pct,
+        "is_overtime": is_overtime,
+    }
+
 

@@ -5,6 +5,22 @@
 <div class="fx-page-header"><div><h1>Warranties, AMCs &amp; contracts</h1><div class="text-body-secondary">Coverage agreements linked to real assets. Eligibility is computed by the backend from these records.</div></div>
   <div class="d-flex gap-2">{% if can_create %}<a class="btn btn-primary" href="{% url 'contracts:agreement_new' %}">{% icon 'plus' 16 %} New agreement</a>{% endif %}</div></div>
 {% include "components/_section_tabs.html" with section="Coverage" %}
+
+<!-- Standardized KPI Cards Row -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-3">
+    {% include "components/_kpi_card.html" with title="Total Agreements" value=total_agreements|default:0 tone="primary" icon="clipboard" %}
+  </div>
+  <div class="col-12 col-md-3">
+    {% include "components/_kpi_card.html" with title="Active Coverage" value=active_agreements|default:0 tone="success" icon="check" %}
+  </div>
+  <div class="col-12 col-md-3">
+    {% include "components/_kpi_card.html" with title="Upcoming" value=upcoming_agreements|default:0 tone="info" icon="clock" %}
+  </div>
+  <div class="col-12 col-md-3">
+    {% include "components/_kpi_card.html" with title="Expired Contracts" value=expired_agreements|default:0 tone="warning" icon="alert-circle" %}
+  </div>
+</div>
 <div class="fx-card">
   <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
     <input class="form-control form-control-sm" style="max-width:240px" type="search" name="q" value="{{ filters.q }}" placeholder="Reference, title, provider, asset tag" aria-label="Search agreements">

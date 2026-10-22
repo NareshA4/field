@@ -72,7 +72,12 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
                  "status": work_order.status} for work_order in linked]
 
     def get_downtime(self, obj) -> dict | None:
-        dt = Downtime.objects.for_organization(obj.organization).filter(request=obj).first()
+        try:
+            dt = getattr(obj, "downtime", None)
+        except Downtime.DoesNotExist:
+            dt = None
+        except Exception:
+            dt = Downtime.objects.for_organization(obj.organization).filter(request=obj).first()
         return DowntimeSerializer(dt).data if dt else None
 
 

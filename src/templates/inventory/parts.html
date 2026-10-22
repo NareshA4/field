@@ -1,83 +1,130 @@
-{% extends "shell.html" %} {% load ui_tags %} {% block title %}Parts · FieldOps
-Nexus{% endblock %} {% block content %}
+{% extends "shell.html" %}
+{% load ui_tags %}
+{% block title %}Parts · FieldOps Nexus{% endblock %}
+{% block content %}
 <div class="fx-page-header">
   <div>
     <h1>Spare parts</h1>
     <div class="text-body-secondary">
-      The part catalogue. Stock quantities live per warehouse.
+      The spare parts catalogue and inventory master. Stock quantities live per warehouse.
     </div>
   </div>
   <div class="d-flex gap-2">
-    {% if can_manage %}<a
-      class="btn btn-primary"
-      href="{% url 'inventory:part_new' %}"
-      >{% icon 'plus' 16 %} New part</a
-    >{% endif %}
+    {% if can_manage %}
+      <a class="btn btn-primary" href="{% url 'inventory:part_new' %}">
+        {% icon 'plus' 16 %} New part
+      </a>
+    {% endif %}
   </div>
 </div>
+
 {% include "components/_section_tabs.html" with section="Inventory" %}
-<div class="fx-card">
-  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
-    <input
-      class="form-control form-control-sm"
-      style="max-width: 260px"
-      type="search"
-      name="q"
-      value="{{ filters.q }}"
-      placeholder="Part number or name"
-      aria-label="Search parts"
-    />
-    <select
-      class="form-select form-select-sm"
-      style="max-width: 160px"
-      name="active"
-      aria-label="Active"
-    >
-      <option value="">All</option>
-      <option value="1" {% if filters.active == "1" %}selected{% endif %}>Active</option>
-      <option value="0" {% if filters.active == "0" %}selected{% endif %}>Inactive</option>
-    </select>
-    <button class="btn btn-sm btn-outline-secondary">Filter</button>
+
+<div class="row g-3 mb-4 mt-1">
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Total Catalog Parts" value=total_parts|default:page.paginator.count tone="primary" icon="package" %}
+  </div>
+  <div class="col-6 col-md-4">
+    {% include "components/_kpi_card.html" with title="Active Parts" value=active_parts|default:"0" tone="success" icon="check-circle" %}
+  </div>
+  <div class="col-6 col-md-4">
+    {% include "components/_kpi_card.html" with title="Inactive Parts" value=inactive_parts|default:"0" tone="secondary" icon="slash" %}
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4 p-3 bg-white" style="border-radius:10px;">
+  <form method="get" class="row g-2 align-items-center">
+    <div class="col-12 col-md-6">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-light border-end-0">
+          {% icon 'search' 14 %}
+        </span>
+        <input
+          class="form-control form-control-sm border-start-0 bg-light"
+          type="search"
+          name="q"
+          value="{{ filters.q|default:'' }}"
+          placeholder="Part number or name"
+          aria-label="Search parts"
+        />
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <select
+        class="form-select form-select-sm bg-light"
+        name="active"
+        aria-label="Active"
+      >
+        <option value="">All statuses</option>
+        <option value="1" {% if filters.active == "1" %}selected{% endif %}>Active only</option>
+        <option value="0" {% if filters.active == "0" %}selected{% endif %}>Inactive only</option>
+      </select>
+    </div>
+    <div class="col-6 col-md-3 d-flex justify-content-md-end gap-2">
+      <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+      {% if filters.q or filters.active %}
+        <a href="{% url 'inventory:parts' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
+      {% endif %}
+    </div>
   </form>
+</div>
+
+<div class="card border-0 shadow-sm bg-white overflow-hidden" style="border-radius:10px;">
   <div class="table-responsive">
-    <table class="table fx-table" id="parts-table">
-      <thead>
+    <table class="table table-hover align-middle mb-0" id="parts-table">
+      <thead class="table-light text-secondary small text-uppercase fw-semibold border-bottom">
         <tr>
-          <th>Part no.</th>
-          <th>Name</th>
-          <th>Unit</th>
-          <th>Min</th>
-          <th>Max</th>
-          <th>Reorder qty</th>
-          <th>Status</th>
+          <th style="padding: 0.75rem 1rem;">Part no.</th>
+          <th style="padding: 0.75rem 1rem;">Name</th>
+          <th style="padding: 0.75rem 1rem;">Unit</th>
+          <th style="padding: 0.75rem 1rem;">Min Stock</th>
+          <th style="padding: 0.75rem 1rem;">Max Stock</th>
+          <th style="padding: 0.75rem 1rem;">Reorder Qty</th>
+          <th style="padding: 0.75rem 1rem;">Status</th>
+          <th style="padding: 0.75rem 1rem; width: 80px;" class="text-end">Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for p in page %}
-        <tr>
-          <td>
-            <a href="{% url 'inventory:part' p.pk %}">{{ p.part_number }}</a>
+        <tr style="border-bottom: 1px solid #f1f5f9;">
+          <td style="padding: 0.75rem 1rem;">
+            <a href="{% url 'inventory:part' p.pk %}" class="fw-semibold text-decoration-none" style="color: #0B1F3A;">
+              {{ p.part_number }}
+            </a>
           </td>
-          <td>{{ p.name }}</td>
-          <td>{{ p.unit }}</td>
-          <td>{{ p.min_stock|floatformat:"-3"|default:"—" }}</td>
-          <td>{{ p.max_stock|floatformat:"-3"|default:"—" }}</td>
-          <td>{{ p.reorder_quantity|floatformat:"-3"|default:"—" }}</td>
-          <td>
+          <td style="padding: 0.75rem 1rem;">
+            <div class="fw-medium text-dark">{{ p.name }}</div>
+            {% if p.description %}<div class="small text-muted text-truncate" style="max-width: 280px;">{{ p.description }}</div>{% endif %}
+          </td>
+          <td style="padding: 0.75rem 1rem;">
+            <span class="badge bg-light text-secondary border fw-normal">{{ p.unit }}</span>
+          </td>
+          <td style="padding: 0.75rem 1rem;" class="font-monospace text-secondary">{{ p.min_stock|floatformat:"-3"|default:"—" }}</td>
+          <td style="padding: 0.75rem 1rem;" class="font-monospace text-secondary">{{ p.max_stock|floatformat:"-3"|default:"—" }}</td>
+          <td style="padding: 0.75rem 1rem;" class="font-monospace text-dark fw-medium">{{ p.reorder_quantity|floatformat:"-3"|default:"—" }}</td>
+          <td style="padding: 0.75rem 1rem;">
             {% if p.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}
+          </td>
+          <td style="padding: 0.75rem 1rem;" class="text-end">
+            <a class="btn btn-sm btn-outline-primary p-1" href="{% url 'inventory:part' p.pk %}" title="View Part Details">
+              {% icon 'eye' 13 %}
+            </a>
           </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="7">
-            {% include "components/_empty_state.html" with title="No parts
-            match" text="Adjust the filters or create a part." %}
+          <td colspan="8" class="py-4">
+            {% include "components/_empty_state.html" with title="No parts match" text="Adjust the filters or create a part." %}
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  {% include "components/_pagination.html" %}
+  {% if page %}
+    <div class="border-top p-2 bg-light">
+      {% include "components/_pagination.html" %}
+    </div>
+  {% endif %}
 </div>
 {% endblock %}

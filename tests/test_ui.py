@@ -5,9 +5,38 @@ from apps.tenancy.models import Membership
 
 pytestmark = pytest.mark.django_db
 
-OWNER_PAGES = ["/app/", "/app/organization/", "/app/users/", "/app/users/invite/", "/app/roles/",
-               "/app/roles/new/", "/app/audit/", "/app/notifications/", "/app/notifications/bell/",
-               "/app/search/?q=ow"]
+OWNER_PAGES = [
+    "/app/", "/app/organization/", "/app/users/", "/app/users/invite/", "/app/roles/",
+    "/app/roles/new/", "/app/audit/", "/app/notifications/", "/app/notifications/bell/",
+    "/app/search/?q=ow"
+]
+
+PUBLIC_PAGES = [
+    "/",
+    "/features/",
+    "/solutions/",
+    "/solutions/enterprise-operations/",
+    "/modules/",
+    "/modules/FON-M01/",
+    "/resources/",
+    "/about/",
+    "/legal/privacy-policy/",
+    "/legal/terms-and-conditions/",
+]
+
+
+@pytest.mark.parametrize("url", PUBLIC_PAGES)
+def test_public_pages_render_for_anonymous_visitors(client, url):
+    r = client.get(url)
+    assert r.status_code == 200, f"Public page failed: {url}"
+    assert "FieldOps Nexus" in r.content.decode()
+
+
+def test_authenticated_user_redirected_from_root(client, owner_a):
+    client.force_login(owner_a)
+    r = client.get("/")
+    assert r.status_code == 302
+    assert r["Location"] == "/app/"
 
 
 @pytest.mark.parametrize("url", OWNER_PAGES)
@@ -70,3 +99,56 @@ def test_security_headers(client):
     r = client.get("/accounts/login/")
     assert r["X-Frame-Options"] == "DENY" and r["X-Content-Type-Options"] == "nosniff"
     assert r["X-Request-ID"]
+
+
+def test_login_page_renders_with_branded_identity(client):
+    r = client.get("/accounts/login/")
+    assert r.status_code == 200
+    html = r.content.decode()
+    assert "FieldOps Nexus" in html
+    assert "Sign in with your enterprise credentials" in html
+    assert "Client Onboarding" in html or "Requester" in html
+
+
+def test_client_registration_flow(client):
+    from apps.audit.models import AuditLog
+
+    # 1. GET page
+    r = client.get("/register/")
+    assert r.status_code == 200
+    assert "Client Onboarding" in r.content.decode()
+
+    # 2. Invalid POST (missing required fields)
+    r_bad = client.post("/register/", {"full_name": "Incomplete Client"})
+    assert r_bad.status_code == 200
+    assert "This field is required" in r_bad.content.decode()
+
+    # 3. Valid POST (onboarding request)
+    data = {
+        "full_name": "Test Client",
+        "email": "requester@testclient.test",
+        "phone": "+1 555 123 4567",
+        "company_name": "Test Client Corp",
+        "facility_address": "400 Industrial Parkway",
+        "service_scope": "HVAC inspection and chiller maintenance",
+        "terms_accepted": True,
+    }
+    r_ok = client.post("/register/", data)
+    assert r_ok.status_code == 200
+    html = r_ok.content.decode()
+    assert "Onboarding Request Received" in html
+    assert "Test Client Corp" in html
+
+    # Verify audit record
+    assert AuditLog.objects.filter(action="portal.client_onboarding_requested", actor_email="requester@testclient.test").exists()
+
+
+def test_home_dashboard_renders_enhanced_kpi_cards(client, owner_a):
+    client.force_login(owner_a)
+    r = client.get("/app/")
+    assert r.status_code == 200
+    html = r.content.decode()
+    assert "Active Users" in html
+    assert "Pending Invitations" in html
+    assert "RBAC Roles" in html
+    assert "Operational Shortcuts" in html

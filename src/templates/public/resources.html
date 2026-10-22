@@ -1,0 +1,50 @@
+{% extends "public/base_public.html" %}
+{% load static ui_tags %}
+
+{% block title %}Resources & Documentation — FieldOps Nexus{% endblock %}
+
+{% block public_content %}
+<div class="fx-pub-hero" style="padding: 3.5rem 1.5rem 4rem;">
+  <div class="fx-pub-hero-inner text-center">
+    <div class="fx-pub-pill">Technical Documentation</div>
+    <h1 class="fx-pub-hero-title">Developer &amp; Operator Resources</h1>
+    <p class="fx-pub-hero-sub">
+      Architectural specifications, OpenAPI schemas, and deployment guides.
+    </p>
+  </div>
+</div>
+
+<section class="fx-pub-section">
+  <div class="fx-pub-container">
+    <div class="row g-4">
+      <div class="col-12 col-md-4">
+        <div class="fx-pub-card h-100">
+          <div class="fx-pub-card-icon">{% icon 'code' 24 %}</div>
+          <h3 class="fx-pub-card-title">REST / OpenAPI API Docs</h3>
+          <p class="fx-pub-card-desc">Comprehensive OpenAPI 3.0 documentation generated dynamically via DRF Spectacular.</p>
+          <a href="/docs/" class="btn btn-sm btn-outline-secondary mt-auto">Open Swagger UI &rarr;</a>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="fx-pub-card h-100">
+          <div class="fx-pub-card-icon">{% icon 'shield' 24 %}</div>
+          <h3 class="fx-pub-card-title">RBAC &amp; Security Guide</h3>
+          <p class="fx-pub-card-desc">Detailed permission matrix covering all 8 enterprise roles and object-level scoping rules.</p>
+          <span class="small text-secondary mt-auto">PRD Section 3 &middot; Verified Invariants</span>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="fx-pub-card h-100">
+          <div class="fx-pub-card-icon">{% icon 'layers' 24 %}</div>
+          <h3 class="fx-pub-card-title">Health &amp; Telemetry APIs</h3>
+          <p class="fx-pub-card-desc">Liveness and readiness endpoints monitored for Docker Compose and production orchestration.</p>
+          <div class="d-flex gap-2 mt-auto">
+            <a href="/health/live/" class="small text-decoration-none">Live Probe</a> &middot;
+            <a href="/health/ready/" class="small text-decoration-none">Ready Probe</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

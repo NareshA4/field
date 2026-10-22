@@ -60,11 +60,18 @@ def _fail(request, exc):
 class PlanListView(PmBase):
     def get(self, request):
         m, org = request.membership, request.organization
-        qs = selectors.filter_plans(selectors.plans_for(m, org), request.GET)
+        base_plans = selectors.plans_for(m, org)
+        qs = selectors.filter_plans(base_plans, request.GET)
+        total_plans = base_plans.count()
+        active_plans = base_plans.filter(is_active=True).count()
+        disabled_plans = base_plans.filter(is_active=False).count()
         return render(request, "maintenance/plans.html", {
             "page": _paged(request, qs), "filters": request.GET,
             "sites": site_selectors.sites_for(m, org, "maintenance.view").order_by("code"),
-            "can_create": rbac.has_permission_anywhere(m, "maintenance.create")})
+            "can_create": rbac.has_permission_anywhere(m, "maintenance.create"),
+            "total_plans": total_plans,
+            "active_plans": active_plans,
+            "disabled_plans": disabled_plans})
 
 
 class PlanCreateView(PmBase):
@@ -283,15 +290,23 @@ class DueView(PmBase):
         if site:
             parsed = selectors._uuid_or_none(site)
             qs = qs.filter(plan__site_id=parsed) if parsed else qs.none()
-        rows = selectors.describe_schedule_rows(qs.order_by("next_due_date", "plan__name"))
+        all_rows = selectors.describe_schedule_rows(qs.order_by("next_due_date", "plan__name"))
+        total_schedules = len(all_rows)
+        due_count = sum(1 for r in all_rows if r["state"] == "DUE")
+        scheduled_count = sum(1 for r in all_rows if r["state"] == "SCHEDULED")
         state = (request.GET.get("state") or "").strip()
         if state in ("DUE", "SCHEDULED"):
-            rows = [r for r in rows if r["state"] == state]
+            rows = [r for r in all_rows if r["state"] == state]
+        else:
+            rows = all_rows
         page = Paginator(rows, 25).get_page(request.GET.get("page"))
         return render(request, "maintenance/due.html", {
             "page": page, "filters": request.GET,
             "sites": site_selectors.sites_for(m, org, "maintenance.view").order_by("code"),
-            "can_generate": rbac.has_permission_anywhere(m, "maintenance.generate")})
+            "can_generate": rbac.has_permission_anywhere(m, "maintenance.generate"),
+            "total_schedules": total_schedules,
+            "due_count": due_count,
+            "scheduled_count": scheduled_count})
 
 
 class HistoryView(PmBase):

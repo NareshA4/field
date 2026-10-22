@@ -1,0 +1,24 @@
+{% load ui_tags %}
+{# Standardized ERP KPI Card Component #}
+{# Parameters: title, value, change (optional), tone (success|warning|danger|info|primary), icon (optional), subtitle (optional) #}
+<div class="card fx-kpi-card shadow-sm border-0 h-100 p-3" style="background:#ffffff; border-radius:10px; border-left: 4px solid var(--fx-{% if tone %}{{ tone }}{% else %}accent{% endif %}) !important;">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <span class="text-secondary small fw-semibold text-uppercase tracking-wider">{{ title }}</span>
+    {% if icon %}
+      <div class="fx-kpi-icon-badge" style="width:34px; height:34px; border-radius:8px; display:grid; place-items:center; background:rgba(11,31,58,0.06); color:var(--fx-accent);">
+        {% icon icon 18 %}
+      </div>
+    {% endif %}
+  </div>
+  <div class="d-flex align-items-baseline gap-2">
+    <span class="fs-3 fw-bold text-dark">{{ value }}</span>
+    {% if change %}
+      <span class="small fw-semibold text-{% if change_positive %}success{% else %}danger{% endif %}">
+        {{ change }}
+      </span>
+    {% endif %}
+  </div>
+  {% if subtitle %}
+    <div class="small text-secondary mt-1">{{ subtitle }}</div>
+  {% endif %}
+</div>

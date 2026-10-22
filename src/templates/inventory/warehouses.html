@@ -1,142 +1,21 @@
 {% extends "shell.html" %}
 {% load ui_tags %}
-{% block title %}Warehouse Inventory Overview · FieldOps Nexus{% endblock %}
+{% block title %}Warehouses · FieldOps Nexus{% endblock %}
 {% block content %}
-<div class="fx-page-header">
-  <div>
-    <h1>Warehouse Inventory Overview</h1>
-    <div class="text-body-secondary">Multi-site warehouse locations, stock levels, and automated min-max reorder monitoring.</div>
-  </div>
-  <div class="d-flex gap-2">
-    <a class="btn btn-outline-secondary" href="{% url 'inventory:stock' %}?low=1">
-      {% icon 'alert-triangle' 16 %} Low Stock Alerts {% if metrics.low_stock_count %}<span class="badge bg-warning text-dark ms-1">{{ metrics.low_stock_count }}</span>{% endif %}
-    </a>
-    {% if can_manage %}
-      <a class="btn btn-primary" href="{% url 'inventory:warehouse_new' %}">{% icon 'plus' 16 %} New warehouse</a>
-    {% endif %}
-  </div>
-</div>
-
+<div class="fx-page-header"><div><h1>Warehouses</h1><div class="text-body-secondary">Stock locations per site.</div></div>
+  <div class="d-flex gap-2">{% if can_manage %}<a class="btn btn-primary" href="{% url 'inventory:warehouse_new' %}">{% icon 'plus' 16 %} New warehouse</a>{% endif %}</div></div>
 {% include "components/_section_tabs.html" with section="Inventory" %}
-
-<!-- KPI Summary Cards -->
-<div class="row g-3 mb-4">
-  <div class="col-sm-6 col-xl-3">
-    <div class="fx-card p-3">
-      <div class="text-secondary small fw-medium text-uppercase">Warehouses</div>
-      <div class="fs-4 fw-bold mt-1 text-dark">{{ metrics.total_warehouses }}</div>
-      <div class="small text-muted mt-1">{{ metrics.active_warehouses }} active location{{ metrics.active_warehouses|pluralize }}</div>
-    </div>
-  </div>
-  <div class="col-sm-6 col-xl-3">
-    <div class="fx-card p-3">
-      <div class="text-secondary small fw-medium text-uppercase">Stocked SKUs</div>
-      <div class="fs-4 fw-bold mt-1 text-dark">{{ metrics.total_skus }}</div>
-      <div class="small text-muted mt-1">Distinct parts catalogued</div>
-    </div>
-  </div>
-  <div class="col-sm-6 col-xl-3">
-    <div class="fx-card p-3">
-      <div class="text-secondary small fw-medium text-uppercase">Total On-Hand</div>
-      <div class="fs-4 fw-bold mt-1 text-primary">{{ metrics.total_on_hand|floatformat:"-2" }}</div>
-      <div class="small text-muted mt-1">{{ metrics.total_available|floatformat:"-2" }} available · {{ metrics.total_reserved|floatformat:"-2" }} reserved</div>
-    </div>
-  </div>
-  <div class="col-sm-6 col-xl-3">
-    <div class="fx-card p-3 border-start border-4 {% if metrics.low_stock_count %}border-warning bg-warning-subtle{% else %}border-success{% endif %}">
-      <div class="text-secondary small fw-medium text-uppercase">Min-Max Reorder Alerts</div>
-      <div class="fs-4 fw-bold mt-1 {% if metrics.low_stock_count %}text-warning-emphasis{% else %}text-success{% endif %}">
-        {{ metrics.low_stock_count }}
-      </div>
-      <div class="small text-muted mt-1">
-        {% if metrics.low_stock_count %}
-          <a href="{% url 'inventory:stock' %}?low=1" class="text-warning-emphasis fw-semibold">Requires replenishment &rarr;</a>
-        {% else %}
-          Stock levels healthy
-        {% endif %}
-      </div>
-    </div>
-  </div>
-</div>
-
-{% if metrics.low_stock_count %}
-<div class="alert alert-warning d-flex align-items-center justify-content-between mb-4 shadow-sm" role="alert">
-  <div class="d-flex align-items-center gap-2">
-    {% icon 'alert-triangle' 20 %}
-    <div>
-      <strong>Automated Min-Max Alert:</strong> {{ metrics.low_stock_count }} item{{ metrics.low_stock_count|pluralize }} breached minimum inventory levels and require reordering.
-    </div>
-  </div>
-  <a href="{% url 'inventory:stock' %}?low=1" class="btn btn-sm btn-warning">View low stock items</a>
-</div>
-{% endif %}
-
 <div class="fx-card">
-  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom align-items-center">
+  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
     <input class="form-control form-control-sm" style="max-width:240px" type="search" name="q" value="{{ filters.q }}" placeholder="Code or name" aria-label="Search warehouses">
-    <select class="form-select form-select-sm" style="max-width:160px" name="site" aria-label="Site">
-      <option value="">All sites</option>
-      {% for s in sites %}
-        <option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>
-      {% endfor %}
-    </select>
-    <select class="form-select form-select-sm" style="max-width:150px" name="active" aria-label="Active">
-      <option value="">All statuses</option>
-      <option value="1" {% if filters.active == "1" %}selected{% endif %}>Active</option>
-      <option value="0" {% if filters.active == "0" %}selected{% endif %}>Inactive</option>
-    </select>
-    <button class="btn btn-sm btn-outline-secondary">Filter</button>
-  </form>
-
-  <div class="table-responsive">
-    <table class="table fx-table" id="warehouses-table">
-      <thead>
-        <tr>
-          <th>Code</th>
-          <th>Name &amp; Description</th>
-          <th>Site</th>
-          <th class="text-end">SKUs</th>
-          <th class="text-end">On Hand</th>
-          <th>Reorder Status</th>
-          <th>Status</th>
-          <th class="text-end">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-      {% for w in page %}
-        <tr>
-          <td><a class="fw-bold" href="{% url 'inventory:warehouse' w.pk %}">{{ w.code }}</a></td>
-          <td>
-            <div class="fw-medium">{{ w.name }}</div>
-            {% if w.description %}<div class="text-muted small">{{ w.description|truncatewords:10 }}</div>{% endif %}
-          </td>
-          <td>{{ w.site.code }}</td>
-          <td class="text-end">{{ w.sku_count|default:"0" }}</td>
-          <td class="text-end">{{ w.total_on_hand|floatformat:"-2"|default:"0" }}</td>
-          <td>
-            {% if w.low_stock_count %}
-              <a href="{% url 'inventory:stock' %}?warehouse={{ w.pk }}&low=1" class="badge fx-badge fx-badge-warning text-decoration-none">
-                {{ w.low_stock_count }} Low Stock
-              </a>
-            {% else %}
-              <span class="badge fx-badge fx-badge-success">Healthy</span>
-            {% endif %}
-          </td>
-          <td>{% if w.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}</td>
-          <td class="text-end">
-            <a href="{% url 'inventory:warehouse' w.pk %}" class="btn btn-sm btn-outline-primary">Open</a>
-          </td>
-        </tr>
-      {% empty %}
-        <tr>
-          <td colspan="8">
-            {% include "components/_empty_state.html" with title="No warehouses" text="Create a warehouse for a site." %}
-          </td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
+    <select class="form-select form-select-sm" style="max-width:160px" name="site" aria-label="Site"><option value="">All sites</option>
+      {% for s in sites %}<option value="{{ s.pk }}" {% if filters.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.code }}</option>{% endfor %}</select>
+    <select class="form-select form-select-sm" style="max-width:150px" name="active" aria-label="Active"><option value="">All</option>
+      <option value="1" {% if filters.active == "1" %}selected{% endif %}>Active</option><option value="0" {% if filters.active == "0" %}selected{% endif %}>Inactive</option></select>
+    <button class="btn btn-sm btn-outline-secondary">Filter</button></form>
+  <div class="table-responsive"><table class="table fx-table" id="warehouses-table"><thead><tr><th>Code</th><th>Name</th><th>Site</th><th>Status</th></tr></thead><tbody>
+  {% for w in page %}<tr><td><a href="{% url 'inventory:warehouse' w.pk %}">{{ w.code }}</a></td><td>{{ w.name }}</td><td>{{ w.site.code }}</td><td>{% if w.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="4">{% include "components/_empty_state.html" with title="No warehouses" text="Create a warehouse for a site." %}</td></tr>{% endfor %}</tbody></table></div>
   {% include "components/_pagination.html" %}
 </div>
 {% endblock %}

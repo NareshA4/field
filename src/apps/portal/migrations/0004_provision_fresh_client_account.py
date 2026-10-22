@@ -99,5 +99,19 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunSQL(
+            sql="""
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'portal_portalaccount' AND column_name = 'phone_number'
+                ) THEN
+                    ALTER TABLE portal_portalaccount ALTER COLUMN phone_number DROP NOT NULL;
+                END IF;
+            END $$;
+            """,
+            reverse_sql="",
+        ),
         migrations.RunPython(provision_clients, reverse_code=reverse_func),
     ]

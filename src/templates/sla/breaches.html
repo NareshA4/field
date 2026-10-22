@@ -4,6 +4,20 @@
 {% block content %}
 <div class="fx-page-header"><div><h1>SLA breaches</h1><div class="text-body-secondary">One row per missed target, persisted when the monitor detects it.</div></div></div>
 {% include "sla/_tabs.html" %}
+
+<!-- Standardized KPI Cards Row -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Total Breaches" value=total_breaches|default:0 tone="primary" icon="clipboard" %}
+  </div>
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Open Breaches" value=open_breaches|default:0 tone="danger" icon="alert-circle" %}
+  </div>
+  <div class="col-12 col-md-4">
+    {% include "components/_kpi_card.html" with title="Acknowledged" value=ack_breaches|default:0 tone="info" icon="check" %}
+  </div>
+</div>
+
 <div class="fx-card">
   <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom">
     <select class="form-select form-select-sm" style="max-width:150px" name="site" aria-label="Site"><option value="">All sites</option>

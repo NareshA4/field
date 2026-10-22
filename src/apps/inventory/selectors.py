@@ -83,67 +83,6 @@ def filter_warehouses(qs, params):
     return qs.order_by("code")
 
 
-def warehouse_overview_metrics(membership, org) -> dict:
-    """Aggregate KPIs across all visible warehouses for the caller."""
-    warehouses_qs = warehouses_for(membership, org)
-    balances_qs = balances_for(membership, org)
-    reservations_qs = reservations_for(membership, org).filter(status="ACTIVE")
-
-    total_warehouses = warehouses_qs.count()
-    active_warehouses = warehouses_qs.filter(is_active=True).count()
-    total_skus = balances_qs.values("part_id").distinct().count()
-
-    totals = balances_qs.aggregate(
-        total_on_hand=Sum("on_hand"),
-        total_reserved=Sum("reserved"),
-    )
-    total_on_hand = totals["total_on_hand"] or 0
-    total_reserved = totals["total_reserved"] or 0
-    total_available = total_on_hand - total_reserved
-
-    low_stock_count = 0
-    for bal in balances_qs:
-        if bal.is_low:
-            low_stock_count += 1
-
-    active_reservations_count = reservations_qs.count()
-
-    return {
-        "total_warehouses": total_warehouses,
-        "active_warehouses": active_warehouses,
-        "total_skus": total_skus,
-        "total_on_hand": total_on_hand,
-        "total_reserved": total_reserved,
-        "total_available": total_available,
-        "low_stock_count": low_stock_count,
-        "active_reservations_count": active_reservations_count,
-    }
-
-
-def warehouses_with_summary(membership, org, params=None):
-    from collections import defaultdict
-    from decimal import Decimal
-
-    wh_qs = filter_warehouses(warehouses_for(membership, org), params or {})
-    balances_qs = balances_for(membership, org)
-
-    wh_stats = defaultdict(lambda: {"skus": 0, "on_hand": Decimal("0"), "low": 0})
-    for b in balances_qs.select_related("part"):
-        st = wh_stats[b.warehouse_id]
-        st["skus"] += 1
-        st["on_hand"] += b.on_hand
-        if b.is_low:
-            st["low"] += 1
-
-    wh_list = list(wh_qs)
-    for w in wh_list:
-        st = wh_stats.get(w.pk, {"skus": 0, "on_hand": Decimal("0"), "low": 0})
-        w.sku_count = st["skus"]
-        w.total_on_hand = st["on_hand"]
-        w.low_stock_count = st["low"]
-    return wh_list
-
-
 # --- balances / movements / reservations ---------------------------------------------------------------------------
 
 

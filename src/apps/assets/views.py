@@ -33,7 +33,7 @@ from .forms import (
     ReadingForm,
 )
 from .models import Asset, AssetComponent
-from .workflow import ASSET_STATUS, BUTTON_STYLES, TERMINAL_STATES
+from .workflow import ACTIVE, ASSET_STATUS, BUTTON_STYLES, OUT_OF_SERVICE, TERMINAL_STATES, UNDER_MAINTENANCE
 
 TABS = [("overview", "Overview"), ("documents", "Documents"), ("meters", "Meters"), ("history", "History"),
         ("hierarchy", "Hierarchy"), ("coverage", "Coverage"), ("labels", "Labels")]
@@ -125,14 +125,26 @@ class AssetListView(AssetBase):
 
     def get(self, request):
         m, org = request.membership, request.organization
-        qs = selectors.filter_assets(selectors.assets_for(m, org).select_related("parent_link__parent"), request.GET)
+        base_assets = selectors.assets_for(m, org)
+        qs = selectors.filter_assets(base_assets.select_related("parent_link__parent"), request.GET)
         page = Paginator(qs, 20).get_page(request.GET.get("page"))
+
+        total_count = base_assets.count()
+        active_count = base_assets.filter(status=ACTIVE).count()
+        maintenance_count = base_assets.filter(status=UNDER_MAINTENANCE).count()
+        out_of_service_count = base_assets.filter(status=OUT_OF_SERVICE).count()
+
         return render(request, "assets/list.html", {
             "page": page, "filters": request.GET,
             "sites": site_selectors.sites_for(m, org, "asset.view").order_by("code"),
             "categories": selectors.categories_for(org), "statuses": Asset.Status.choices,
             "can_create": rbac.has_permission_anywhere(m, "asset.create"),
-            "can_categories": rbac.has_permission(m, "asset.category.manage")})
+            "can_categories": rbac.has_permission(m, "asset.category.manage"),
+            "total_count": total_count,
+            "active_count": active_count,
+            "maintenance_count": maintenance_count,
+            "out_of_service_count": out_of_service_count,
+        })
 
 
 class ComponentListView(AssetBase):
@@ -257,7 +269,16 @@ class AssetCreateView(AssetBase):
                         hierarchy.add_component(parent, asset, actor=request.user, request=request,
                                                 **rel_form.cleaned_data)
             except DomainError as exc:
-                form.add_error(None, exc.message)
+                if exc.code in ("duplicate_asset_tag", "invalid_asset_tag") or "tag" in exc.message.lower():
+                    form.add_error("asset_tag", exc.message)
+                elif exc.code == "duplicate_serial_number" or "serial" in exc.message.lower():
+                    form.add_error("serial_number", exc.message)
+                elif exc.code == "invalid_dates" or "date" in exc.message.lower():
+                    form.add_error("commission_date", exc.message)
+                elif "name" in exc.message.lower():
+                    form.add_error("name", exc.message)
+                else:
+                    form.add_error(None, exc.message)
             else:
                 messages.success(request, f"Asset {asset.asset_tag} registered.")
                 return redirect("assets:detail", pk=asset.pk)
@@ -281,7 +302,7 @@ class AssetEditView(AssetBase):
         if reload:
             initial.update(_prefill(request))
         return AssetForm(data, initial=initial, sites=sites, org=request.organization, creating=False,
-                          category=category)
+                          category=category, asset_pk=asset.pk)
 
     def _page(self, request, asset, form, status=200):
         return render(request, "assets/form.html", {
@@ -302,7 +323,16 @@ class AssetEditView(AssetBase):
             try:
                 services.update_asset(asset, actor=request.user, request=request, **refs, **d)
             except DomainError as exc:
-                form.add_error(None, exc.message)
+                if exc.code in ("duplicate_asset_tag", "invalid_asset_tag") or "tag" in exc.message.lower():
+                    form.add_error("asset_tag", exc.message)
+                elif exc.code == "duplicate_serial_number" or "serial" in exc.message.lower():
+                    form.add_error("serial_number", exc.message)
+                elif exc.code == "invalid_dates" or "date" in exc.message.lower():
+                    form.add_error("commission_date", exc.message)
+                elif "name" in exc.message.lower():
+                    form.add_error("name", exc.message)
+                else:
+                    form.add_error(None, exc.message)
             else:
                 messages.success(request, "Asset saved.")
                 return redirect("assets:detail", pk=asset.pk)

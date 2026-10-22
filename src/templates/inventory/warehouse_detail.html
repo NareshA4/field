@@ -1,145 +1,18 @@
 {% extends "shell.html" %}
 {% load ui_tags %}
-{% block title %}{{ wh.code }} · FieldOps Nexus{% endblock %}
+{% block title %}{{ wh.code }} Â· FieldOps Nexus{% endblock %}
 {% block content %}
-<div class="fx-page-header">
-  <div>
-    <nav aria-label="breadcrumb">
-      <ol class="breadcrumb mb-1 small">
-        <li class="breadcrumb-item"><a href="{% url 'inventory:warehouses' %}">Warehouses</a></li>
-        <li class="breadcrumb-item active">{{ wh.code }}</li>
-      </ol>
-    </nav>
-    <h1>{{ wh.name }} {% if wh.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}</h1>
-    <div class="text-body-secondary">{{ wh.code }} · Site <a href="{% url 'sites:detail' wh.site_id %}">{{ wh.site.code }}</a>{% if wh.description %} · {{ wh.description }}{% endif %}</div>
-  </div>
-  <div class="d-flex gap-2">
-    {% if can_receive and wh.is_active %}
-      <a class="btn btn-primary" href="{% url 'inventory:receive' %}?warehouse={{ wh.pk }}">Receive stock</a>
-    {% endif %}
-    {% if can_manage %}
-      <a class="btn btn-outline-primary" href="{% url 'inventory:warehouse_edit' wh.pk %}">Edit</a>
-      <form method="post" action="{% url 'inventory:warehouse_active' wh.pk %}" class="m-0">
-        {% csrf_token %}
-        <input type="hidden" name="active" value="{% if wh.is_active %}0{% else %}1{% endif %}">
-        <button class="btn btn-outline-secondary" {% if wh.is_active %}data-confirm="Deactivate this warehouse?"{% endif %}>
-          {% if wh.is_active %}Deactivate{% else %}Activate{% endif %}
-        </button>
-      </form>
-    {% endif %}
-  </div>
-</div>
-
-<!-- Warehouse Summary KPI Cards -->
-<div class="row g-3 mb-4">
-  <div class="col-sm-6 col-xl-3">
-    <div class="fx-card p-3">
-      <div class="text-secondary small fw-medium text-uppercase">Stocked SKUs</div>
-      <div class="fs-4 fw-bold mt-1 text-dark">{{ wh_stats.skus|default:"0" }}</div>
-      <div class="small text-muted mt-1">Catalog items assigned</div>
-    </div>
-  </div>
-  <div class="col-sm-6 col-xl-3">
-    <div class="fx-card p-3">
-      <div class="text-secondary small fw-medium text-uppercase">On Hand Stock</div>
-      <div class="fs-4 fw-bold mt-1 text-primary">{{ wh_stats.on_hand|floatformat:"-2"|default:"0" }}</div>
-      <div class="small text-muted mt-1">{{ wh_stats.available|floatformat:"-2"|default:"0" }} available for dispatch</div>
-    </div>
-  </div>
-  <div class="col-sm-6 col-xl-3">
-    <div class="fx-card p-3">
-      <div class="text-secondary small fw-medium text-uppercase">Work Order Reserved</div>
-      <div class="fs-4 fw-bold mt-1 text-info">{{ wh_stats.reserved|floatformat:"-2"|default:"0" }}</div>
-      <div class="small text-muted mt-1">Committed to active work orders</div>
-    </div>
-  </div>
-  <div class="col-sm-6 col-xl-3">
-    <div class="fx-card p-3 border-start border-4 {% if wh_stats.low_count %}border-warning bg-warning-subtle{% else %}border-success{% endif %}">
-      <div class="text-secondary small fw-medium text-uppercase">Reorder Alerts</div>
-      <div class="fs-4 fw-bold mt-1 {% if wh_stats.low_count %}text-warning-emphasis{% else %}text-success{% endif %}">
-        {{ wh_stats.low_count|default:"0" }}
-      </div>
-      <div class="small text-muted mt-1">
-        {% if wh_stats.low_count %}
-          Items at or below min threshold
-        {% else %}
-          Stock thresholds healthy
-        {% endif %}
-      </div>
-    </div>
-  </div>
-</div>
-
-{% if wh_stats.low_count %}
-<div class="alert alert-warning d-flex align-items-center justify-content-between mb-4 shadow-sm" role="alert">
-  <div class="d-flex align-items-center gap-2">
-    {% icon 'alert-triangle' 20 %}
-    <div>
-      <strong>Reorder Required:</strong> {{ wh_stats.low_count }} item{{ wh_stats.low_count|pluralize }} in this warehouse are at or below minimum threshold.
-    </div>
-  </div>
-  {% if can_receive and wh.is_active %}
-    <a href="{% url 'inventory:receive' %}?warehouse={{ wh.pk }}" class="btn btn-sm btn-warning">Receive replenishment</a>
-  {% endif %}
-</div>
-{% endif %}
-
-<div class="fx-card">
-  <div class="fx-card-header d-flex justify-content-between align-items-center">
-    <span>Stock in this warehouse</span>
-    <span class="small text-muted">{{ balances|length }} part{{ balances|length|pluralize }}</span>
-  </div>
-  <div class="table-responsive">
-    <table class="table fx-table" id="warehouse-stock">
-      <thead>
-        <tr>
-          <th>Part</th>
-          <th>On hand</th>
-          <th>Reserved</th>
-          <th>Available</th>
-          <th>Min / Max</th>
-          <th>Reorder Qty</th>
-          <th>Status</th>
-          <th class="text-end">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-      {% for b in balances %}
-        <tr>
-          <td>
-            <a class="fw-semibold" href="{% url 'inventory:stock_detail' b.pk %}">{{ b.part.part_number }}</a>
-            <div class="text-muted small">{{ b.part.name }}</div>
-          </td>
-          <td>{{ b.on_hand|floatformat:"-3" }} {{ b.part.unit }}</td>
-          <td>{{ b.reserved|floatformat:"-3" }}</td>
-          <td><strong>{{ b.available|floatformat:"-3" }}</strong></td>
-          <td>{{ b.effective_min|floatformat:"-3"|default:"—" }} / {{ b.effective_max|floatformat:"-3"|default:"—" }}</td>
-          <td>{{ b.effective_reorder_quantity|floatformat:"-3"|default:"—" }}</td>
-          <td>
-            {% if b.available <= 0 %}
-              <span class="badge bg-danger">Out of Stock</span>
-            {% elif b.is_low %}
-              <span class="badge fx-badge fx-badge-warning">Low Stock</span>
-            {% else %}
-              <span class="badge fx-badge fx-badge-success">Healthy</span>
-            {% endif %}
-          </td>
-          <td class="text-end"><a href="{% url 'inventory:stock_detail' b.pk %}" class="btn btn-sm btn-outline-secondary">Open</a></td>
-        </tr>
-      {% empty %}
-        <tr>
-          <td colspan="8">
-            {% include "components/_empty_state.html" with title="Empty warehouse" text="Receive stock to get started." %}
-          </td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<div class="fx-card mt-3">
-  <div class="fx-card-header">Recent movements</div>
-  {% include "inventory/_movement_table.html" with rows=movements %}
-</div>
+<div class="fx-page-header"><div>
+  <nav aria-label="breadcrumb"><ol class="breadcrumb mb-1 small"><li class="breadcrumb-item"><a href="{% url 'inventory:warehouses' %}">Warehouses</a></li><li class="breadcrumb-item active">{{ wh.code }}</li></ol></nav>
+  <h1>{{ wh.name }} {% if wh.is_active %}{% status_badge "ACTIVE" %}{% else %}{% status_badge "INACTIVE" %}{% endif %}</h1>
+  <div class="text-body-secondary">{{ wh.code }} Â· site <a href="{% url 'sites:detail' wh.site_id %}">{{ wh.site.code }}</a>{% if wh.description %} Â· {{ wh.description }}{% endif %}</div></div>
+  <div class="d-flex gap-2">{% if can_receive and wh.is_active %}<a class="btn btn-primary" href="{% url 'inventory:receive' %}?warehouse={{ wh.pk }}">Receive stock</a>{% endif %}
+  {% if can_manage %}<a class="btn btn-outline-primary" href="{% url 'inventory:warehouse_edit' wh.pk %}">Edit</a>
+    <form method="post" action="{% url 'inventory:warehouse_active' wh.pk %}" class="m-0">{% csrf_token %}<input type="hidden" name="active" value="{% if wh.is_active %}0{% else %}1{% endif %}">
+      <button class="btn btn-outline-secondary" {% if wh.is_active %}data-confirm="Deactivate this warehouse?"{% endif %}>{% if wh.is_active %}Deactivate{% else %}Activate{% endif %}</button></form>{% endif %}</div></div>
+<div class="fx-card"><div class="fx-card-header">Stock in this warehouse</div>
+  <div class="table-responsive"><table class="table fx-table" id="warehouse-stock"><thead><tr><th>Part</th><th>On hand</th><th>Reserved</th><th>Available</th><th>Min</th><th></th></tr></thead><tbody>
+  {% for b in balances %}<tr><td>{{ b.part.part_number }} Â· {{ b.part.name }}</td><td>{{ b.on_hand|floatformat:"-3" }} {{ b.part.unit }}</td><td>{{ b.reserved|floatformat:"-3" }}</td><td>{{ b.available|floatformat:"-3" }}{% if b.is_low %} <span class="badge fx-badge fx-badge-warning">Low</span>{% endif %}</td><td>{{ b.effective_min|floatformat:"-3"|default:"â€”" }}</td><td><a href="{% url 'inventory:stock_detail' b.pk %}">Open</a></td></tr>
+  {% empty %}<tr><td colspan="6">{% include "components/_empty_state.html" with title="Empty warehouse" text="Receive stock to get started." %}</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="fx-card mt-3"><div class="fx-card-header">Recent movements</div>{% include "inventory/_movement_table.html" with rows=movements %}</div>
 {% endblock %}

@@ -6,6 +6,7 @@ import uuid
 
 from apps.assets.models import Asset
 from apps.audit import services as audit
+from apps.core import tenant
 from apps.core.exceptions import Conflict, NotFound, PermissionDenied, ValidationFailed
 from apps.incidents import services as incident_services
 from apps.incidents.models import ServiceRequest
@@ -143,8 +144,9 @@ def create_portal_service_request(
     if isinstance(asset, (str, uuid.UUID)):
         asset_obj = Asset.objects.for_organization(org).filter(pk=asset).first()
         if not asset_obj:
-            if Asset.objects.unscoped().filter(pk=asset).exists():
-                raise ValidationFailed("Asset belongs to a different organization.", code="cross_tenant_asset")
+            with tenant.platform_context():
+                if Asset.objects.filter(pk=asset).exists():
+                    raise ValidationFailed("Asset belongs to a different organization.", code="cross_tenant_asset")
             raise ValidationFailed("Asset not found in this organization.", code="asset_not_found")
         asset = asset_obj
     elif asset.organization_id != org.pk:
@@ -162,8 +164,9 @@ def create_portal_service_request(
         if isinstance(site, (str, uuid.UUID)):
             site_obj = Site.objects.for_organization(org).filter(pk=site).first()
             if not site_obj:
-                if Site.objects.unscoped().filter(pk=site).exists():
-                    raise ValidationFailed("Site belongs to a different organization.", code="cross_tenant_site")
+                with tenant.platform_context():
+                    if Site.objects.filter(pk=site).exists():
+                        raise ValidationFailed("Site belongs to a different organization.", code="cross_tenant_site")
                 raise ValidationFailed("Site not found in this organization.", code="site_not_found")
             site = site_obj
         elif site.organization_id != org.pk:

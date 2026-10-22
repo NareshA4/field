@@ -66,12 +66,13 @@
         {% endif %}
       </div>
 
-      <div class="card-footer bg-transparent d-flex justify-content-between align-items-center py-2">
+      <div class="card-footer bg-transparent d-flex justify-content-between align-items-center py-2 px-3 border-top">
         <div class="d-flex gap-2">
-          <a href="{% url 'workspace:job_detail' job.pk %}" class="btn btn-sm btn-outline-primary">
+          <a href="{% url 'workspace:job_detail' job.pk %}" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" style="min-height: 38px;">
             {% icon 'wrench' 14 %} Details
           </a>
-          <button class="btn btn-sm btn-outline-secondary"
+          <button class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
+                  style="min-height: 38px;"
                   hx-get="{% url 'workspace:drawer' job.pk %}"
                   hx-target="#drawer-content"
                   data-bs-toggle="offcanvas"
@@ -84,12 +85,13 @@
           {% if job.status == 'DISPATCHED' %}
           <form method="post" action="{% url 'workspace:start' job.pk %}" class="d-inline">
             {% csrf_token %}
-            <button class="btn btn-sm btn-success">
+            <button class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 fw-medium" style="min-height: 38px; padding-left: 0.85rem; padding-right: 0.85rem;">
               {% icon 'check' 14 %} Start Job
             </button>
           </form>
           {% elif job.status == 'IN_PROGRESS' %}
-          <button class="btn btn-sm btn-warning text-dark"
+          <button class="btn btn-sm btn-warning text-dark d-inline-flex align-items-center gap-1 fw-medium"
+                  style="min-height: 38px;"
                   hx-get="{% url 'workspace:drawer' job.pk %}"
                   hx-target="#drawer-content"
                   data-bs-toggle="offcanvas"
@@ -99,7 +101,7 @@
           {% elif job.status == 'ON_HOLD' %}
           <form method="post" action="{% url 'workspace:resume' job.pk %}" class="d-inline">
             {% csrf_token %}
-            <button class="btn btn-sm btn-info text-white">
+            <button class="btn btn-sm btn-info text-white d-inline-flex align-items-center gap-1 fw-medium" style="min-height: 38px; padding-left: 0.85rem; padding-right: 0.85rem;">
               {% icon 'clock' 14 %} Resume Job
             </button>
           </form>

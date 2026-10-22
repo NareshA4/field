@@ -1,3 +1,4 @@
+import re
 from django import forms
 
 from apps.sites.models import Site, Zone
@@ -5,7 +6,9 @@ from apps.tenancy.models import Membership
 from apps.ui.forms import BootstrapFormMixin
 
 from . import attributes as attrs
-from .models import AssetCategory, AssetComponent, AssetDocument
+from .models import Asset, AssetCategory, AssetComponent, AssetDocument
+
+_TAG_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,39}")
 
 
 class _ZoneChoice(forms.ModelChoiceField):
@@ -39,8 +42,10 @@ class AssetForm(BootstrapFormMixin, forms.Form):
     reason = forms.CharField(max_length=500, required=False, label="Reason for location change",
                              help_text="Recorded in the location history when the site or location changes.")
 
-    def __init__(self, *args, sites, org, creating=True, category=None, **kwargs):
+    def __init__(self, *args, sites, org, creating=True, category=None, asset_pk=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.org = org
+        self.asset_pk = asset_pk
         self.attribute_defs = list(category.attribute_definitions) if category else []
         values = (kwargs.get("initial") or {}).get("attributes") or {}
         for d in self.attribute_defs:  # the category's custom attributes become real, validated form fields
@@ -71,6 +76,20 @@ class AssetForm(BootstrapFormMixin, forms.Form):
             return forms.ChoiceField(choices=[("", "(choose)")] + [(c, c) for c in d["choices"]], widget=forms.Select(attrs={"class": "form-select"}), **common)
         return forms.CharField(max_length=attrs.MAX_TEXT, widget=forms.TextInput(attrs={"class": "form-control"}), **common)
 
+    def clean_asset_tag(self):
+        tag = (self.cleaned_data.get("asset_tag") or "").strip()
+        if not tag:
+            raise forms.ValidationError("Asset tag is required.")
+        if not _TAG_RE.fullmatch(tag):
+            raise forms.ValidationError("Asset tag must be 1-40 characters: letters, digits, '.', '_', '/' or '-'.")
+        if self.org:
+            qs = Asset.objects.for_organization(self.org).filter(asset_tag__iexact=tag)
+            if self.asset_pk:
+                qs = qs.exclude(pk=self.asset_pk)
+            if qs.exists():
+                raise forms.ValidationError("An asset with this tag already exists.")
+        return tag
+
     def clean(self):
         data = super().clean()
         values = {}
@@ -81,6 +100,17 @@ class AssetForm(BootstrapFormMixin, forms.Form):
         site, zone = data.get("site"), data.get("zone")
         if site and zone and zone.site_id != site.pk:
             self.add_error("zone", "This location does not belong to the selected site.")
+        purchase, commission = data.get("purchase_date"), data.get("commission_date")
+        if purchase and commission and commission < purchase:
+            self.add_error("commission_date", "Commissioning date cannot be before the purchase date.")
+        mfg = (data.get("manufacturer") or "").strip()
+        serial = (data.get("serial_number") or "").strip()
+        if serial and self.org:
+            dup = Asset.objects.for_organization(self.org).filter(manufacturer__iexact=mfg, serial_number__iexact=serial)
+            if self.asset_pk:
+                dup = dup.exclude(pk=self.asset_pk)
+            if dup.exists():
+                self.add_error("serial_number", "An asset with this manufacturer and serial number already exists.")
         return data
 
 

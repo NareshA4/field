@@ -2,36 +2,148 @@
 {% load ui_tags %}
 {% block title %}Stock · FieldOps Nexus{% endblock %}
 {% block content %}
-<div class="fx-page-header"><div><h1>Stock</h1><div class="text-body-secondary">On hand, reserved and available per warehouse. Every change is a movement.</div></div>
-  <div class="d-flex gap-2">{% if can_receive %}<a class="btn btn-primary" href="{% url 'inventory:receive' %}">Receive stock</a>{% endif %}{% if can_transfer %}<a class="btn btn-outline-primary" href="{% url 'inventory:transfer' %}">Transfer</a>{% endif %}</div></div>
+<div class="fx-page-header">
+  <div>
+    <h1>Stock Balances</h1>
+    <div class="text-body-secondary">
+      On hand, reserved and available stock per warehouse. Every change is tracked via an append-only movement ledger.
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    {% if can_receive %}
+      <a class="btn btn-primary" href="{% url 'inventory:receive' %}">
+        {% icon 'plus' 16 %} Receive stock
+      </a>
+    {% endif %}
+    {% if can_transfer %}
+      <a class="btn btn-outline-primary" href="{% url 'inventory:transfer' %}">
+        {% icon 'refresh-cw' 16 %} Transfer
+      </a>
+    {% endif %}
+  </div>
+</div>
+
 {% include "components/_section_tabs.html" with section="Inventory" %}
-<div class="fx-card">
-  <form method="get" class="d-flex flex-wrap gap-2 p-3 border-bottom align-items-center">
-    <input class="form-control form-control-sm" style="max-width:240px" type="search" name="q" value="{{ filters.q }}" placeholder="Part number or name" aria-label="Search stock">
-    <select class="form-select form-select-sm" style="max-width:200px" name="warehouse" aria-label="Warehouse"><option value="">All warehouses</option>
-      {% for w in warehouses %}<option value="{{ w.pk }}" {% if filters.warehouse == w.pk|stringformat:"s" %}selected{% endif %}>{{ w.code }}</option>{% endfor %}</select>
-    <div class="form-check"><input class="form-check-input" type="checkbox" name="low" value="1" id="low" {% if filters.low %}checked{% endif %}><label class="form-check-label small" for="low">Low stock only</label></div>
-    <button class="btn btn-sm btn-outline-secondary">Filter</button></form>
-  <div class="table-responsive"><table class="table fx-table" id="stock-table"><thead><tr><th>Warehouse</th><th>Part</th><th>On hand</th><th>Reserved</th><th>Available</th><th>Min / Max</th><th>Reorder</th></tr></thead><tbody>
-  {% for b in page %}<tr><td><div class="fw-medium">{{ b.warehouse.code }}</div><div class="fx-sub">{{ b.warehouse.site.code }}</div></td><td><a href="{% url 'inventory:stock_detail' b.pk %}">{{ b.part.part_number }}</a> · {{ b.part.name }}</td>
-    <td>{{ b.on_hand|floatformat:"-3" }} {{ b.part.unit }}</td><td>{{ b.reserved|floatformat:"-3" }}</td>
-    <td>
-      <strong>{{ b.available|floatformat:"-3" }}</strong>
-      {% if b.available <= 0 %}
-        <span class="badge bg-danger ms-1">Out of Stock</span>
-      {% elif b.is_low %}
-        <span class="badge fx-badge fx-badge-warning ms-1">Low</span>
+
+<div class="row g-3 mb-4 mt-1">
+  <div class="col-12 col-md-6">
+    {% include "components/_kpi_card.html" with title="Total Stock Lines" value=total_items|default:page.paginator.count tone="primary" icon="boxes" %}
+  </div>
+  <div class="col-12 col-md-6">
+    {% include "components/_kpi_card.html" with title="Warehouses Configured" value=warehouse_count|default:warehouses.count tone="info" icon="home" %}
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4 p-3 bg-white" style="border-radius:10px;">
+  <form method="get" class="row g-2 align-items-center">
+    <div class="col-12 col-md-5">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-light border-end-0">
+          {% icon 'search' 14 %}
+        </span>
+        <input
+          class="form-control form-control-sm border-start-0 bg-light"
+          type="search"
+          name="q"
+          value="{{ filters.q|default:'' }}"
+          placeholder="Part number or name"
+          aria-label="Search stock"
+        />
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <select class="form-select form-select-sm bg-light" name="warehouse" aria-label="Warehouse">
+        <option value="">All warehouses</option>
+        {% for w in warehouses %}
+          <option value="{{ w.pk }}" {% if filters.warehouse == w.pk|stringformat:"s" %}selected{% endif %}>
+            {{ w.code }} · {{ w.name|default:w.site.code }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="form-check m-0">
+        <input class="form-check-input" type="checkbox" name="low" value="1" id="low" {% if filters.low %}checked{% endif %}>
+        <label class="form-check-label small fw-medium text-secondary" for="low">Low stock only</label>
+      </div>
+    </div>
+    <div class="col-12 col-md-2 d-flex justify-content-md-end gap-2">
+      <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+      {% if filters.q or filters.warehouse or filters.low %}
+        <a href="{% url 'inventory:stock' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
       {% endif %}
-    </td>
-    <td>{{ b.effective_min|floatformat:"-3"|default:"—" }} / {{ b.effective_max|floatformat:"-3"|default:"—" }}</td>
-    <td>
-      {% if b.is_low and b.effective_reorder_quantity %}
-        <span class="fw-bold text-warning-emphasis">{{ b.effective_reorder_quantity|floatformat:"-3" }}</span>
-      {% else %}
-        {{ b.effective_reorder_quantity|floatformat:"-3"|default:"—" }}
-      {% endif %}
-    </td></tr>
-  {% empty %}<tr><td colspan="7">{% include "components/_empty_state.html" with title="No stock" text="Receive stock into a warehouse." %}</td></tr>{% endfor %}</tbody></table></div>
-  {% include "components/_pagination.html" %}
+    </div>
+  </form>
+</div>
+
+<div class="card border-0 shadow-sm bg-white overflow-hidden" style="border-radius:10px;">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0" id="stock-table">
+      <thead class="table-light text-secondary small text-uppercase fw-semibold border-bottom">
+        <tr>
+          <th style="padding: 0.75rem 1rem;">Warehouse</th>
+          <th style="padding: 0.75rem 1rem;">Part</th>
+          <th style="padding: 0.75rem 1rem;">On Hand</th>
+          <th style="padding: 0.75rem 1rem;">Reserved</th>
+          <th style="padding: 0.75rem 1rem;">Available</th>
+          <th style="padding: 0.75rem 1rem;">Min / Max</th>
+          <th style="padding: 0.75rem 1rem;">Reorder Qty</th>
+          <th style="padding: 0.75rem 1rem; width: 80px;" class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in page %}
+        <tr style="border-bottom: 1px solid #f1f5f9;">
+          <td style="padding: 0.75rem 1rem;">
+            <div class="fw-semibold text-dark">{{ b.warehouse.code }}</div>
+            <div class="small text-muted">{{ b.warehouse.site.code }}</div>
+          </td>
+          <td style="padding: 0.75rem 1rem;">
+            <a href="{% url 'inventory:stock_detail' b.pk %}" class="fw-semibold text-decoration-none" style="color: #0B1F3A;">
+              {{ b.part.part_number }}
+            </a>
+            <div class="small text-muted">{{ b.part.name }}</div>
+          </td>
+          <td style="padding: 0.75rem 1rem;" class="font-monospace fw-medium text-dark">
+            {{ b.on_hand|floatformat:"-3" }} <span class="small text-muted font-sans-serif">{{ b.part.unit }}</span>
+          </td>
+          <td style="padding: 0.75rem 1rem;" class="font-monospace text-secondary">
+            {{ b.reserved|floatformat:"-3" }}
+          </td>
+          <td style="padding: 0.75rem 1rem;">
+            <span class="font-monospace fw-bold {% if b.is_low %}text-danger{% else %}text-success{% endif %}">
+              {{ b.available|floatformat:"-3" }}
+            </span>
+            {% if b.is_low %}
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1">Low</span>
+            {% endif %}
+          </td>
+          <td style="padding: 0.75rem 1rem;" class="font-monospace text-secondary">
+            {{ b.effective_min|floatformat:"-3"|default:"—" }} / {{ b.effective_max|floatformat:"-3"|default:"—" }}
+          </td>
+          <td style="padding: 0.75rem 1rem;" class="font-monospace text-dark">
+            {{ b.effective_reorder_quantity|floatformat:"-3"|default:"—" }}
+          </td>
+          <td style="padding: 0.75rem 1rem;" class="text-end">
+            <a class="btn btn-sm btn-outline-primary p-1" href="{% url 'inventory:stock_detail' b.pk %}" title="View Balance Details">
+              {% icon 'eye' 13 %}
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="py-4">
+            {% include "components/_empty_state.html" with title="No stock" text="Receive stock into a warehouse to establish balances." %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page %}
+    <div class="border-top p-2 bg-light">
+      {% include "components/_pagination.html" %}
+    </div>
+  {% endif %}
 </div>
 {% endblock %}

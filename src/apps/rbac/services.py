@@ -24,16 +24,17 @@ from .role_templates import BY_KEY, TEMPLATES
 
 def sync_permissions() -> int:
     """Mirrors the in-code catalog into the Permission table. Returns number of rows created."""
-    existing = {p.code: p for p in Permission.objects.all()}
     created = 0
     for d in catalog.all_defs():
-        row = existing.get(d.code)
-        if row is None:
-            Permission.objects.create(code=d.code, module=d.module, description=d.description)
+        perm, is_created = Permission.objects.get_or_create(
+            code=d.code,
+            defaults={"module": d.module, "description": d.description},
+        )
+        if is_created:
             created += 1
-        elif (row.module, row.description) != (d.module, d.description):
-            row.module, row.description = d.module, d.description
-            row.save(update_fields=["module", "description", "updated_at"])
+        elif (perm.module, perm.description) != (d.module, d.description):
+            perm.module, perm.description = d.module, d.description
+            perm.save(update_fields=["module", "description", "updated_at"])
     return created
 
 

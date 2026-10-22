@@ -28,9 +28,8 @@ def is_client_membership(membership) -> bool:
     try:
         from apps.portal.models import PortalAccount
 
-        if PortalAccount.objects.unscoped().filter(
+        if PortalAccount.objects.for_organization(membership.organization_id).filter(
             membership=membership,
-            organization_id=membership.organization_id,
             is_enabled=True,
         ).exists():
             return True

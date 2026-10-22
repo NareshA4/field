@@ -8,7 +8,7 @@
   <h1>{{ sr.title }} {% status_badge sr.status %}</h1>
   <div class="text-body-secondary">{{ sr.number }} · {{ sr.get_kind_display }} · {% status_badge sr.severity %} · <a href="{% url 'assets:detail' sr.asset_id %}">{{ sr.asset.asset_tag }}</a> · {% if can.view_site %}<a href="{% url 'sites:detail' sr.site_id %}">{{ sr.site.code }}</a>{% else %}{{ sr.site.code }}{% endif %}</div></div>
   <div class="d-flex gap-2">{% if can.update and editable %}<a class="btn btn-outline-primary" href="{% url 'incidents:edit' sr.pk %}">Edit</a>{% endif %}
-    {% if can.create_work_order %}<form method="post" action="{% url 'incidents:create_work_order' sr.pk %}">{% csrf_token %}<button class="btn btn-primary" type="submit" id="header-btn-convert-wo">Create work order</button></form>{% endif %}
+    {% if can.create_work_order %}<form method="post" action="{% url 'incidents:create_work_order' sr.pk %}">{% csrf_token %}<button class="btn btn-primary" type="submit" id="header-btn-convert-wo" title="Create work order">Convert to Work Order</button></form>{% endif %}
     {% if linked_work_order %}<a class="btn btn-outline-primary" href="{% url 'workorders:detail' linked_work_order.pk %}">Open {{ linked_work_order.order_number }}</a>{% endif %}</div></div>
 <div class="fx-tabs" role="tablist">{% for key, label in tabs %}<a role="tab" class="{% if tab == key %}active{% endif %}" href="?tab={{ key }}">{{ label }}</a>{% endfor %}</div>
 
@@ -81,8 +81,8 @@
       {% if can.create_work_order %}
         <form method="post" action="{% url 'incidents:create_work_order' sr.pk %}" class="d-inline m-0">
           {% csrf_token %}
-          <button class="btn btn-sm btn-primary" type="submit" id="btn-convert-work-order">
-            Create work order
+          <button class="btn btn-sm btn-primary" type="submit" id="btn-convert-work-order" title="Create work order">
+            Convert to Work Order
           </button>
         </form>
       {% endif %}

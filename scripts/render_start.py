@@ -17,7 +17,6 @@ PY = sys.executable
 
 if os.environ.get("RUN_MIGRATIONS_ON_START", "").lower() in {"1", "true", "yes"}:
     subprocess.run([PY, "manage.py", "migrate", "--noinput"], check=True)
-    subprocess.run([PY, "manage.py", "collectstatic", "--noinput"], check=True)
 
 CHILDREN = {
     "web": [PY, "-m", "gunicorn", "config.wsgi:application", "--bind", f"0.0.0.0:{PORT}", "--workers", "1",
