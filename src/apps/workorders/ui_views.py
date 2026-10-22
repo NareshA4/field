@@ -803,6 +803,7 @@ class WorkOrderDetailView(TenantPermissionMixin, View):
 
 
 TAB_TEMPLATES = {key: f"workorder/tabs/{key}.html" for key, _ in DETAIL_TABS}
+TAB_TEMPLATES["work"] = "workorder/tabs/parts.html"
 
 
 def _work_order_detail_context(request, wo, active_tab="overview"):
@@ -908,8 +909,9 @@ def _work_order_tab_context(wo, membership, tab):
     if tab == "assignment":
         context["assignment_events"] = wo.events.filter(action="assigned").select_related(
             "actor", "assigned_to__user")
-    elif tab == "parts":
+    elif tab in ("parts", "work"):
         context["material_entries"] = wo.material_entries.all()
+        context["materials"] = wo.material_entries.all()
     elif tab == "labor":
         context["labor_entries"] = wo.labor_entries.select_related("technician__user")
         context["labor_total"] = wo.labor_entries.aggregate(total=Sum("hours"))["total"] or 0

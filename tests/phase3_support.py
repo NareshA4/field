@@ -104,4 +104,10 @@ def finish_work(wo, p3, tech="tech", notes="Replaced the seal and tested for lea
         wos.add_evidence(wo, attachment_id=att.pk, actor=p3[tech].user, membership=p3[tech])
     wos.record_labor(wo, work_date=timezone.localdate(), hours="1.5", description="Completed servicing",
                      actor=p3[tech].user, membership=p3[tech])
+    if wo.checklist_required and wo.checklist_status != "COMPLETED":
+        from apps.workorders.checklist_adapter import record_external_validation
+        wo.checklist_instance_ref = f"phase3-test:{wo.pk}"
+        record_external_validation(wo, status="COMPLETED", validation_state="VALID", completed_at=timezone.now())
+        wo.save(update_fields=["checklist_instance_ref", "checklist_status", "checklist_validation_state",
+                               "checklist_completed_at", "checklist_validated_at", "updated_at"])
     return step(wo, "complete", p3, tech, resolution_notes=notes)

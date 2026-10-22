@@ -165,6 +165,7 @@ class LaborWriteSerializer(serializers.Serializer):
 
 class MaterialSerializer(serializers.ModelSerializer):
     stock_backed = serializers.SerializerMethodField(help_text="True when written by M09 consumption of issued stock")
+    quantity = serializers.DecimalField(max_digits=10, decimal_places=3, coerce_to_string=True)
 
     class Meta:
         model = WorkOrderMaterial
