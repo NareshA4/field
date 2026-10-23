@@ -2,7 +2,7 @@ from apps.ui.navigation import NavItem, register
 
 register(
     NavItem(
-        label="Dashboards",
+        label="Analytics Hub",
         url_name="dashboards:hub",
         permission="report.view",
         icon="grid",

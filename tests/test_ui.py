@@ -171,3 +171,48 @@ def test_home_dashboard_renders_enhanced_kpi_cards(client, owner_a):
     assert "Pending Invitations" in html
     assert "RBAC Roles" in html
     assert "Operational Shortcuts" in html
+
+
+@pytest.mark.parametrize("role_key,expected_badge,expected_kpi", [
+    ("admin", "System Administration & Governance", "Active Users"),
+    ("asset_manager", "Asset Lifecycle & Operations", "Master Assets"),
+    ("maintenance_planner", "Maintenance Planning & PM", "Active PM Plans"),
+    ("service_dispatcher", "Service Dispatch & Operations", "Open Incidents"),
+    ("technician", "Field Mobility & Execution", "My Active Jobs"),
+    ("supervisor", "Maintenance Supervision & Oversight", "Pending Review"),
+    ("stores_manager", "Supply Chain & Warehouses", "Cataloged Parts"),
+    ("service_manager", "Service Quality & Contract Management", "Open Service Requests"),
+    ("auditor", "Governance, Risk & Compliance", "Immutable Audit Logs"),
+])
+def test_home_dashboard_role_tailoring(client, org_a, make_member, role_key, expected_badge, expected_kpi):
+    member = make_member(org_a, f"{role_key}.test@alpha.test", role_key)
+    client.force_login(member.user)
+    r = client.get("/app/")
+    assert r.status_code == 200
+    assert r.context["persona"]["badge"] == expected_badge
+    html = r.content.decode()
+    assert expected_badge.replace("&", "&amp;") in html
+    assert expected_kpi in html
+
+
+def test_hub_dashboard_role_section_isolation(client, org_a, make_member):
+    from apps.sites.models import Site
+    from apps.inventory.models import Warehouse
+    site = Site.objects.create(organization=org_a, name="Alpha Plant 1", code="ALP-01")
+    Warehouse.objects.create(organization=org_a, site=site, name="Alpha Store 1")
+
+    stores_mgr = make_member(org_a, "stores.hub.test@alpha.test", "stores_manager")
+    client.force_login(stores_mgr.user)
+    # Stores manager visits hub -> defaults directly to inventory
+    r = client.get("/app/dashboards/")
+    assert r.status_code == 200
+    assert r.context["section"] == "inventory"
+    # Attempting to access unauthorized section (e.g. operations or maintenance) returns 403
+    assert client.get("/app/dashboards/?section=operations").status_code == 403
+    assert client.get("/app/dashboards/?section=maintenance").status_code == 403
+
+    planner = make_member(org_a, "planner.hub.test@alpha.test", "maintenance_planner")
+    client.force_login(planner.user)
+    r_planner = client.get("/app/dashboards/?section=maintenance")
+    assert r_planner.status_code == 200
+    assert client.get("/app/dashboards/?section=inventory").status_code == 403

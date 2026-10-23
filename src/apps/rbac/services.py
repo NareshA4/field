@@ -69,12 +69,14 @@ def seed_system_roles(org, prune_extra: bool = False) -> dict[str, Role]:
                 RolePermission.objects.filter(role=role, permission__code__in=extra).delete()
         roles[tpl.key] = role
 
-    if prune_extra:
-        for role in Role.objects.unscoped().filter(organization=org, system_key__gt=""):
-            tpl = BY_KEY.get(role.system_key)
-            if tpl and not tpl.is_owner:
-                expected = _template_codes(tpl)
-                have = set(role.role_permissions.values_list("permission__code", flat=True))
+    for role in Role.objects.unscoped().filter(organization=org, system_key__gt=""):
+        tpl = BY_KEY.get(role.system_key)
+        if tpl and not tpl.is_owner:
+            expected = _template_codes(tpl)
+            have = set(role.role_permissions.values_list("permission__code", flat=True))
+            for code in sorted(expected - have):
+                RolePermission.objects.create(role=role, permission=perm_by_code[code])
+            if prune_extra:
                 extra = have - expected
                 if extra:
                     RolePermission.objects.filter(role=role, permission__code__in=extra).delete()

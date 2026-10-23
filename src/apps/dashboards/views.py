@@ -25,14 +25,6 @@ class DashboardHubView(TenantPermissionMixin, View):
     required_permission = "report.view"
     template_name = "dashboards/hub.html"
 
-    SECTION_DATA_PERMISSIONS = {
-        "operations": "work_order.view",
-        "assets": "asset.view",
-        "maintenance": "work_order.view",
-        "service": "incident.view",
-        "inventory": "inventory.part.view",
-    }
-
     SECTIONS = [
         ("operations", "Operations"),
         ("assets", "Assets"),
@@ -41,28 +33,72 @@ class DashboardHubView(TenantPermissionMixin, View):
         ("inventory", "Inventory"),
     ]
 
+    @classmethod
+    def can_access_section(cls, membership, sec: str) -> bool:
+        if sec == "operations":
+            return (
+                rbac.has_permission_anywhere(membership, "work_order.dispatch")
+                or rbac.has_permission_anywhere(membership, "work_order.assign")
+                or rbac.has_permission_anywhere(membership, "work_order.review")
+                or rbac.has_permission_anywhere(membership, "work_order.plan")
+                or rbac.has_permission_anywhere(membership, "work_order.create")
+                or rbac.has_permission_anywhere(membership, "sla.view")
+                or rbac.has_permission_anywhere(membership, "audit.view")
+                or rbac.is_owner(membership)
+            )
+        elif sec == "assets":
+            return rbac.has_permission_anywhere(membership, "asset.view")
+        elif sec == "maintenance":
+            return rbac.has_permission_anywhere(membership, "maintenance.view")
+        elif sec == "service":
+            return (
+                rbac.has_permission_anywhere(membership, "incident.view")
+                or rbac.has_permission_anywhere(membership, "sla.view")
+            )
+        elif sec == "inventory":
+            return (
+                rbac.has_permission_anywhere(membership, "inventory.reconcile")
+                or rbac.has_permission_anywhere(membership, "inventory.warehouse.manage")
+                or rbac.has_permission_anywhere(membership, "inventory.adjust")
+                or rbac.has_permission_anywhere(membership, "audit.view")
+                or rbac.is_owner(membership)
+            )
+        return False
+
     def get(self, request):
         permitted_sections = [
             (sec, label)
             for sec, label in self.SECTIONS
-            if not self.SECTION_DATA_PERMISSIONS.get(sec)
-            or rbac.has_permission_anywhere(request.membership, self.SECTION_DATA_PERMISSIONS[sec])
+            if self.can_access_section(request.membership, sec)
         ]
         if not permitted_sections:
             raise PermissionDenied("You do not have permission to view any dashboard sections.")
 
         valid_sections = dict(permitted_sections)
-        section = (request.GET.get("section") or permitted_sections[0][0]).strip().lower().replace("-", "_")
-        if section not in valid_sections:
-            section = permitted_sections[0][0]
 
-        # 1. Check Section Data Permission
-        data_perm = self.SECTION_DATA_PERMISSIONS.get(section)
-        if data_perm:
-            if not rbac.catalog.is_registered(data_perm):
-                data_perm = "work_order.view"
-            if not rbac.has_permission_anywhere(request.membership, data_perm):
-                raise PermissionDenied(f"Permission '{data_perm}' required to view {section} dashboard.")
+        # Determine preferred default section based on role/persona if not explicitly provided
+        default_section = None
+        if not request.GET.get("section"):
+            from apps.rbac.models import MembershipRole
+            user_roles = set(
+                MembershipRole.objects.filter(membership=request.membership).values_list("role__system_key", flat=True)
+            )
+            if user_roles & {"stores_manager", "stores_inventory"} and "inventory" in valid_sections:
+                default_section = "inventory"
+            elif user_roles & {"asset_manager"} and "assets" in valid_sections:
+                default_section = "assets"
+            elif user_roles & {"maintenance_planner"} and "maintenance" in valid_sections:
+                default_section = "maintenance"
+            elif user_roles & {"service_manager"} and "service" in valid_sections:
+                default_section = "service"
+
+        requested_section = request.GET.get("section")
+        if requested_section:
+            section = requested_section.strip().lower().replace("-", "_")
+            if not self.can_access_section(request.membership, section):
+                raise PermissionDenied(f"Permission required to view {section} dashboard.")
+        else:
+            section = default_section or permitted_sections[0][0]
 
         # 2. Date Window Parsing
         from_str = request.GET.get("from")
