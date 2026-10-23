@@ -1,104 +1,279 @@
 {% extends "public/base_public.html" %}
 {% load static ui_tags %}
 
-{% block title %}PRD Modules &middot; FieldOps Nexus{% endblock %}
+{% block title %}Enterprise Modules &middot; FieldOps Nexus{% endblock %}
 
 {% block public_content %}
 <!-- Hero Section -->
 <section class="position-relative overflow-hidden py-5 text-white" style="background: linear-gradient(180deg, #0B1F3B 0%, #0D2444 50%, #0B1F3B 100%); padding-top: 5rem !important; padding-bottom: 5rem !important;">
   <div class="position-absolute top-0 start-0 end-0 bottom-0 pointer-events-none" style="background-image: linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 3.5rem 3.5rem;"></div>
 
-  <div class="container-xl px-4 position-relative z-10 text-center">
-    <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 mb-4 small fw-bold text-uppercase" style="background: rgba(245,196,81,0.12); border: 1px solid rgba(245,196,81,0.3); color: #F5C451; font-size: 11px; letter-spacing: 0.15em;">
-      {% icon 'sparkles' 14 %}
-      <span>Modular Platform Architecture</span>
-    </div>
+  <div class="container-xl px-4 position-relative z-10">
+    <!-- Breadcrumb -->
+    <nav aria-label="Breadcrumb" class="d-flex align-items-center gap-2 mb-4 text-white-50 small">
+      <a href="{% url 'ui:root' %}" class="text-white-50 text-decoration-none hover-white">Home</a>
+      <span>&rsaquo;</span>
+      <span class="text-white fw-semibold">Modules</span>
+    </nav>
 
-    <h1 class="display-4 fw-extrabold text-white mb-4" style="line-height: 1.15; max-width: 860px; margin-left: auto; margin-right: auto;">
-      15 Purpose-Built Modules. <span style="color: #F5C451;">Zero Workflow Gaps.</span>
-    </h1>
+    <div class="text-center max-w-3xl mx-auto">
+      <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 mb-4 small fw-bold text-uppercase" style="background: rgba(245,196,81,0.12); border: 1px solid rgba(245,196,81,0.3); color: #F5C451; font-size: 11px; letter-spacing: 0.15em;">
+        {% icon 'sparkles' 14 %}
+        <span>FieldOps Nexus Core Platform</span>
+      </div>
 
-    <p class="lead text-white-50 max-w-2xl mx-auto mb-5" style="line-height: 1.7; font-size: 1.15rem;">
-      Engineered strictly according to HPE-PRD-2026-FOPS02 specifications. Every module operates with tenant isolation, strict RBAC permissions, and transactional integrity.
-    </p>
+      <h1 class="display-4 fw-extrabold text-white mb-4" style="line-height: 1.15;">
+        Enterprise Modules
+      </h1>
 
-    <div class="d-flex flex-wrap justify-content-center gap-3">
-      <a href="#all-modules" class="btn-fx-gold px-4 py-3 fw-bold d-inline-flex align-items-center gap-2 text-decoration-none">
-        <span>Explore All 15 Modules</span>
-        {% icon 'arrow-down' 15 %}
-      </a>
-      <a href="{% url 'accounts:login' %}" class="btn btn-outline-light px-4 py-3 fw-semibold text-decoration-none">
-        <span>Launch ERP</span>
-      </a>
+      <p class="h5 fw-medium text-warning mb-3" style="color: #F5C451 !important;">
+        Connected modules built for modern, asset-intensive enterprise teams.
+      </p>
+
+      <p class="lead text-white-50 max-w-2xl mx-auto mb-0" style="line-height: 1.7; font-size: 1.05rem;">
+        Manage your organization's entire operational lifecycle through specialized, interconnected modules engineered to eliminate data silos and manual handoffs.
+      </p>
     </div>
   </div>
 </section>
 
-<!-- Selected Module Deep Dive Banner (if viewing specific module) -->
-{% if selected_module %}
-<section class="py-4" style="background-color: #FDF9EC; border-bottom: 1px solid #F7EFCF;">
-  <div class="container-xl px-4">
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 bg-white rounded-3 border border-warning border-opacity-50 shadow-sm">
-      <div class="d-flex align-items-center gap-3">
-        <span class="d-flex align-items-center justify-content-center rounded-2 fw-bold font-monospace px-3 py-2" style="background:#0B1F3B; color:#F5C451; font-size:14px;">
-          {{ selected_module.id }}
-        </span>
-        <div>
-          <h2 class="h5 fw-bold text-dark mb-0">{{ selected_module.name }}</h2>
-          <span class="text-secondary small">Category: <strong>{{ selected_module.category }}</strong> &bull; Package: <code>{{ selected_module.app }}</code></span>
-        </div>
-      </div>
-      <div>
-        <a href="#all-modules" class="btn btn-sm btn-outline-secondary">View Other Modules &rarr;</a>
-      </div>
-    </div>
-    <div class="mt-3 p-3 bg-white rounded-3 border border-secondary border-opacity-25 small text-secondary">
-      <p class="mb-0"><strong>Functional Scope:</strong> {{ selected_module.desc }}</p>
-    </div>
-  </div>
-</section>
-{% endif %}
-
-<!-- Modules Listing Section -->
-<section id="all-modules" class="py-5 bg-white">
+<!-- Section 1: Core Enterprise Modules -->
+<section class="py-5 bg-white border-bottom border-light-subtle">
   <div class="container-xl px-4 py-4">
-    <div class="text-center max-w-2xl mx-auto mb-5">
-      <div class="fx-eyebrow justify-content-center">
-        <span class="fx-eyebrow-bar"></span>
-        <span>HPE Specification Compliance</span>
-        <span class="fx-eyebrow-bar"></span>
-      </div>
-      <h2 class="fx-section-title">FieldOps Nexus PRD Modules</h2>
-      <p class="fx-section-desc">Full suite of 15 modular operational capabilities governed under enterprise oversight.</p>
+    <div class="max-w-2xl mb-5">
+      <span class="text-warning small fw-bold text-uppercase d-block mb-1 font-monospace" style="letter-spacing: 0.15em; font-size: 11px;">
+        Foundational Capabilities
+      </span>
+      <h2 class="fx-section-title text-start mb-2">Core Enterprise Modules</h2>
+      <p class="fx-section-desc text-start mb-0">
+        The fundamental operational pillars that anchor equipment hierarchy, service intake, job scheduling, and facility boundaries.
+      </p>
     </div>
 
     <div class="row g-4">
-      {% for mod in module_list %}
-        <div class="col-md-6 col-lg-4">
-          <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default {% if selected_module and selected_module.id == mod.id %}border-warning bg-light-subtle{% endif %}">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <span class="badge font-monospace px-2.5 py-1" style="background: #0B1F3B; color: #F5C451; font-size: 11px;">
-                {{ mod.id }}
-              </span>
-              <span class="badge bg-light text-secondary border small font-monospace">
-                {{ mod.category }}
-              </span>
-            </div>
-
-            <h3 class="h6 fw-bold text-dark mb-2">{{ mod.name }}</h3>
-            <p class="small text-secondary mb-3" style="line-height: 1.6;">
-              {{ mod.desc }}
-            </p>
-
-            <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
-              <span class="font-monospace text-secondary" style="font-size: 11px;">{{ mod.app }}</span>
-              <a href="{% url 'ui:public_module' mod.id %}" class="text-warning text-decoration-none small fw-bold">
-                Details &rarr;
-              </a>
-            </div>
+      <!-- 1. Organization Management -->
+      <div class="col-md-6 col-lg-3" id="organization-management">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default">
+          <div class="d-flex align-items-center justify-content-between mb-4">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'building' 22 %}
+            </span>
+            <span class="badge rounded-pill bg-light text-secondary border px-2.5 py-1" style="font-size: 10px;">Structure</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Organization Management</h3>
+          <p class="small text-secondary mb-4" style="line-height: 1.6;">
+            Define multi-tier corporate hierarchies, regional divisions, plant sites, departments, and role-based access rules.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-dark font-monospace" style="font-size: 11px;">12+ Hierarchy Levels</span>
+            <a href="{% url 'accounts:login' %}" class="text-warning text-decoration-none small fw-bold d-inline-flex align-items-center gap-1">
+              <span>Open Module</span>
+              {% icon 'arrow-right' 13 %}
+            </a>
           </div>
         </div>
-      {% endfor %}
+      </div>
+
+      <!-- 2. Asset Management -->
+      <div class="col-md-6 col-lg-3" id="asset-management">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default">
+          <div class="d-flex align-items-center justify-content-between mb-4">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'boxes' 22 %}
+            </span>
+            <span class="badge rounded-pill bg-light text-secondary border px-2.5 py-1" style="font-size: 10px;">Equipment</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Asset Management</h3>
+          <p class="small text-secondary mb-4" style="line-height: 1.6;">
+            Know the condition, maintenance history, QR tagging, and operating telemetry of every critical physical asset.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-dark font-monospace" style="font-size: 11px;">2,846 Active Assets</span>
+            <a href="{% url 'accounts:login' %}" class="text-warning text-decoration-none small fw-bold d-inline-flex align-items-center gap-1">
+              <span>Open Module</span>
+              {% icon 'arrow-right' 13 %}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Work Order Management -->
+      <div class="col-md-6 col-lg-3" id="work-order-management">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default">
+          <div class="d-flex align-items-center justify-content-between mb-4">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'clipboard-list' 22 %}
+            </span>
+            <span class="badge rounded-pill bg-light text-secondary border px-2.5 py-1" style="font-size: 10px;">Execution</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Work Order Management</h3>
+          <p class="small text-secondary mb-4" style="line-height: 1.6;">
+            Plan, prioritize, assign, and track complex work orders with task checklists, safety permits, and labor estimates.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-dark font-monospace" style="font-size: 11px;">142 Active Orders</span>
+            <a href="{% url 'accounts:login' %}" class="text-warning text-decoration-none small fw-bold d-inline-flex align-items-center gap-1">
+              <span>Open Module</span>
+              {% icon 'arrow-right' 13 %}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Service Requests -->
+      <div class="col-md-6 col-lg-3" id="service-management">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default">
+          <div class="d-flex align-items-center justify-content-between mb-4">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'file-text' 22 %}
+            </span>
+            <span class="badge rounded-pill bg-light text-secondary border px-2.5 py-1" style="font-size: 10px;">Intake</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Service Requests</h3>
+          <p class="small text-secondary mb-4" style="line-height: 1.6;">
+            Structured customer and internal ticket intake, automated triage, and SLA priority routing without manual handoffs.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-dark font-monospace" style="font-size: 11px;">SLA Priority Tiers</span>
+            <a href="{% url 'accounts:login' %}" class="text-warning text-decoration-none small fw-bold d-inline-flex align-items-center gap-1">
+              <span>Open Module</span>
+              {% icon 'arrow-right' 13 %}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Section 2: Operations & Field Intelligence Modules -->
+<section class="py-5" style="background-color: #F8FAFC;">
+  <div class="container-xl px-4 py-4">
+    <div class="max-w-2xl mb-5">
+      <span class="text-warning small fw-bold text-uppercase d-block mb-1 font-monospace" style="letter-spacing: 0.15em; font-size: 11px;">
+        Field &amp; Dispatch Execution
+      </span>
+      <h2 class="fx-section-title text-start mb-2">Operations &amp; Field Intelligence Modules</h2>
+      <p class="fx-section-desc text-start mb-0">
+        Equip planners, warehouse coordinators, and mobile field technicians with real-time execution tools and audit trails.
+      </p>
+    </div>
+
+    <div class="row g-4">
+      <!-- 1. Maintenance Planning -->
+      <div class="col-md-6 col-lg-4" id="maintenance-management">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default bg-white">
+          <div class="d-flex align-items-center justify-content-between mb-4">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'settings' 22 %}
+            </span>
+            <span class="badge rounded-pill bg-light text-secondary border px-2.5 py-1" style="font-size: 10px;">Preventive Ops</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Maintenance Planning</h3>
+          <p class="small text-secondary mb-4" style="line-height: 1.6;">
+            Prevent downtime through recurring PM schedules, inspection triggers, and automated calibration routines.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-dark font-monospace" style="font-size: 11px;">PM Schedules</span>
+            <a href="{% url 'accounts:login' %}" class="text-warning text-decoration-none small fw-bold d-inline-flex align-items-center gap-1">
+              <span>Open Module</span>
+              {% icon 'arrow-right' 13 %}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Inventory & Spare Parts -->
+      <div class="col-md-6 col-lg-4" id="inventory-management">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default bg-white">
+          <div class="d-flex align-items-center justify-content-between mb-4">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'package' 22 %}
+            </span>
+            <span class="badge rounded-pill bg-light text-secondary border px-2.5 py-1" style="font-size: 10px;">Parts &amp; Stock</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Inventory &amp; Spare Parts</h3>
+          <p class="small text-secondary mb-4" style="line-height: 1.6;">
+            Keep critical spare parts, tooling, and consumables synchronized across central warehouses and technician vans.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-dark font-monospace" style="font-size: 11px;">Stock Balances</span>
+            <a href="{% url 'accounts:login' %}" class="text-warning text-decoration-none small fw-bold d-inline-flex align-items-center gap-1">
+              <span>Open Module</span>
+              {% icon 'arrow-right' 13 %}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Technician Dispatch -->
+      <div class="col-md-6 col-lg-4" id="workforce-management">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default bg-white">
+          <div class="d-flex align-items-center justify-content-between mb-4">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'user' 22 %}
+            </span>
+            <span class="badge rounded-pill bg-light text-secondary border px-2.5 py-1" style="font-size: 10px;">Field Crews</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Technician Dispatch</h3>
+          <p class="small text-secondary mb-4" style="line-height: 1.6;">
+            Equip mobile technicians and supervisors with skill-based scheduling, GPS routing, and mobile offline app access.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-dark font-monospace" style="font-size: 11px;">68 Mobile Techs</span>
+            <a href="{% url 'accounts:login' %}" class="text-warning text-decoration-none small fw-bold d-inline-flex align-items-center gap-1">
+              <span>Open Module</span>
+              {% icon 'arrow-right' 13 %}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Analytics & Reporting -->
+      <div class="col-md-6 col-lg-6" id="analytics-reporting">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default bg-white">
+          <div class="d-flex align-items-center justify-content-between mb-4">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'bar-chart' 22 %}
+            </span>
+            <span class="badge rounded-pill bg-light text-secondary border px-2.5 py-1" style="font-size: 10px;">Intelligence</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Analytics &amp; Reporting</h3>
+          <p class="small text-secondary mb-4" style="line-height: 1.6;">
+            Turn telemetry and operational logs into actionable executive dashboards, MTTR trends, and cost metrics.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-dark font-monospace" style="font-size: 11px;">18 Executive Reports</span>
+            <a href="{% url 'accounts:login' %}" class="text-warning text-decoration-none small fw-bold d-inline-flex align-items-center gap-1">
+              <span>Open Module</span>
+              {% icon 'arrow-right' 13 %}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Audit & Traceability -->
+      <div class="col-md-6 col-lg-6" id="audit-traceability">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default bg-white">
+          <div class="d-flex align-items-center justify-content-between mb-4">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'lock' 22 %}
+            </span>
+            <span class="badge rounded-pill bg-light text-secondary border px-2.5 py-1" style="font-size: 10px;">Compliance</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Audit &amp; Traceability</h3>
+          <p class="small text-secondary mb-4" style="line-height: 1.6;">
+            Maintain a structured, timestamped audit trail of every signature, part consumption, and verification sign-off.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-dark font-monospace" style="font-size: 11px;">Activity Traceability</span>
+            <a href="{% url 'accounts:login' %}" class="text-warning text-decoration-none small fw-bold d-inline-flex align-items-center gap-1">
+              <span>Open Module</span>
+              {% icon 'arrow-right' 13 %}
+            </a>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -117,18 +292,9 @@
       <span class="dot"></span>
       <span class="bar"></span>
     </div>
-    <p class="text-white-50 max-w-2xl mx-auto mb-4" style="font-size: 1.05rem; line-height: 1.6;">
+    <p class="text-white-50 max-w-2xl mx-auto mb-0" style="font-size: 1.05rem; line-height: 1.6;">
       Bring your assets, service requests, work orders, inventory, and operational workflows together with FieldOps Nexus.
     </p>
-    <div class="d-flex flex-wrap justify-content-center gap-3">
-      <a href="mailto:hello@fieldopsnexus.com?subject=FieldOps%20Nexus%20Demo%20Request" class="btn-fx-gold px-4 py-3 fw-bold d-inline-flex align-items-center gap-2 text-decoration-none">
-        <span>Request Platform Demo</span>
-        {% icon 'arrow-up-right' 15 %}
-      </a>
-      <a href="{% url 'accounts:login' %}" class="btn btn-outline-light px-4 py-3 fw-semibold text-decoration-none">
-        <span>Launch ERP</span>
-      </a>
-    </div>
   </div>
 </section>
 {% endblock %}

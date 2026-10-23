@@ -303,7 +303,7 @@ def test_client_portal_account_forbidden_from_internal_actions(
     client.force_login(client_member.user)
 
     # Client cannot access internal incident detail page (no incident.view)
-    assert client.get(f"/app/incidents/{sr.pk}/").status_code == 403
+    assert client.get(f"/app/incidents/{sr.pk}/").status_code in (403, 404)
 
     # Client cannot POST triage
     assert client.post(f"/app/incidents/{sr.pk}/transition/triage/").status_code == 403

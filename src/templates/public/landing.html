@@ -433,7 +433,7 @@
 
     <div class="fx-module-grid">
       <!-- 1. Organization Management -->
-      <a href="{% url 'ui:public_module' 'FON-M01' %}" class="module-card landing-reveal">
+      <a href="{% url 'ui:public_modules' %}#organization-management" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
           <img src="{% static 'images/module-organization.jpg' %}" alt="Organization Management" class="module-card-img" loading="lazy">
           <div class="module-card-img-gradient"></div>
@@ -453,7 +453,7 @@
       </a>
 
       <!-- 2. Asset Management -->
-      <a href="{% url 'ui:public_module' 'FON-M02' %}" class="module-card landing-reveal">
+      <a href="{% url 'ui:public_modules' %}#asset-management" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
           <img src="{% static 'images/module-assets.jpg' %}" alt="Asset Management" class="module-card-img" loading="lazy">
           <div class="module-card-img-gradient"></div>
@@ -473,7 +473,7 @@
       </a>
 
       <!-- 3. Service Management -->
-      <a href="{% url 'ui:public_module' 'FON-M05' %}" class="module-card landing-reveal">
+      <a href="{% url 'ui:public_modules' %}#service-management" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
           <img src="{% static 'images/module-service.jpg' %}" alt="Service Management" class="module-card-img" loading="lazy">
           <div class="module-card-img-gradient"></div>
@@ -493,7 +493,7 @@
       </a>
 
       <!-- 4. Work Order Management -->
-      <a href="{% url 'ui:public_module' 'FON-M06' %}" class="module-card landing-reveal">
+      <a href="{% url 'ui:public_modules' %}#work-order-management" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
           <img src="{% static 'images/module-work-orders.jpg' %}" alt="Work Order Management" class="module-card-img" loading="lazy">
           <div class="module-card-img-gradient"></div>
@@ -513,7 +513,7 @@
       </a>
 
       <!-- 5. Inventory Management -->
-      <a href="{% url 'ui:public_module' 'FON-M09' %}" class="module-card landing-reveal">
+      <a href="{% url 'ui:public_modules' %}#inventory-management" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
           <img src="{% static 'images/module-inventory.jpg' %}" alt="Inventory Management" class="module-card-img" loading="lazy">
           <div class="module-card-img-gradient"></div>
@@ -533,11 +533,11 @@
       </a>
 
       <!-- 6. Workforce Management -->
-      <a href="{% url 'ui:public_module' 'FON-M07' %}" class="module-card landing-reveal">
+      <a href="{% url 'ui:public_modules' %}#workforce-management" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
           <img src="{% static 'images/module-workforce.jpg' %}" alt="Workforce Management" class="module-card-img" loading="lazy">
           <div class="module-card-img-gradient"></div>
-          <span class="module-card-icon-badge">{% icon 'people' 18 %}</span>
+          <span class="module-card-icon-badge">{% icon 'user' 18 %}</span>
           <span class="module-card-num-badge">06</span>
         </div>
         <div class="module-card-body">
@@ -553,11 +553,11 @@
       </a>
 
       <!-- 7. Maintenance Management -->
-      <a href="{% url 'ui:public_module' 'FON-M04' %}" class="module-card landing-reveal">
+      <a href="{% url 'ui:public_modules' %}#maintenance-management" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
           <img src="{% static 'images/module-maintenance.jpg' %}" alt="Maintenance Management" class="module-card-img" loading="lazy">
           <div class="module-card-img-gradient"></div>
-          <span class="module-card-icon-badge">{% icon 'calendar' 18 %}</span>
+          <span class="module-card-icon-badge">{% icon 'settings' 18 %}</span>
           <span class="module-card-num-badge">07</span>
         </div>
         <div class="module-card-body">
@@ -573,7 +573,7 @@
       </a>
 
       <!-- 8. Analytics & Reporting -->
-      <a href="{% url 'ui:public_module' 'FON-M14' %}" class="module-card landing-reveal">
+      <a href="{% url 'ui:public_modules' %}#analytics-reporting" class="module-card landing-reveal">
         <div class="module-card-img-wrap">
           <img src="{% static 'images/module-analytics.jpg' %}" alt="Analytics & Reporting" class="module-card-img" loading="lazy">
           <div class="module-card-img-gradient"></div>
@@ -1125,15 +1125,7 @@
       Connect assets, people, service activities, and operational workflows through one centralized platform.
     </p>
 
-    <div class="d-flex flex-wrap justify-content-center gap-3">
-      <a href="mailto:hello@fieldopsnexus.com?subject=FieldOps%20Nexus%20Demo%20Request" class="btn-fx-gold px-4 py-3 fw-bold d-inline-flex align-items-center gap-2 text-decoration-none">
-        <span>Request a Demo</span>
-        {% icon 'arrow-up-right' 16 %}
-      </a>
-      <a href="mailto:hello@fieldopsnexus.com?subject=FieldOps%20Nexus%20Inquiry" class="btn btn-outline-light px-4 py-3 fw-semibold d-inline-flex align-items-center gap-2 text-decoration-none">
-        <span>Contact Operations Team</span>
-      </a>
-    </div>
+    
   </div>
 </section>
 {% endblock %}

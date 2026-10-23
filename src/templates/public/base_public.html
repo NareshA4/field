@@ -83,10 +83,10 @@
         <a href="{% url 'accounts:login' %}" class="fx-pub-signin-btn">
           Sign In
         </a>
-        <a href="{% url 'ui:client_register' %}" class="fx-pub-getstarted-btn">
+        {% comment %} <a href="{% url 'ui:client_register' %}" class="fx-pub-getstarted-btn">
           <span>Get Started</span>
           {% icon 'arrow-up-right' 15 class="arrow-icon" %}
-        </a>
+        </a> {% endcomment %}
       {% endif %}
 
       <!-- Mobile Hamburger Toggle -->
@@ -104,44 +104,44 @@
     <div class="fx-mega-menu-inner">
       <div class="fx-mega-grid">
         <div class="fx-mega-col">
-          <div class="fx-mega-heading">Overview</div>
+          <div class="fx-mega-heading">OVERVIEW</div>
           <ul class="fx-mega-list">
             <li>
-              <a href="{% url 'ui:public_module' 'FON-M02' %}" class="fx-mega-item">
+              <a href="{% url 'ui:public_modules' %}#asset-management" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'boxes' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Asset Management</strong>
-                  <span class="fx-mega-desc">Condition, documentation & lifecycle of critical equipment.</span>
+                  <span class="fx-mega-desc">Know the condition and history of every critical asset.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_module' 'FON-M05' %}" class="fx-mega-item">
+              <a href="{% url 'ui:public_modules' %}#service-management" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'wrench' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Service Management</strong>
-                  <span class="fx-mega-desc">Consistent field service from ticket intake to resolution.</span>
+                  <span class="fx-mega-desc">Deliver consistent service from intake to resolution.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_module' 'FON-M06' %}" class="fx-mega-item">
+              <a href="{% url 'ui:public_modules' %}#work-order-management" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'clipboard-list' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Work Order Management</strong>
-                  <span class="fx-mega-desc">Plan, assign, and track work with atomic transactional integrity.</span>
+                  <span class="fx-mega-desc">Plan, assign, and track work with complete clarity.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_module' 'FON-M09' %}" class="fx-mega-item">
+              <a href="{% url 'ui:public_modules' %}#inventory-management" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'package' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Inventory Management</strong>
-                  <span class="fx-mega-desc">Parts catalog, double-entry stock ledger & replenishment.</span>
+                  <span class="fx-mega-desc">Keep essential parts and stock moving efficiently.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
@@ -150,44 +150,44 @@
         </div>
 
         <div class="fx-mega-col">
-          <div class="fx-mega-heading">Capabilities</div>
+          <div class="fx-mega-heading">CAPABILITIES</div>
           <ul class="fx-mega-list">
             <li>
-              <a href="{% url 'ui:public_module' 'FON-M04' %}" class="fx-mega-item">
+              <a href="{% url 'ui:public_modules' %}#maintenance-management" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'settings' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Maintenance Management</strong>
-                  <span class="fx-mega-desc">Preventive schedules, seasonal blackouts & meter cycles.</span>
+                  <span class="fx-mega-desc">Stay ahead of downtime with proactive maintenance.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_module' 'FON-M07' %}" class="fx-mega-item">
-                <span class="fx-mega-icon">{% icon 'people' 18 %}</span>
+              <a href="{% url 'ui:public_modules' %}#workforce-management" class="fx-mega-item">
+                <span class="fx-mega-icon">{% icon 'user' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Workforce Management</strong>
-                  <span class="fx-mega-desc">Technician mobility, checklist execution & evidence logging.</span>
+                  <span class="fx-mega-desc">Give every team the context to do their best work.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_module' 'FON-M14' %}" class="fx-mega-item">
+              <a href="{% url 'ui:public_modules' %}#analytics-reporting" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'bar-chart' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Analytics & Reporting</strong>
-                  <span class="fx-mega-desc">Operational MTTR, MTBF, and SLA compliance metrics.</span>
+                  <span class="fx-mega-desc">Turn operational data into confident decisions.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_module' 'FON-M15' %}" class="fx-mega-item">
-                <span class="fx-mega-icon">{% icon 'shield' 18 %}</span>
+              <a href="{% url 'ui:public_modules' %}#audit-traceability" class="fx-mega-item">
+                <span class="fx-mega-icon">{% icon 'lock' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Audit & Traceability</strong>
-                  <span class="fx-mega-desc">Immutable append-only logs for all operational interactions.</span>
+                  <span class="fx-mega-desc">Maintain a complete history of all operational activities.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
@@ -200,7 +200,7 @@
           <div>
             <div class="fx-mega-featured-pill">
               <span class="bar"></span>
-              <span class="txt">Enterprise ERP</span>
+              <span class="txt">ENTERPRISE ERP</span>
             </div>
             <h3>FieldOps Nexus Platform</h3>
             <p>Connected service, asset, and field operations in one enterprise platform.</p>
@@ -211,7 +211,7 @@
               <span class="fx-preview-dot"></span>
               <span class="fx-preview-dot"></span>
               <span class="fx-preview-dot"></span>
-              <span class="fx-preview-brand">FieldOps <span style="color:#F5C451;">Nexus</span></span>
+              <span class="fx-preview-brand">FieldOps <span style="color:#F5C451; font-weight:700;">Nexus</span></span>
             </div>
             <div class="fx-preview-tiles">
               <div class="fx-preview-tile">
@@ -252,7 +252,7 @@
     <div class="fx-mega-menu-inner">
       <div class="fx-mega-grid">
         <div class="fx-mega-col">
-          <div class="fx-mega-heading">By Industry</div>
+          <div class="fx-mega-heading">BY INDUSTRY</div>
           <ul class="fx-mega-list">
             <li>
               <a href="{% url 'ui:public_solution' 'manufacturing' %}" class="fx-mega-item">
@@ -266,10 +266,10 @@
             </li>
             <li>
               <a href="{% url 'ui:public_solution' 'facilities' %}" class="fx-mega-item">
-                <span class="fx-mega-icon">{% icon 'grid' 18 %}</span>
+                <span class="fx-mega-icon">{% icon 'building' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Facilities Management</strong>
-                  <span class="fx-mega-desc">Coordinate physical spaces, tenants, and service delivery.</span>
+                  <span class="fx-mega-desc">Coordinate spaces, people, and service delivery.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
@@ -279,17 +279,17 @@
                 <span class="fx-mega-icon">{% icon 'wrench' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Service & Maintenance</strong>
-                  <span class="fx-mega-desc">Deliver responsive field service wherever work happens.</span>
+                  <span class="fx-mega-desc">Deliver responsive service wherever work happens.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
             </li>
             <li>
               <a href="{% url 'ui:public_solution' 'infrastructure' %}" class="fx-mega-item">
-                <span class="fx-mega-icon">{% icon 'layers' 18 %}</span>
+                <span class="fx-mega-icon">{% icon 'tool' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Infrastructure & Utilities</strong>
-                  <span class="fx-mega-desc">Maintain high-availability systems with compliance confidence.</span>
+                  <span class="fx-mega-desc">Maintain the systems that communities depend on.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
@@ -298,24 +298,24 @@
         </div>
 
         <div class="fx-mega-col">
-          <div class="fx-mega-heading">By Use Case</div>
+          <div class="fx-mega-heading">BY USE CASE</div>
           <ul class="fx-mega-list">
             <li>
               <a href="{% url 'ui:public_solution' 'enterprise-operations' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'briefcase' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Enterprise Operations</strong>
-                  <span class="fx-mega-desc">Unify complex cross-department workflows into one hub.</span>
+                  <span class="fx-mega-desc">Unify complex operations across your organization.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
             </li>
             <li>
               <a href="{% url 'ui:public_solution' 'sla-management' %}" class="fx-mega-item">
-                <span class="fx-mega-icon">{% icon 'clock' 18 %}</span>
+                <span class="fx-mega-icon">{% icon 'speedometer2' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">SLA Management</strong>
-                  <span class="fx-mega-desc">Monitor and enforce response & resolution commitments.</span>
+                  <span class="fx-mega-desc">Monitor and enforce service level agreements at scale.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
@@ -325,7 +325,7 @@
                 <span class="fx-mega-icon">{% icon 'geo-alt' 18 %}</span>
                 <span>
                   <strong class="fx-mega-title">Multi-Site Management</strong>
-                  <span class="fx-mega-desc">Bring sites, plants, and campuses into one connected view.</span>
+                  <span class="fx-mega-desc">Bring sites, teams, and structures into one connected view.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
@@ -334,8 +334,8 @@
               <a href="{% url 'ui:public_solution' 'connected-data' %}" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'database' 18 %}</span>
                 <span>
-                  <strong class="fx-mega-title">Connected Data & IoT</strong>
-                  <span class="fx-mega-desc">Connect telemetry and sensors across all operating sites.</span>
+                  <strong class="fx-mega-title">Connected Data</strong>
+                  <span class="fx-mega-desc">Connect operational information across teams and locations.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
@@ -348,7 +348,7 @@
           <div>
             <div class="fx-mega-featured-pill">
               <span class="bar"></span>
-              <span class="txt">Enterprise Solutions</span>
+              <span class="txt">ENTERPRISE SOLUTIONS</span>
             </div>
             <h3>Industry & Operations Suite</h3>
             <p>Purpose-built architectures for complex industrial and multi-site environments.</p>
@@ -359,35 +359,35 @@
               <span class="fx-preview-dot"></span>
               <span class="fx-preview-dot"></span>
               <span class="fx-preview-dot"></span>
-              <span class="fx-preview-brand">FieldOps <span style="color:#F5C451;">Solutions</span></span>
+              <span class="fx-preview-brand">FieldOps <span style="color:#F5C451; font-weight:700;">Nexus</span></span>
             </div>
             <div class="fx-preview-tiles">
               <div class="fx-preview-tile">
-                <p class="lbl">Sites</p>
-                <p class="val">42</p>
+                <p class="lbl">Assets</p>
+                <p class="val">2,846</p>
               </div>
               <div class="fx-preview-tile">
-                <p class="lbl">Up-Time</p>
-                <p class="val">99.8%</p>
+                <p class="lbl">Open WO</p>
+                <p class="val">128</p>
               </div>
               <div class="fx-preview-tile">
-                <p class="lbl">Techs</p>
-                <p class="val">68</p>
+                <p class="lbl">SLA</p>
+                <p class="val">98%</p>
               </div>
             </div>
             <div class="fx-preview-bars">
-              <span style="height:42%;"></span>
-              <span style="height:55%;"></span>
-              <span style="height:68%;"></span>
-              <span style="height:50%;"></span>
-              <span class="highlight" style="height:92%;"></span>
-              <span style="height:74%;"></span>
-              <span style="height:80%;"></span>
+              <span style="height:35%;"></span>
+              <span style="height:48%;"></span>
+              <span style="height:40%;"></span>
+              <span style="height:65%;"></span>
+              <span style="height:52%;"></span>
+              <span class="highlight" style="height:88%;"></span>
+              <span style="height:58%;"></span>
             </div>
           </div>
 
           <a href="{% url 'ui:public_solutions' %}" class="fx-mega-cta-btn">
-            <span>Explore Solutions</span>
+            <span>Explore Platform</span>
             {% icon 'arrow-right' 14 %}
           </a>
         </div>
@@ -400,44 +400,54 @@
     <div class="fx-mega-menu-inner">
       <div class="fx-mega-grid">
         <div class="fx-mega-col">
-          <div class="fx-mega-heading">Core Modules</div>
+          <div class="fx-mega-heading">CORE MODULES</div>
           <ul class="fx-mega-list">
             <li>
-              <a href="{% url 'ui:public_module' 'FON-M01' %}" class="fx-mega-item">
+              <a href="{% url 'ui:public_modules' %}#organization-management" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'building' 18 %}</span>
                 <span>
-                  <strong class="fx-mega-title">Organization & Site Master</strong>
-                  <span class="fx-mega-desc">FON-M01: Multi-tenant site hierarchy & facility mapping.</span>
+                  <strong class="fx-mega-title">Organization Management</strong>
+                  <span class="fx-mega-desc">Enterprise hierarchies, sites, and multi-facility structures.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_module' 'FON-M02' %}" class="fx-mega-item">
+              <a href="{% url 'ui:public_modules' %}#asset-management" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'boxes' 18 %}</span>
                 <span>
-                  <strong class="fx-mega-title">Asset Registry & Lifecycle</strong>
-                  <span class="fx-mega-desc">FON-M02 & M03: Master equipment records & component trees.</span>
+                  <strong class="fx-mega-title">Asset Management</strong>
+                  <span class="fx-mega-desc">Know the condition and history of every critical asset.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_module' 'FON-M06' %}" class="fx-mega-item">
+              <a href="{% url 'ui:public_modules' %}#work-order-management" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'clipboard-list' 18 %}</span>
                 <span>
-                  <strong class="fx-mega-title">Work Order Execution</strong>
-                  <span class="fx-mega-desc">FON-M06: State lifecycle, task assignments & supervisor sign-off.</span>
+                  <strong class="fx-mega-title">Work Order Management</strong>
+                  <span class="fx-mega-desc">Plan, assign, and track work with complete clarity.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_module' 'FON-M09' %}" class="fx-mega-item">
+              <a href="{% url 'ui:public_modules' %}#service-management" class="fx-mega-item">
+                <span class="fx-mega-icon">{% icon 'file-text' 18 %}</span>
+                <span>
+                  <strong class="fx-mega-title">Service Management</strong>
+                  <span class="fx-mega-desc">Structured intake, triage, and resolution tracking.</span>
+                </span>
+                <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
+              </a>
+            </li>
+            <li>
+              <a href="{% url 'ui:public_modules' %}#inventory-management" class="fx-mega-item">
                 <span class="fx-mega-icon">{% icon 'package' 18 %}</span>
                 <span>
-                  <strong class="fx-mega-title">Inventory & Stock Ledger</strong>
-                  <span class="fx-mega-desc">FON-M09: Double-entry stock tracking, reservations & bins.</span>
+                  <strong class="fx-mega-title">Inventory Management</strong>
+                  <span class="fx-mega-desc">Keep essential parts, stock, and replenishment moving.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
@@ -446,44 +456,44 @@
         </div>
 
         <div class="fx-mega-col">
-          <div class="fx-mega-heading">Operations & Governance</div>
+          <div class="fx-mega-heading">OPERATIONS & GOVERNANCE</div>
           <ul class="fx-mega-list">
             <li>
-              <a href="{% url 'ui:public_module' 'FON-M04' %}" class="fx-mega-item">
-                <span class="fx-mega-icon">{% icon 'calendar' 18 %}</span>
+              <a href="{% url 'ui:public_modules' %}#maintenance-management" class="fx-mega-item">
+                <span class="fx-mega-icon">{% icon 'settings' 18 %}</span>
                 <span>
-                  <strong class="fx-mega-title">Preventive Maintenance</strong>
-                  <span class="fx-mega-desc">FON-M04: Scheduled recurrence, meter thresholds & auto generation.</span>
+                  <strong class="fx-mega-title">Maintenance Management</strong>
+                  <span class="fx-mega-desc">Stay ahead of downtime with proactive maintenance.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_module' 'FON-M07' %}" class="fx-mega-item">
-                <span class="fx-mega-icon">{% icon 'phone' 18 %}</span>
+              <a href="{% url 'ui:public_modules' %}#workforce-management" class="fx-mega-item">
+                <span class="fx-mega-icon">{% icon 'user' 18 %}</span>
                 <span>
-                  <strong class="fx-mega-title">Technician Workspace</strong>
-                  <span class="fx-mega-desc">FON-M07: Field mobility, checklist completion & timesheets.</span>
+                  <strong class="fx-mega-title">Workforce Management</strong>
+                  <span class="fx-mega-desc">Give every field team the context to do their best work.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_module' 'FON-M11' %}" class="fx-mega-item">
-                <span class="fx-mega-icon">{% icon 'clock' 18 %}</span>
+              <a href="{% url 'ui:public_modules' %}#analytics-reporting" class="fx-mega-item">
+                <span class="fx-mega-icon">{% icon 'bar-chart' 18 %}</span>
                 <span>
-                  <strong class="fx-mega-title">SLA & Escalations</strong>
-                  <span class="fx-mega-desc">FON-M11: Response & resolution targets, pause timers & alerts.</span>
+                  <strong class="fx-mega-title">Analytics & Reporting</strong>
+                  <span class="fx-mega-desc">Turn operational data into confident decisions.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
             </li>
             <li>
-              <a href="{% url 'ui:public_module' 'FON-M15' %}" class="fx-mega-item">
-                <span class="fx-mega-icon">{% icon 'shield' 18 %}</span>
+              <a href="{% url 'ui:public_modules' %}#audit-traceability" class="fx-mega-item">
+                <span class="fx-mega-icon">{% icon 'lock' 18 %}</span>
                 <span>
-                  <strong class="fx-mega-title">Audit & Compliance</strong>
-                  <span class="fx-mega-desc">FON-M15: Append-only ledger, user tracking & export records.</span>
+                  <strong class="fx-mega-title">Audit & Traceability</strong>
+                  <span class="fx-mega-desc">Maintain a complete history of all operational activities.</span>
                 </span>
                 <span class="fx-mega-arrow">{% icon 'arrow-right' 14 %}</span>
               </a>
@@ -496,10 +506,10 @@
           <div>
             <div class="fx-mega-featured-pill">
               <span class="bar"></span>
-              <span class="txt">Modular Ecosystem</span>
+              <span class="txt">MODULAR ECOSYSTEM</span>
             </div>
             <h3>Connected Modules Suite</h3>
-            <p>15 integrated modules engineered according to verified HPE specifications.</p>
+            <p>Manage your operational lifecycle through integrated, purpose-built modules.</p>
           </div>
 
           <div class="fx-mega-preview-window">
@@ -507,35 +517,35 @@
               <span class="fx-preview-dot"></span>
               <span class="fx-preview-dot"></span>
               <span class="fx-preview-dot"></span>
-              <span class="fx-preview-brand">FON-M01 &rarr; FON-M15</span>
+              <span class="fx-preview-brand">FieldOps <span style="color:#F5C451; font-weight:700;">Nexus</span></span>
             </div>
             <div class="fx-preview-tiles">
               <div class="fx-preview-tile">
-                <p class="lbl">Modules</p>
-                <p class="val">15</p>
+                <p class="lbl">Assets</p>
+                <p class="val">2,846</p>
               </div>
               <div class="fx-preview-tile">
-                <p class="lbl">APIs</p>
-                <p class="val">100%</p>
+                <p class="lbl">Open WO</p>
+                <p class="val">128</p>
               </div>
               <div class="fx-preview-tile">
-                <p class="lbl">Isolated</p>
-                <p class="val">Multi-Ten</p>
+                <p class="lbl">SLA</p>
+                <p class="val">98%</p>
               </div>
             </div>
             <div class="fx-preview-bars">
-              <span style="height:60%;"></span>
-              <span style="height:70%;"></span>
-              <span style="height:75%;"></span>
-              <span style="height:85%;"></span>
-              <span style="height:80%;"></span>
-              <span class="highlight" style="height:95%;"></span>
-              <span style="height:90%;"></span>
+              <span style="height:35%;"></span>
+              <span style="height:48%;"></span>
+              <span style="height:40%;"></span>
+              <span style="height:65%;"></span>
+              <span style="height:52%;"></span>
+              <span class="highlight" style="height:88%;"></span>
+              <span style="height:58%;"></span>
             </div>
           </div>
 
           <a href="{% url 'ui:public_modules' %}" class="fx-mega-cta-btn">
-            <span>Explore All Modules</span>
+            <span>Explore Platform</span>
             {% icon 'arrow-right' 14 %}
           </a>
         </div>
@@ -552,10 +562,11 @@
         {% icon 'chevron-down' 16 %}
       </button>
       <div class="fx-mobile-accordion-content" id="m-acc-product">
-        <a href="{% url 'ui:public_features' %}" class="fx-mobile-sublink">Overview & Features</a>
-        <a href="{% url 'ui:public_module' 'FON-M02' %}" class="fx-mobile-sublink">Asset Management</a>
-        <a href="{% url 'ui:public_module' 'FON-M06' %}" class="fx-mobile-sublink">Work Order Management</a>
-        <a href="{% url 'ui:public_module' 'FON-M09' %}" class="fx-mobile-sublink">Inventory Management</a>
+        <a href="{% url 'ui:public_features' %}" class="fx-mobile-sublink">Overview &amp; Features</a>
+        <a href="{% url 'ui:public_module' 'asset-management' %}" class="fx-mobile-sublink">Asset Management</a>
+        <a href="{% url 'ui:public_module' 'service-management' %}" class="fx-mobile-sublink">Service Management</a>
+        <a href="{% url 'ui:public_module' 'work-order-management' %}" class="fx-mobile-sublink">Work Orders</a>
+        <a href="{% url 'ui:public_module' 'inventory-management' %}" class="fx-mobile-sublink">Inventory Management</a>
       </div>
     </div>
 
@@ -566,10 +577,10 @@
         {% icon 'chevron-down' 16 %}
       </button>
       <div class="fx-mobile-accordion-content" id="m-acc-solutions">
+        <a href="{% url 'ui:public_solution' 'enterprise-operations' %}" class="fx-mobile-sublink">Enterprise Operations</a>
         <a href="{% url 'ui:public_solution' 'manufacturing' %}" class="fx-mobile-sublink">Manufacturing</a>
         <a href="{% url 'ui:public_solution' 'facilities' %}" class="fx-mobile-sublink">Facilities Management</a>
-        <a href="{% url 'ui:public_solution' 'enterprise-operations' %}" class="fx-mobile-sublink">Enterprise Operations</a>
-        <a href="{% url 'ui:public_solution' 'sla-management' %}" class="fx-mobile-sublink">SLA Management</a>
+        <a href="{% url 'ui:public_solution' 'maintenance-management' %}" class="fx-mobile-sublink">Maintenance Management</a>
       </div>
     </div>
 
@@ -580,10 +591,11 @@
         {% icon 'chevron-down' 16 %}
       </button>
       <div class="fx-mobile-accordion-content" id="m-acc-modules">
-        <a href="{% url 'ui:public_modules' %}" class="fx-mobile-sublink">All 15 PRD Modules</a>
-        <a href="{% url 'ui:public_module' 'FON-M01' %}" class="fx-mobile-sublink">FON-M01: Site Master</a>
-        <a href="{% url 'ui:public_module' 'FON-M04' %}" class="fx-mobile-sublink">FON-M04: Preventive Maintenance</a>
-        <a href="{% url 'ui:public_module' 'FON-M07' %}" class="fx-mobile-sublink">FON-M07: Technician Workspace</a>
+        <a href="{% url 'ui:public_modules' %}" class="fx-mobile-sublink">All Enterprise Modules</a>
+        <a href="{% url 'ui:public_module' 'organization-management' %}" class="fx-mobile-sublink">Organization Management</a>
+        <a href="{% url 'ui:public_module' 'asset-management' %}" class="fx-mobile-sublink">Asset Management</a>
+        <a href="{% url 'ui:public_module' 'work-order-management' %}" class="fx-mobile-sublink">Work Order Management</a>
+        <a href="{% url 'ui:public_module' 'maintenance-management' %}" class="fx-mobile-sublink">Preventive Maintenance</a>
       </div>
     </div>
 
@@ -604,9 +616,9 @@
         <a href="{% url 'accounts:login' %}" class="btn btn-outline-dark flex-fill py-2 text-center text-decoration-none">
           Sign In
         </a>
-        <a href="{% url 'ui:client_register' %}" class="btn-fx-gold flex-fill py-2 text-center text-decoration-none">
+        {% comment %} <a href="{% url 'ui:client_register' %}" class="btn-fx-gold flex-fill py-2 text-center text-decoration-none">
           Get Started
-        </a>
+        </a> {% endcomment %}
       {% else %}
         <a href="{% url 'ui:home' %}" class="btn-fx-gold w-100 py-2 text-center text-decoration-none">
           Launch ERP
@@ -633,57 +645,57 @@
           </div>
           <span class="text-white fw-bold fs-5">FieldOps <span style="color:#F5C451;">Nexus</span></span>
         </div>
-        <p class="small text-secondary mb-3" style="max-width: 320px; line-height: 1.6;">
-          Enterprise Asset Management, Maintenance & Field Service ERP. Real-time multi-tenant operations, automated SLAs, and atomic transactional integrity.
+        <p class="small text-white-50 mb-3" style="max-width: 320px; line-height: 1.6;">
+          The connected enterprise platform for assets, service, maintenance, and the people behind it all.
         </p>
-        <div class="small text-secondary font-monospace" style="font-size: 0.8rem; line-height: 1.6;">
-          <div><strong class="text-white-50">Spec:</strong> HPE-PRD-2026-FOPS02/VER-1.0-DRAFT</div>
-          <div><strong class="text-white-50">Authority:</strong> HPE Delivery Oversight</div>
-          <div><strong class="text-white-50">Partner:</strong> VPD Technologies Pvt. Ltd.</div>
+        <div class="d-flex align-items-center gap-2 mt-3">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; display: inline-block;"></span>
+          <span class="small text-white-50" style="font-size: 0.8rem;">Platform Status: All Systems Operational</span>
         </div>
       </div>
 
-      <!-- Col 2: Solutions -->
+      <!-- Col 2: Platform -->
+      <div>
+        <div class="fx-footer-heading">Platform</div>
+        <ul class="fx-footer-links">
+          <li><a href="{% url 'ui:public_features' %}">Features</a></li>
+          <li><a href="{% url 'ui:public_module' 'asset-management' %}">Asset Management</a></li>
+          <li><a href="{% url 'ui:public_module' 'service-management' %}">Service Management</a></li>
+          <li><a href="{% url 'ui:public_module' 'work-order-management' %}">Work Orders</a></li>
+          <li><a href="{% url 'ui:public_module' 'analytics-reporting' %}">Analytics</a></li>
+        </ul>
+      </div>
+
+      <!-- Col 3: Solutions -->
       <div>
         <div class="fx-footer-heading">Solutions</div>
         <ul class="fx-footer-links">
           <li><a href="{% url 'ui:public_solution' 'enterprise-operations' %}">Enterprise Operations</a></li>
-          <li><a href="{% url 'ui:public_solution' 'multi-site-management' %}">Multi-Site Management</a></li>
-          <li><a href="{% url 'ui:public_solution' 'sla-management' %}">SLA & Escalation</a></li>
-          <li><a href="{% url 'ui:public_solution' 'connected-data' %}">Connected Data / IoT</a></li>
-          <li><a href="{% url 'ui:public_solution' 'service-maintenance' %}">Service Maintenance</a></li>
-          <li><a href="{% url 'ui:public_solution' 'infrastructure' %}">Critical Infrastructure</a></li>
+          <li><a href="{% url 'ui:public_solution' 'manufacturing' %}">Manufacturing</a></li>
+          <li><a href="{% url 'ui:public_solution' 'facilities' %}">Facilities Management</a></li>
+          <li><a href="{% url 'ui:public_solution' 'maintenance-management' %}">Maintenance</a></li>
         </ul>
       </div>
 
-      <!-- Col 3: Modules -->
+      <!-- Col 4: Company -->
       <div>
-        <div class="fx-footer-heading">Modules</div>
+        <div class="fx-footer-heading">Company</div>
         <ul class="fx-footer-links">
-          <li><a href="{% url 'ui:public_module' 'FON-M01' %}">FON-M01: Sites & Locations</a></li>
-          <li><a href="{% url 'ui:public_module' 'FON-M02' %}">FON-M02: Asset Registry</a></li>
-          <li><a href="{% url 'ui:public_module' 'FON-M04' %}">FON-M04: Preventive Maintenance</a></li>
-          <li><a href="{% url 'ui:public_module' 'FON-M06' %}">FON-M06: Work Orders</a></li>
-          <li><a href="{% url 'ui:public_module' 'FON-M07' %}">FON-M07: Technician Workspace</a></li>
-          <li><a href="{% url 'ui:public_module' 'FON-M09' %}">FON-M09: Spare Parts & Inventory</a></li>
+          <li><a href="{% url 'ui:public_about' %}">About Us</a></li>
+          <li><a href="{% url 'ui:public_resources' %}">Resources</a></li>
+          <li><a href="mailto:sales@fieldopsnexus.com">Contact Sales</a></li>
+          <li><a href="mailto:careers@fieldopsnexus.com">Careers</a></li>
         </ul>
       </div>
 
-      <!-- Col 4: Platform & Support -->
+      <!-- Col 5: Contact & Support -->
       <div>
-        <div class="fx-footer-heading">Enterprise Support</div>
+        <div class="fx-footer-heading">Contact &amp; Support</div>
         <ul class="fx-footer-links">
-          <li><a href="{% url 'ui:public_resources' %}">Documentation & Guides</a></li>
-          <li><a href="{% url 'ui:public_about' %}">About FieldOps Nexus</a></li>
-          <li><a href="mailto:support@fieldopsnexus.com">Enterprise Support Desk</a></li>
+          <li><a href="mailto:info@fieldopsnexus.com">Email our team</a></li>
+          <li><a href="mailto:support@fieldopsnexus.com">Enterprise Support</a></li>
           <li><a href="mailto:compliance@fieldopsnexus.com">Compliance Inquiries</a></li>
         </ul>
-        <div class="mt-4 pt-3 border-top border-secondary border-opacity-25">
-          <a href="{% url 'accounts:login' %}" class="btn-fx-gold w-100 py-2 d-inline-flex justify-content-center align-items-center gap-2 text-decoration-none">
-            <span>Launch Platform</span>
-            {% icon 'arrow-up-right' 14 %}
-          </a>
-        </div>
       </div>
     </div>
 

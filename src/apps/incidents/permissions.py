@@ -3,6 +3,7 @@ from apps.rbac.catalog import register
 
 register("incident", "incident.view", "View incidents and service requests", site_scoped=True, implies=("incident.view_assigned",))
 register("incident", "incident.view_assigned", "View only requests one reported or that are the source of work assigned to oneself", site_scoped=True)
+register("incident", "incident.view_owned", "View own reported incidents and service requests", site_scoped=True)
 register("incident", "incident.create", "Report incidents and service requests", site_scoped=True)
 register("incident", "incident.report_owned", "Report against assets assigned to the member", site_scoped=True)
 register("incident", "incident.update", "Edit incident details before approval", site_scoped=True)

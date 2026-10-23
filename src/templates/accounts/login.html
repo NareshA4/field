@@ -61,40 +61,14 @@
 
   <input type="hidden" name="next" value="{{ next }}">
 
-  <button type="submit" class="btn-fx-gold w-100 py-2.5 text-center fw-bold border-0" style="border-radius: 8px;">
+  <button type="submit" class="btn btn-primary btn-fx-gold w-100 py-2.5 text-center fw-bold border-0" style="border-radius: 8px;">
     Sign In to FieldOps Nexus
   </button>
 </form>
 
-<!-- Demo Credentials Helper Box (Matching Figma Reference) -->
-<div class="mt-4 p-3 rounded-3" style="background:#F7EFCF; border:1px solid rgba(201,162,39,0.35); font-size:11.5px; color:#A8841E;">
-  <div class="fw-bold mb-1.5" style="color:#7A6015;">
-    Enterprise Demo Credentials (Default password: <strong>demo1234</strong>)
-  </div>
-  <div class="d-flex flex-column gap-1">
-    <div class="d-flex align-items-center gap-1.5">
-      <span style="width:5px; height:5px; border-radius:50%; background:#C9A227;"></span>
-      <strong>Super Admin:</strong> <code>superadmin@fieldopsnexus.com</code>
-    </div>
-    <div class="d-flex align-items-center gap-1.5">
-      <span style="width:5px; height:5px; border-radius:50%; background:#C9A227;"></span>
-      <strong>Operations:</strong> <code>operations@fieldopsnexus.com</code>
-    </div>
-    <div class="d-flex align-items-center gap-1.5">
-      <span style="width:5px; height:5px; border-radius:50%; background:#C9A227;"></span>
-      <strong>Technician:</strong> <code>technician@fieldopsnexus.com</code>
-    </div>
-    <div class="d-flex align-items-center gap-1.5">
-      <span style="width:5px; height:5px; border-radius:50%; background:#C9A227;"></span>
-      <strong>Client:</strong> <code>client@fieldopsnexus.com</code>
-    </div>
-  </div>
-</div>
-
 <div class="mt-4 pt-3 border-top text-center">
-  <div class="small text-secondary mb-1">External client or facility requester?</div>
-  <a href="{% url 'ui:client_register' %}" class="small fw-semibold text-decoration-none" style="color:#C9A227;">
-    Submit Client Onboarding Request &rarr;
-  </a>
+  <p class="small text-secondary mb-0">
+    Need an account? <a href="{% url 'ui:client_register' %}" class="fw-semibold text-decoration-none" style="color:var(--fx-pub-gold-600);">Client Onboarding / Requester Access</a>
+  </p>
 </div>
 {% endblock %}

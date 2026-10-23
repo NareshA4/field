@@ -15,21 +15,21 @@ from .utils import is_client_membership
 
 
 PRD_MODULES = [
-    {"id": "FON-M01", "name": "Site & Location Master", "category": "Master Data", "app": "apps.sites", "desc": "Multi-site facility hierarchy: Organization, Site, Building, Floor, Zone, and Room mappings."},
-    {"id": "FON-M02", "name": "Asset Registry", "category": "Asset Lifecycle", "app": "apps.assets", "desc": "Master asset records, categorization, documentation, telemetry readings, and depreciation."},
-    {"id": "FON-M03", "name": "Asset Hierarchy", "category": "Asset Lifecycle", "app": "apps.assets", "desc": "Parent-child equipment relationships, lineage trees, and component swaps."},
-    {"id": "FON-M04", "name": "Preventive Maintenance", "category": "Maintenance", "app": "apps.maintenance", "desc": "Time and meter-based recurrence schedules, seasonal blackouts, and auto work-order creation."},
-    {"id": "FON-M05", "name": "Incident / Breakdown", "category": "Service Ops", "app": "apps.incidents", "desc": "Emergency breakdowns, service request triage, priority assignment, and work-order conversion."},
-    {"id": "FON-M06", "name": "Work Order Management", "category": "Execution", "app": "apps.workorders", "desc": "Comprehensive job lifecycle states: draft, planned, assigned, in-progress, hold, and closure."},
-    {"id": "FON-M07", "name": "Technician Workspace", "category": "Execution", "app": "apps.workspace", "desc": "Field mobility interface for checklist execution, labor timesheets, parts usage, and photo evidence."},
-    {"id": "FON-M08", "name": "Inspection & Checklist", "category": "Quality & Safety", "app": "apps.checklists", "desc": "Dynamic inspection templates, pass/fail item criteria, and corrective finding logs."},
-    {"id": "FON-M09", "name": "Spare Parts & Inventory", "category": "Supply Chain", "app": "apps.inventory", "desc": "Multi-warehouse bins, double-entry stock ledger, reservations, issuance, and reorder alerts."},
-    {"id": "FON-M10", "name": "Warranty / AMC / Contract", "category": "Commercial", "app": "apps.contracts", "desc": "Vendor agreements, warranty coverage checks, service entitlement, and expiration alerts."},
-    {"id": "FON-M11", "name": "SLA & Escalation", "category": "Service Ops", "app": "apps.sla", "desc": "First-response and resolution deadlines, pause tracking during holds, and breach escalations."},
-    {"id": "FON-M12", "name": "QR / Barcode Identification", "category": "Identification", "app": "apps.identification", "desc": "Barcode/QR asset label generation, camera scanner lookup, and instant ticket logging."},
-    {"id": "FON-M13", "name": "Client / Requester Portal", "category": "Self-Service", "app": "apps.portal", "desc": "Multi-tenant client portal for submitting tickets, tracking progress, and approving work completion."},
-    {"id": "FON-M14", "name": "Operational Dashboards", "category": "Analytics", "app": "apps.dashboards", "desc": "Role-tailored KPI summaries: MTTR, MTBF, technician utilization, and PM compliance rates."},
-    {"id": "FON-M15", "name": "Audit & Compliance", "category": "Governance", "app": "apps.audit", "desc": "Immutable, append-only security logs, state transition attributions, and compliance exports."}
+    {"id": "FON-M01", "slug": "organization-management", "name": "Organization & Location Master", "category": "Master Data", "app": "apps.sites", "desc": "Multi-site facility hierarchy: Organization, Site, Building, Floor, Zone, and Room mappings."},
+    {"id": "FON-M02", "slug": "asset-management", "name": "Asset Management", "category": "Asset Lifecycle", "app": "apps.assets", "desc": "Master asset records, categorization, documentation, telemetry readings, and depreciation."},
+    {"id": "FON-M03", "slug": "asset-hierarchy", "name": "Asset Hierarchy", "category": "Asset Lifecycle", "app": "apps.assets", "desc": "Parent-child equipment relationships, lineage trees, and component swaps."},
+    {"id": "FON-M04", "slug": "maintenance-management", "name": "Maintenance Management", "category": "Maintenance", "app": "apps.maintenance", "desc": "Time and meter-based recurrence schedules, seasonal blackouts, and auto work-order creation."},
+    {"id": "FON-M05", "slug": "service-management", "name": "Service Management", "category": "Service Ops", "app": "apps.incidents", "desc": "Emergency breakdowns, service request triage, priority assignment, and work-order conversion."},
+    {"id": "FON-M06", "slug": "work-order-management", "name": "Work Order Management", "category": "Execution", "app": "apps.workorders", "desc": "Comprehensive job lifecycle states: draft, planned, assigned, in-progress, hold, and closure."},
+    {"id": "FON-M07", "slug": "technician-workspace", "name": "Technician Workspace", "category": "Execution", "app": "apps.workspace", "desc": "Field mobility interface for checklist execution, labor timesheets, parts usage, and photo evidence."},
+    {"id": "FON-M08", "slug": "inspection-checklist", "name": "Inspection & Checklist", "category": "Quality & Safety", "app": "apps.checklists", "desc": "Dynamic inspection templates, pass/fail item criteria, and corrective finding logs."},
+    {"id": "FON-M09", "slug": "inventory-management", "name": "Inventory Management", "category": "Supply Chain", "app": "apps.inventory", "desc": "Multi-warehouse bins, double-entry stock ledger, reservations, issuance, and reorder alerts."},
+    {"id": "FON-M10", "slug": "contracts-warranty", "name": "Warranty / AMC / Contract", "category": "Commercial", "app": "apps.contracts", "desc": "Vendor agreements, warranty coverage checks, service entitlement, and expiration alerts."},
+    {"id": "FON-M11", "slug": "sla-management", "name": "SLA & Escalation", "category": "Service Ops", "app": "apps.sla", "desc": "First-response and resolution deadlines, pause tracking during holds, and breach escalations."},
+    {"id": "FON-M12", "slug": "qr-identification", "name": "QR / Barcode Identification", "category": "Identification", "app": "apps.identification", "desc": "Barcode/QR asset label generation, camera scanner lookup, and instant ticket logging."},
+    {"id": "FON-M13", "slug": "client-portal", "name": "Client / Requester Portal", "category": "Self-Service", "app": "apps.portal", "desc": "Multi-tenant client portal for submitting tickets, tracking progress, and approving work completion."},
+    {"id": "FON-M14", "slug": "analytics-reporting", "name": "Analytics & Reporting", "category": "Analytics", "app": "apps.dashboards", "desc": "Role-tailored KPI summaries: MTTR, MTBF, technician utilization, and PM compliance rates."},
+    {"id": "FON-M15", "slug": "audit-traceability", "name": "Audit & Traceability", "category": "Governance", "app": "apps.audit", "desc": "Immutable, append-only security logs, state transition attributions, and compliance exports."}
 ]
 
 
@@ -60,8 +60,9 @@ def public_modules(request):
 
 
 def public_module(request, module_id):
-    mod = next((m for m in PRD_MODULES if m["id"].upper() == module_id.upper()), None)
-    return render(request, "public/modules.html", {"active_page": "modules", "module_list": PRD_MODULES, "selected_module": mod})
+    slug_lower = module_id.lower().strip()
+    mod = next((m for m in PRD_MODULES if m.get("slug") == slug_lower or m["id"].lower() == slug_lower), None)
+    return render(request, "public/modules.html", {"active_page": "modules", "module_list": PRD_MODULES, "selected_module": mod, "selected_slug": slug_lower})
 
 
 def public_resources(request):
