@@ -1,32 +1,85 @@
 {% extends "public/base_public.html" %}
 {% load static ui_tags %}
 
-{% block title %}{{ title }} — FieldOps Nexus{% endblock %}
+{% block title %}{{ title }} &middot; FieldOps Nexus{% endblock %}
 
 {% block public_content %}
-<div class="fx-pub-hero" style="padding: 3.5rem 1.5rem 4rem;">
-  <div class="fx-pub-hero-inner text-center">
-    <div class="fx-pub-pill">Legal &amp; Compliance</div>
-    <h1 class="fx-pub-hero-title">{{ title }}</h1>
-    <p class="fx-pub-hero-sub">
-      Document Reference: HPE-PRD-2026-FOPS02 &middot; Version 1.0
-    </p>
+<!-- Hero Section -->
+<section class="position-relative overflow-hidden py-5 text-white" style="background-color: #0B1F3B; border-bottom: 1px solid rgba(255,255,255,0.1); padding-top: 4.5rem !important; padding-bottom: 4rem !important;">
+  <div class="position-absolute top-0 start-0 end-0 bottom-0 pointer-events-none" style="background-image: linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 3.5rem 3.5rem;"></div>
+
+  <div class="container-xl px-4 position-relative z-10">
+    <!-- Breadcrumbs -->
+    <nav aria-label="Breadcrumb" class="mb-3 d-flex align-items-center gap-2 small text-white-50">
+      <a href="{% url 'ui:root' %}" class="text-white-50 text-decoration-none">Home</a>
+      <span>&rsaquo;</span>
+      <span class="text-white">Legal Documentation</span>
+      <span>&rsaquo;</span>
+      <span class="text-warning">{{ title }}</span>
+    </nav>
+
+    <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 mb-3 small fw-bold text-uppercase" style="background: rgba(245,196,81,0.12); border: 1px solid rgba(245,196,81,0.3); color: #F5C451; font-size: 10.5px; letter-spacing: 0.15em;">
+      {% icon 'shield' 13 %}
+      <span>Governance &bull; HPE Delivery Oversight</span>
+    </div>
+
+    <h1 class="h2 fw-extrabold text-white mb-2">{{ title }}</h1>
+    <p class="text-white-50 small mb-0 font-monospace">Effective Date: October 2026 &bull; Reference: HPE-PRD-2026-FOPS02</p>
   </div>
-</div>
+</section>
 
-<section class="fx-pub-section">
-  <div class="fx-pub-container" style="max-width: 860px;">
-    <div class="card border-0 shadow-sm p-4 p-md-5 bg-white" style="border-radius:12px;">
-      <div class="small text-secondary mb-4 pb-2 border-bottom">
-        <strong>Last Updated:</strong> October 2026 &middot; <strong>Effective Date:</strong> Immediate upon provisioning
-      </div>
-      
-      <div class="legal-content text-secondary lh-lg">
-        {{ content|safe }}
+<!-- Content Section with Left Navigation -->
+<section class="py-5 bg-white">
+  <div class="container-xl px-4 py-3">
+    <div class="row g-5">
+      <!-- Left Sidebar Navigation -->
+      <div class="col-lg-3">
+        <div class="sticky-top" style="top: 100px; z-index: 10;">
+          <div class="small fw-bold text-uppercase text-secondary mb-3" style="font-size: 11px; letter-spacing: 0.12em;">
+            Legal Documents
+          </div>
+          <div class="list-group list-group-flush border rounded-3 overflow-hidden shadow-sm">
+            <a href="{% url 'ui:public_legal' 'privacy-policy' %}" class="list-group-item list-group-item-action py-3 small {% if selected_slug == 'privacy-policy' or not selected_slug %}fw-bold text-dark bg-light{% else %}text-secondary{% endif %}">
+              Privacy Policy &amp; Data Protection
+            </a>
+            <a href="{% url 'ui:public_legal' 'terms-and-conditions' %}" class="list-group-item list-group-item-action py-3 small {% if selected_slug == 'terms-and-conditions' %}fw-bold text-dark bg-light{% else %}text-secondary{% endif %}">
+              Terms &amp; Conditions of Use
+            </a>
+            <a href="{% url 'ui:public_legal' 'disclaimer' %}" class="list-group-item list-group-item-action py-3 small {% if selected_slug == 'disclaimer' %}fw-bold text-dark bg-light{% else %}text-secondary{% endif %}">
+              Enterprise System Disclaimer
+            </a>
+            <a href="{% url 'ui:public_legal' 'cookie-policy' %}" class="list-group-item list-group-item-action py-3 small {% if selected_slug == 'cookie-policy' %}fw-bold text-dark bg-light{% else %}text-secondary{% endif %}">
+              Cookie &amp; Session Policy
+            </a>
+          </div>
+
+          <div class="p-3 bg-light rounded-3 border mt-4 small text-secondary">
+            <strong>Compliance Inquiries:</strong>
+            <p class="mb-0 mt-1" style="font-size: 11.5px;">For data governance and security verifications, contact our legal oversight desk at <code>compliance@fieldopsnexus.com</code>.</p>
+          </div>
+        </div>
       </div>
 
-      <div class="mt-5 pt-3 border-top text-center">
-        <a href="{% url 'ui:root' %}" class="btn btn-sm btn-outline-secondary">&larr; Return to Home</a>
+      <!-- Right Main Document Text -->
+      <div class="col-lg-9">
+        <div class="prose max-w-none text-secondary" style="line-height: 1.75; font-size: 0.95rem;">
+          {{ content|safe }}
+
+          <h3 class="h5 fw-bold text-dark mt-5 mb-3">1. Multi-Tenant Architectural Segregation</h3>
+          <p>
+            FieldOps Nexus enforces strict tenant-isolated data protection compliant with enterprise standards. Each organizational entity maintains its own isolated tenant context. Under no circumstances can data, documents, parts catalogs, or work orders be queried or modified cross-tenant without cryptographically verified authorization grants.
+          </p>
+
+          <h3 class="h5 fw-bold text-dark mt-4 mb-3">2. Transactional Audit Logging</h3>
+          <p>
+            All system mutations, permission role assignments, dispatch changes, parts issuances, and checklist completions produce immutable, append-only audit records. These records capture the actor identity, IP address, timestamp, and target entity metadata solely for accountability and compliance under HPE Delivery Oversight.
+          </p>
+
+          <h3 class="h5 fw-bold text-dark mt-4 mb-3">3. Evaluation Gate Acceptance</h3>
+          <p>
+            This enterprise software is subject to a formal 90-calendar-day evaluation and acceptance gate. Operational data collected during active field operations is stored with continuous backup retention and protected by industry-standard encryption in transit and at rest.
+          </p>
+        </div>
       </div>
     </div>
   </div>

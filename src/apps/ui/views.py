@@ -122,7 +122,7 @@ def public_legal(request, slug):
         "cookie-policy": "<p>FieldOps Nexus utilizes strictly necessary session cookies (<code>sessionid</code> and <code>csrftoken</code>) configured with <code>HttpOnly</code> and <code>SameSite=Lax</code> protections to maintain authenticated sessions and protect against cross-site request forgery.</p>",
     }
     content = contents.get(slug, "<p>Legal terms and conditions apply as specified in project governance documentation.</p>")
-    return render(request, "public/legal.html", {"active_page": "legal", "title": title, "content": content})
+    return render(request, "public/legal.html", {"active_page": "legal", "selected_slug": slug, "title": title, "content": content})
 
 
 @login_required
@@ -205,3 +205,4 @@ def not_found(request, exception=None):
 
 def server_error(request):
     return HttpResponse("Server error. Please quote the X-Request-ID header when reporting this.", status=500)
+

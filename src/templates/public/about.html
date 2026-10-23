@@ -1,69 +1,201 @@
 {% extends "public/base_public.html" %}
 {% load static ui_tags %}
 
-{% block title %}About FieldOps Nexus — Enterprise ERP{% endblock %}
+{% block title %}About &middot; FieldOps Nexus{% endblock %}
 
 {% block public_content %}
-<div class="fx-pub-hero" style="padding: 3.5rem 1.5rem 4rem;">
-  <div class="fx-pub-hero-inner text-center">
-    <div class="fx-pub-pill">Corporate Overview</div>
-    <h1 class="fx-pub-hero-title">Engineering Excellence &amp; Accountability</h1>
-    <p class="fx-pub-hero-sub">
-      Delivered under HPE Enterprise Technology Solutions &amp; Delivery Oversight.
-    </p>
+<!-- Hero Section -->
+<section class="position-relative overflow-hidden py-5 text-white" style="background: linear-gradient(180deg, #0B1F3B 0%, #0D2444 50%, #0B1F3B 100%); padding-top: 5rem !important; padding-bottom: 5rem !important;">
+  <div class="position-absolute top-0 start-0 end-0 bottom-0 pointer-events-none" style="background-image: linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 3.5rem 3.5rem;"></div>
+
+  <div class="container-xl px-4 position-relative z-10">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-6">
+        <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 mb-4 small fw-bold text-uppercase" style="background: rgba(245,196,81,0.12); border: 1px solid rgba(245,196,81,0.3); color: #F5C451; font-size: 11px; letter-spacing: 0.15em;">
+          {% icon 'globe' 14 %}
+          <span>About FieldOps Nexus</span>
+        </div>
+
+        <h1 class="display-4 fw-extrabold text-white mb-4" style="line-height: 1.15;">
+          Connected operations.<br><span style="color: #F5C451;">Clearer execution.</span>
+        </h1>
+
+        <p class="lead text-white-50 mb-4" style="line-height: 1.7; font-size: 1.15rem;">
+          We believe industrial and facilities management organizations deserve enterprise software that brings people, assets, inventory, and workflows into natural harmony.
+        </p>
+
+        <p class="small text-white-50 mb-5" style="line-height: 1.7;">
+          FieldOps Nexus was designed from the ground up to replace fragmented point tools with a single unified operational ecosystem. Developed in rigorous alignment with technical enterprise standards, the platform guarantees multi-tenant security, atomic double-entry transactional safety, and full lifecycle traceability.
+        </p>
+
+        <div class="d-flex flex-wrap gap-3">
+          <a href="mailto:hello@fieldopsnexus.com?subject=FieldOps%20Nexus%20Inquiry" class="btn-fx-gold px-4 py-3 fw-bold d-inline-flex align-items-center gap-2 text-decoration-none">
+            <span>Contact Operations Advisory</span>
+            {% icon 'arrow-right' 15 %}
+          </a>
+          <a href="{% url 'ui:public_modules' %}" class="btn btn-outline-light px-4 py-3 fw-semibold text-decoration-none">
+            <span>Explore 15 PRD Modules</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="rounded-4 overflow-hidden border border-secondary border-opacity-25 shadow-lg position-relative" style="background: #0B1F3A;">
+          <img src="{% static 'images/center.jpg' %}" alt="FieldOps Nexus Headquarters & Facility Operations" class="w-100 h-100 object-fit-cover" style="min-height: 440px; opacity: 0.9;">
+          <div class="position-absolute bottom-0 start-0 end-0 p-4" style="background: linear-gradient(to top, rgba(7,20,38,0.92), transparent);">
+            <span class="badge mb-2 font-monospace" style="background:#F5C451; color:#0B1F3B;">ENTERPRISE ARCHITECTURE</span>
+            <div class="text-white fw-bold">Built for Mission-Critical Reliability</div>
+            <div class="text-white-50 small">Calibrated for zero-loss transactions and audit compliance</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
+</section>
 
-<section class="fx-pub-section">
-  <div class="fx-pub-container" style="max-width: 900px;">
-    <div class="card border-0 shadow-sm p-4 p-md-5 bg-white" style="border-radius:12px;">
-      <h2 class="h4 fw-bold text-dark mb-3">Project Metadata &amp; Governance</h2>
-      <div class="table-responsive mb-4">
-        <table class="table table-bordered">
-          <tbody>
-            <tr>
-              <th class="bg-light text-secondary" style="width: 35%;">Project Title</th>
-              <td>FieldOps Nexus (Enterprise Asset, Maintenance &amp; Field Service ERP)</td>
-            </tr>
-            <tr>
-              <th class="bg-light text-secondary">Document Reference</th>
-              <td><code>HPE-PRD-2026-FOPS02/VER-1.0-DRAFT</code></td>
-            </tr>
-            <tr>
-              <th class="bg-light text-secondary">Review Authority</th>
-              <td>HPE Team – Enterprise Technology Solutions &amp; Delivery Oversight</td>
-            </tr>
-            <tr>
-              <th class="bg-light text-secondary">Development Partner</th>
-              <td>VPD Technologies Pvt. Ltd.</td>
-            </tr>
-            <tr>
-              <th class="bg-light text-secondary">Mandatory Duration</th>
-              <td>Minimum 90 calendar days; final technical acceptance no earlier than Day 90</td>
-            </tr>
-            <tr>
-              <th class="bg-light text-secondary">Formal Review Gates</th>
-              <td>Day 15, Day 45, and Day 90</td>
-            </tr>
-            <tr>
-              <th class="bg-light text-secondary">Classification</th>
-              <td>Proprietary &amp; Confidential – Draft for Technical Allocation</td>
-            </tr>
-          </tbody>
-        </table>
+<!-- 5 Core Operating Principles -->
+<section class="py-5 bg-white">
+  <div class="container-xl px-4 py-4">
+    <div class="text-center max-w-2xl mx-auto mb-5">
+      <div class="fx-eyebrow justify-content-center">
+        <span class="fx-eyebrow-bar"></span>
+        <span>Foundational Beliefs</span>
+        <span class="fx-eyebrow-bar"></span>
+      </div>
+      <h2 class="fx-section-title">Five Core Principles</h2>
+      <p class="fx-section-desc">The engineering and operational convictions that govern every architectural decision.</p>
+    </div>
+
+    <div class="row g-4">
+      <!-- 1 -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm">
+          <span class="d-flex align-items-center justify-content-center rounded-2 mb-3" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+            {% icon 'layers' 20 %}
+          </span>
+          <h3 class="h6 fw-bold text-dark mb-2">Connected Operations</h3>
+          <p class="small text-secondary mb-0" style="line-height: 1.6;">
+            We eliminate isolated tool silos by binding assets, work orders, technician dispatch, and spare parts into one unified operational loop.
+          </p>
+        </div>
       </div>
 
-      <h3 class="h5 fw-bold text-dark mb-2">Architectural Principles</h3>
-      <ul class="text-secondary mb-4">
-        <li class="mb-2"><strong>Zero Mock Invariant:</strong> Every workflow is backed by transactional PostgreSQL persistence.</li>
-        <li class="mb-2"><strong>Server-Side RBAC Enforcement:</strong> Authorization checks occur in domain services and view layer, never solely in UI display logic.</li>
-        <li class="mb-2"><strong>Audit Trail Immutability:</strong> Security-critical events and state transitions produce append-only audit entries.</li>
-        <li class="mb-2"><strong>Concurrency Protection:</strong> Inventory parts movements and technician time tracking use atomic database locks.</li>
-      </ul>
-
-      <div class="text-center pt-3">
-        <a href="{% url 'accounts:login' %}" class="btn-fx-gold px-4 py-2">Access FieldOps Nexus ERP &rarr;</a>
+      <!-- 2 -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm">
+          <span class="d-flex align-items-center justify-content-center rounded-2 mb-3" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+            {% icon 'activity' 20 %}
+          </span>
+          <h3 class="h6 fw-bold text-dark mb-2">Operational Visibility</h3>
+          <p class="small text-secondary mb-0" style="line-height: 1.6;">
+            Every stakeholder, from the shop floor technician to executive leadership, sees accurate, real-time status without waiting on manual reports.
+          </p>
+        </div>
       </div>
+
+      <!-- 3 -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm">
+          <span class="d-flex align-items-center justify-content-center rounded-2 mb-3" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+            {% icon 'shield' 20 %}
+          </span>
+          <h3 class="h6 fw-bold text-dark mb-2">Traceability &amp; Governance</h3>
+          <p class="small text-secondary mb-0" style="line-height: 1.6;">
+            Structured audit trails, system timestamps, and supervisor photo verification support operational integrity at scale.
+          </p>
+        </div>
+      </div>
+
+      <!-- 4 -->
+      <div class="col-md-6 col-lg-6">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm">
+          <span class="d-flex align-items-center justify-content-center rounded-2 mb-3" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+            {% icon 'settings' 20 %}
+          </span>
+          <h3 class="h6 fw-bold text-dark mb-2">Workflow Precision</h3>
+          <p class="small text-secondary mb-0" style="line-height: 1.6;">
+            Standardized digital SOPs ensure every service ticket and maintenance plan is executed with consistent high quality across all facilities.
+          </p>
+        </div>
+      </div>
+
+      <!-- 5 -->
+      <div class="col-md-6 col-lg-6">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm">
+          <span class="d-flex align-items-center justify-content-center rounded-2 mb-3" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+            {% icon 'bar-chart' 20 %}
+          </span>
+          <h3 class="h6 fw-bold text-dark mb-2">Data-Driven Decisions</h3>
+          <p class="small text-secondary mb-0" style="line-height: 1.6;">
+            Turn live sensor readings, MTTR metrics, and inventory turnover data into proactive maintenance schedules and confident budgeting.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Governance & Specification Compliance -->
+<section class="py-5" style="background-color: #F8FAFC; border-top: 1px solid #E2E8F0;">
+  <div class="container-xl px-4 py-4">
+    <div class="card border border-secondary border-opacity-25 rounded-4 p-4 p-md-5 bg-white shadow-sm">
+      <div class="row g-4 align-items-center">
+        <div class="col-lg-7">
+          <div class="fx-eyebrow">
+            <span class="fx-eyebrow-bar"></span>
+            <span>Technical Governance</span>
+          </div>
+          <h2 class="h3 fw-bold text-dark mb-3">Enterprise Architectural Compliance</h2>
+          <p class="text-secondary small mb-3" style="line-height: 1.7;">
+            FieldOps Nexus is engineered under the direct project oversight of HPE Delivery Guidelines. All data persistence complies with strict organizational boundary isolation, immutable append-only audit logging, and transactional debit/credit inventory movements.
+          </p>
+          <div class="d-flex flex-wrap gap-4 font-monospace text-secondary small pt-2">
+            <div><strong class="text-dark">PRD Spec:</strong> HPE-PRD-2026-FOPS02</div>
+            <div><strong class="text-dark">Version:</strong> VER-1.0-DRAFT</div>
+            <div><strong class="text-dark">Implementation:</strong> VPD Technologies Pvt. Ltd.</div>
+          </div>
+        </div>
+        <div class="col-lg-5 text-lg-end">
+          <div class="p-4 rounded-3 border border-warning border-opacity-50 text-start" style="background:#FDF9EC;">
+            <div class="fw-bold text-dark mb-2 small">Mandatory Operational Guarantees:</div>
+            <ul class="small text-secondary mb-0 ps-3 space-y-1">
+              <li>Zero cross-tenant data leakage via tenant isolation</li>
+              <li>Double-entry inventory ledger preventing phantom stock</li>
+              <li>State machine work order lifecycle with validation gates</li>
+              <li>Comprehensive 90-day evaluation acceptance gate</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Standardized Page CTA -->
+<section class="fx-standard-cta">
+  <div class="fx-cta-rings"></div>
+  <div class="fx-cta-rings-2"></div>
+
+  <div class="container-xl px-4 position-relative z-10 text-center">
+    <h2 class="text-white fw-bold mb-3" style="font-size: clamp(2rem, 4vw, 2.75rem);">
+      Ready to Connect Your Operations?
+    </h2>
+    <div class="fx-cta-gold-divider">
+      <span class="bar"></span>
+      <span class="dot"></span>
+      <span class="bar"></span>
+    </div>
+    <p class="text-white-50 max-w-2xl mx-auto mb-4" style="font-size: 1.05rem; line-height: 1.6;">
+      Bring your assets, service requests, work orders, inventory, and operational workflows together with FieldOps Nexus.
+    </p>
+    <div class="d-flex flex-wrap justify-content-center gap-3">
+      <a href="mailto:hello@fieldopsnexus.com?subject=FieldOps%20Nexus%20Demo%20Request" class="btn-fx-gold px-4 py-3 fw-bold d-inline-flex align-items-center gap-2 text-decoration-none">
+        <span>Request Platform Demo</span>
+        {% icon 'arrow-up-right' 15 %}
+      </a>
+      <a href="{% url 'accounts:login' %}" class="btn btn-outline-light px-4 py-3 fw-semibold text-decoration-none">
+        <span>Launch ERP</span>
+      </a>
     </div>
   </div>
 </section>

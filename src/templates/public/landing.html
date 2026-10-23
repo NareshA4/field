@@ -1,183 +1,1001 @@
 {% extends "public/base_public.html" %}
 {% load static ui_tags %}
 
-{% block title %}FieldOps Nexus — Enterprise Asset, Maintenance & Field Service ERP{% endblock %}
+{% block title %}FieldOps Nexus &middot; Enterprise Asset Management &amp; Field Service ERP{% endblock %}
 
 {% block public_content %}
-<!-- Hero Section -->
-<section class="fx-pub-hero">
-  <div class="fx-pub-hero-inner">
-    <div class="fx-pub-pill">
-      {% icon 'shield' 14 %} HPE-PRD-2026-FOPS02 &middot; Enterprise Grade ERP
+<!-- =========================================================================
+     1. Assets Video Showcase Section
+     ========================================================================= -->
+<section class="fx-video-showcase-section" aria-label="Asset Management video showcase">
+  <video class="fx-showcase-video" autoplay muted loop playsinline preload="metadata">
+    <source src="{% static 'images/Fieldopusneuxs2.mp4' %}" type="video/mp4">
+  </video>
+</section>
+
+<!-- =========================================================================
+     2. Connected Operations Industrial Network Section
+     ========================================================================= -->
+<section class="fx-co-section" aria-label="Connected Operations industrial network">
+  <!-- Industrial Refinery Background -->
+  <div class="fx-co-background" style="background-image: url('{% static 'images/fieldops-workflow-visual.jpg' %}');" role="img" aria-label="Industrial operations network at dusk"></div>
+  <div class="fx-co-overlay-gradient"></div>
+  <div class="fx-co-overlay-top"></div>
+
+  <!-- Content -->
+  <div class="fx-co-content">
+    <div class="fx-co-eyebrow">
+      <span class="fx-co-eyebrow-bar"></span>
+      <span class="fx-co-eyebrow-text">Connected Operations</span>
+      <span class="fx-co-eyebrow-bar"></span>
     </div>
-    <h1 class="fx-pub-hero-title">
-      Intelligent Field Operations &amp; <br>
-      <span class="fx-pub-gradient-text">Unified Asset Governance</span>
+    <h1 class="fx-co-heading">
+      One operational view.<br>
+      Every <span class="gold">critical connection.</span>
     </h1>
-    <p class="fx-pub-hero-sub">
-      A single multi-tenant platform unifying preventative maintenance, automated SLA escalations, atomic inventory management, and real-time field technician execution.
+    <p class="fx-co-desc">
+      Connect your people, assets, service operations, and business workflows across every site &mdash; in one unified ecosystem.
     </p>
-    <div class="fx-pub-hero-cta">
-      <a href="{% url 'accounts:login' %}" class="btn-fx-gold" style="padding: 0.75rem 1.8rem; font-size: 1rem;">
-        Launch ERP System {% icon 'arrow-up-right' 16 %}
-      </a>
-      <a href="{% url 'ui:public_modules' %}" class="btn-fx-outline-gold" style="padding: 0.75rem 1.8rem; font-size: 1rem;">
-        Explore PRD Modules
-      </a>
+  </div>
+
+  <!-- Gold Network SVG Overlay -->
+  <div class="fx-co-svg-layer" aria-hidden="true">
+    <svg viewBox="0 0 1400 700" preserveAspectRatio="xMidYMid meet" class="fx-co-svg">
+      <!-- Glow duplicate -->
+      <path d="M 126,217 C 238,217 238,364 350,364 C 469,364 469,252 588,252 C 700,252 700,406 812,406 C 924,406 924,308 1036,308 C 1155,308 1155,224 1274,224"
+            fill="none" stroke="#F5C451" stroke-width="6" stroke-linecap="round" opacity="0.22" style="filter: blur(4px);"></path>
+      <!-- Main Connection Line -->
+      <path d="M 126,217 C 238,217 238,364 350,364 C 469,364 469,252 588,252 C 700,252 700,406 812,406 C 924,406 924,308 1036,308 C 1155,308 1155,224 1274,224"
+            fill="none" stroke="#F5C451" stroke-width="2" stroke-linecap="round" opacity="0.85"></path>
+
+      <!-- Node 1: ASSETS -->
+      <g transform="translate(126, 217)">
+        <circle r="36" fill="rgba(245,196,81,0.08)" stroke="#F5C451" stroke-width="0.5" opacity="0.7"></circle>
+        <circle r="28" fill="rgba(7,20,38,0.85)" stroke="#F5C451" stroke-width="1.5"></circle>
+        <circle r="4" fill="#F5C451" class="co-glow-dot"></circle>
+        <text y="48" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="700" letter-spacing="0.12em" font-family="Inter, sans-serif">ASSETS</text>
+      </g>
+
+      <!-- Node 2: SERVICE REQUESTS -->
+      <g transform="translate(350, 364)">
+        <circle r="36" fill="rgba(245,196,81,0.08)" stroke="#F5C451" stroke-width="0.5" opacity="0.7"></circle>
+        <circle r="28" fill="rgba(7,20,38,0.85)" stroke="#F5C451" stroke-width="1.5"></circle>
+        <circle r="4" fill="#F5C451" class="co-glow-dot"></circle>
+        <text y="46" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="700" letter-spacing="0.12em" font-family="Inter, sans-serif">SERVICE</text>
+        <text y="60" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="700" letter-spacing="0.12em" font-family="Inter, sans-serif">REQUESTS</text>
+      </g>
+
+      <!-- Node 3: WORK ORDERS -->
+      <g transform="translate(588, 252)">
+        <circle r="36" fill="rgba(245,196,81,0.08)" stroke="#F5C451" stroke-width="0.5" opacity="0.7"></circle>
+        <circle r="28" fill="rgba(7,20,38,0.85)" stroke="#F5C451" stroke-width="1.5"></circle>
+        <circle r="4" fill="#F5C451" class="co-glow-dot"></circle>
+        <text y="46" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="700" letter-spacing="0.12em" font-family="Inter, sans-serif">WORK</text>
+        <text y="60" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="700" letter-spacing="0.12em" font-family="Inter, sans-serif">ORDERS</text>
+      </g>
+
+      <!-- Node 4: FIELD EXECUTION -->
+      <g transform="translate(812, 406)">
+        <circle r="36" fill="rgba(245,196,81,0.08)" stroke="#F5C451" stroke-width="0.5" opacity="0.7"></circle>
+        <circle r="28" fill="rgba(7,20,38,0.85)" stroke="#F5C451" stroke-width="1.5"></circle>
+        <circle r="4" fill="#F5C451" class="co-glow-dot"></circle>
+        <text y="46" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="700" letter-spacing="0.12em" font-family="Inter, sans-serif">FIELD</text>
+        <text y="60" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="700" letter-spacing="0.12em" font-family="Inter, sans-serif">EXECUTION</text>
+      </g>
+
+      <!-- Node 5: INVENTORY -->
+      <g transform="translate(1036, 308)">
+        <circle r="36" fill="rgba(245,196,81,0.08)" stroke="#F5C451" stroke-width="0.5" opacity="0.7"></circle>
+        <circle r="28" fill="rgba(7,20,38,0.85)" stroke="#F5C451" stroke-width="1.5"></circle>
+        <circle r="4" fill="#F5C451" class="co-glow-dot"></circle>
+        <text y="48" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="700" letter-spacing="0.12em" font-family="Inter, sans-serif">INVENTORY</text>
+      </g>
+
+      <!-- Node 6: APPROVALS -->
+      <g transform="translate(1274, 224)">
+        <circle r="36" fill="rgba(245,196,81,0.08)" stroke="#F5C451" stroke-width="0.5" opacity="0.7"></circle>
+        <circle r="28" fill="rgba(7,20,38,0.85)" stroke="#F5C451" stroke-width="1.5"></circle>
+        <circle r="4" fill="#F5C451" class="co-glow-dot"></circle>
+        <text y="48" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="700" letter-spacing="0.12em" font-family="Inter, sans-serif">APPROVALS</text>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- =========================================================================
+     3. The Connected Advantage & Horizontal Infinite Marquee
+     ========================================================================= -->
+<section id="about" class="fx-advantage-section">
+  <div class="container-xl px-4">
+    <div class="row align-items-end mb-5 g-4">
+      <div class="col-lg-6 landing-reveal">
+        <div class="fx-eyebrow">
+          <span class="fx-eyebrow-bar"></span>
+          <span>The Connected Advantage</span>
+        </div>
+        <h2 class="fx-section-title">
+          One Platform.<br>Every Operation.
+        </h2>
+      </div>
+      <div class="col-lg-6 landing-reveal">
+        <p class="fx-section-desc">
+          Bring your organization's operational processes together through one connected enterprise platform. Replace disconnected spreadsheets, point solutions, and paper forms with verified transactional workflows.
+        </p>
+      </div>
     </div>
 
-    <!-- Hero Visual Preview -->
-    <div class="fx-pub-hero-visual">
-      <img src="{% static 'images/center.jpg' %}" alt="FieldOps Nexus Command Center" loading="eager">
+    <!-- 4 Advantage Pill Cards -->
+    <div class="row g-3 mb-5">
+      <div class="col-sm-6 col-lg-3 landing-reveal">
+        <div class="fx-pill-card">
+          <div class="fx-pill-icon">{% icon 'building' 20 %}</div>
+          <span class="fx-pill-label">Centralized Operations</span>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3 landing-reveal">
+        <div class="fx-pill-card">
+          <div class="fx-pill-icon">{% icon 'activity' 20 %}</div>
+          <span class="fx-pill-label">Real-Time Visibility</span>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3 landing-reveal">
+        <div class="fx-pill-card">
+          <div class="fx-pill-icon">{% icon 'settings' 20 %}</div>
+          <span class="fx-pill-label">Workflow Automation</span>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3 landing-reveal">
+        <div class="fx-pill-card">
+          <div class="fx-pill-icon">{% icon 'shield' 20 %}</div>
+          <span class="fx-pill-label">Complete Traceability</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connected Operations Heading & Continuous Horizontal Marquee -->
+    <div class="pt-4 border-top border-secondary border-opacity-25">
+      <div class="mb-4 text-center text-sm-start">
+        <span class="text-xs fw-bold text-uppercase text-secondary" style="letter-spacing:0.18em;">
+          CONNECTED ACROSS <span style="color:#C9A227;">YOUR OPERATION</span>
+        </span>
+      </div>
+
+      <div class="ops-cards-marquee-wrapper" aria-label="Connected operations capability cards">
+        <div class="ops-cards-connector-line"></div>
+        <div class="ops-cards-marquee-ltr">
+          <!-- SET A -->
+          <div class="d-flex gap-4 pe-4">
+            <div class="ops-card">
+              <div class="ops-card-top">
+                <div class="ops-card-icon">{% icon 'building' 20 %}</div>
+                <span class="ops-card-index">01</span>
+              </div>
+              <div>
+                <h3 class="ops-card-title">Organizations</h3>
+                <p class="ops-card-desc">Enterprise hierarchy &amp; business units</p>
+              </div>
+              <div class="ops-card-footer">
+                <span class="ops-card-badge">Operational Capability</span>
+                {% icon 'arrow-right' 12 class="text-warning" %}
+              </div>
+            </div>
+
+            <div class="ops-card">
+              <div class="ops-card-top">
+                <div class="ops-card-icon">{% icon 'geo-alt' 20 %}</div>
+                <span class="ops-card-index">02</span>
+              </div>
+              <div>
+                <h3 class="ops-card-title">Sites</h3>
+                <p class="ops-card-desc">Multi-facility &amp; plant locations</p>
+              </div>
+              <div class="ops-card-footer">
+                <span class="ops-card-badge">Operational Capability</span>
+                {% icon 'arrow-right' 12 class="text-warning" %}
+              </div>
+            </div>
+
+            <div class="ops-card">
+              <div class="ops-card-top">
+                <div class="ops-card-icon">{% icon 'boxes' 20 %}</div>
+                <span class="ops-card-index">03</span>
+              </div>
+              <div>
+                <h3 class="ops-card-title">Assets</h3>
+                <p class="ops-card-desc">Equipment registry &amp; lifecycle</p>
+              </div>
+              <div class="ops-card-footer">
+                <span class="ops-card-badge">Operational Capability</span>
+                {% icon 'arrow-right' 12 class="text-warning" %}
+              </div>
+            </div>
+
+            <div class="ops-card">
+              <div class="ops-card-top">
+                <div class="ops-card-icon">{% icon 'clipboard-list' 20 %}</div>
+                <span class="ops-card-index">04</span>
+              </div>
+              <div>
+                <h3 class="ops-card-title">Work Orders</h3>
+                <p class="ops-card-desc">Job dispatch &amp; execution tracking</p>
+              </div>
+              <div class="ops-card-footer">
+                <span class="ops-card-badge">Operational Capability</span>
+                {% icon 'arrow-right' 12 class="text-warning" %}
+              </div>
+            </div>
+
+            <div class="ops-card">
+              <div class="ops-card-top">
+                <div class="ops-card-icon">{% icon 'wrench' 20 %}</div>
+                <span class="ops-card-index">05</span>
+              </div>
+              <div>
+                <h3 class="ops-card-title">Service Requests</h3>
+                <p class="ops-card-desc">Intake routing &amp; SLA triage</p>
+              </div>
+              <div class="ops-card-footer">
+                <span class="ops-card-badge">Operational Capability</span>
+                {% icon 'arrow-right' 12 class="text-warning" %}
+              </div>
+            </div>
+
+            <div class="ops-card">
+              <div class="ops-card-top">
+                <div class="ops-card-icon">{% icon 'calendar' 20 %}</div>
+                <span class="ops-card-index">06</span>
+              </div>
+              <div>
+                <h3 class="ops-card-title">Maintenance</h3>
+                <p class="ops-card-desc">Preventive &amp; corrective schedules</p>
+              </div>
+              <div class="ops-card-footer">
+                <span class="ops-card-badge">Operational Capability</span>
+                {% icon 'arrow-right' 12 class="text-warning" %}
+              </div>
+            </div>
+
+            <div class="ops-card">
+              <div class="ops-card-top">
+                <div class="ops-card-icon">{% icon 'package' 20 %}</div>
+                <span class="ops-card-index">07</span>
+              </div>
+              <div>
+                <h3 class="ops-card-title">Inventory</h3>
+                <p class="ops-card-desc">Parts catalog &amp; stock management</p>
+              </div>
+              <div class="ops-card-footer">
+                <span class="ops-card-badge">Operational Capability</span>
+                {% icon 'arrow-right' 12 class="text-warning" %}
+              </div>
+            </div>
+
+            <div class="ops-card">
+              <div class="ops-card-top">
+                <div class="ops-card-icon">{% icon 'bar-chart' 20 %}</div>
+                <span class="ops-card-index">08</span>
+              </div>
+              <div>
+                <h3 class="ops-card-title">Reports</h3>
+                <p class="ops-card-desc">Operational BI &amp; audit analytics</p>
+              </div>
+              <div class="ops-card-footer">
+                <span class="ops-card-badge">Operational Capability</span>
+                {% icon 'arrow-right' 12 class="text-warning" %}
+              </div>
+            </div>
+          </div>
+
+          <!-- SET B (Duplicate for seamless endless loop) -->
+          <div class="d-flex gap-4 pe-4" aria-hidden="true">
+            <div class="ops-card">
+              <div class="ops-card-top">
+                <div class="ops-card-icon">{% icon 'building' 20 %}</div>
+                <span class="ops-card-index">01</span>
+              </div>
+              <div>
+                <h3 class="ops-card-title">Organizations</h3>
+                <p class="ops-card-desc">Enterprise hierarchy &amp; business units</p>
+              </div>
+              <div class="ops-card-footer">
+                <span class="ops-card-badge">Operational Capability</span>
+                {% icon 'arrow-right' 12 class="text-warning" %}
+              </div>
+            </div>
+
+            <div class="ops-card">
+              <div class="ops-card-top">
+                <div class="ops-card-icon">{% icon 'geo-alt' 20 %}</div>
+                <span class="ops-card-index">02</span>
+              </div>
+              <div>
+                <h3 class="ops-card-title">Sites</h3>
+                <p class="ops-card-desc">Multi-facility &amp; plant locations</p>
+              </div>
+              <div class="ops-card-footer">
+                <span class="ops-card-badge">Operational Capability</span>
+                {% icon 'arrow-right' 12 class="text-warning" %}
+              </div>
+            </div>
+
+            <div class="ops-card">
+              <div class="ops-card-top">
+                <div class="ops-card-icon">{% icon 'boxes' 20 %}</div>
+                <span class="ops-card-index">03</span>
+              </div>
+              <div>
+                <h3 class="ops-card-title">Assets</h3>
+                <p class="ops-card-desc">Equipment registry &amp; lifecycle</p>
+              </div>
+              <div class="ops-card-footer">
+                <span class="ops-card-badge">Operational Capability</span>
+                {% icon 'arrow-right' 12 class="text-warning" %}
+              </div>
+            </div>
+
+            <div class="ops-card">
+              <div class="ops-card-top">
+                <div class="ops-card-icon">{% icon 'clipboard-list' 20 %}</div>
+                <span class="ops-card-index">04</span>
+              </div>
+              <div>
+                <h3 class="ops-card-title">Work Orders</h3>
+                <p class="ops-card-desc">Job dispatch &amp; execution tracking</p>
+              </div>
+              <div class="ops-card-footer">
+                <span class="ops-card-badge">Operational Capability</span>
+                {% icon 'arrow-right' 12 class="text-warning" %}
+              </div>
+            </div>
+
+            <div class="ops-card">
+              <div class="ops-card-top">
+                <div class="ops-card-icon">{% icon 'wrench' 20 %}</div>
+                <span class="ops-card-index">05</span>
+              </div>
+              <div>
+                <h3 class="ops-card-title">Service Requests</h3>
+                <p class="ops-card-desc">Intake routing &amp; SLA triage</p>
+              </div>
+              <div class="ops-card-footer">
+                <span class="ops-card-badge">Operational Capability</span>
+                {% icon 'arrow-right' 12 class="text-warning" %}
+              </div>
+            </div>
+
+            <div class="ops-card">
+              <div class="ops-card-top">
+                <div class="ops-card-icon">{% icon 'calendar' 20 %}</div>
+                <span class="ops-card-index">06</span>
+              </div>
+              <div>
+                <h3 class="ops-card-title">Maintenance</h3>
+                <p class="ops-card-desc">Preventive &amp; corrective schedules</p>
+              </div>
+              <div class="ops-card-footer">
+                <span class="ops-card-badge">Operational Capability</span>
+                {% icon 'arrow-right' 12 class="text-warning" %}
+              </div>
+            </div>
+
+            <div class="ops-card">
+              <div class="ops-card-top">
+                <div class="ops-card-icon">{% icon 'package' 20 %}</div>
+                <span class="ops-card-index">07</span>
+              </div>
+              <div>
+                <h3 class="ops-card-title">Inventory</h3>
+                <p class="ops-card-desc">Parts catalog &amp; stock management</p>
+              </div>
+              <div class="ops-card-footer">
+                <span class="ops-card-badge">Operational Capability</span>
+                {% icon 'arrow-right' 12 class="text-warning" %}
+              </div>
+            </div>
+
+            <div class="ops-card">
+              <div class="ops-card-top">
+                <div class="ops-card-icon">{% icon 'bar-chart' 20 %}</div>
+                <span class="ops-card-index">08</span>
+              </div>
+              <div>
+                <h3 class="ops-card-title">Reports</h3>
+                <p class="ops-card-desc">Operational BI &amp; audit analytics</p>
+              </div>
+              <div class="ops-card-footer">
+                <span class="ops-card-badge">Operational Capability</span>
+                {% icon 'arrow-right' 12 class="text-warning" %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- Connected Operations Matrix -->
-<section class="fx-pub-section">
-  <div class="fx-pub-container">
-    <div class="fx-pub-section-header">
-      <div class="fx-pub-section-label">Core Architecture</div>
-      <h2 class="fx-pub-section-title">Connected Enterprise Operations</h2>
-      <p class="fx-pub-section-desc">
-        Engineered from the ground up for high-availability industrial, healthcare, and multi-site facility management.
+<!-- =========================================================================
+     4. Core Modules Grid (8 Photographic Cards)
+     ========================================================================= -->
+<section id="modules" class="fx-modules-section">
+  <div class="container-xl px-4">
+    <div class="text-center max-w-2xl mx-auto mb-5 landing-reveal">
+      <div class="fx-eyebrow justify-content-center">
+        <span class="fx-eyebrow-bar"></span>
+        <span>Connected Architecture</span>
+        <span class="fx-eyebrow-bar"></span>
+      </div>
+      <h2 class="fx-section-title">Core Modules</h2>
+      <p class="fx-section-desc">
+        Eight core operational modules designed to function seamlessly together or integrate with your existing systems.
       </p>
     </div>
 
-    <div class="fx-pub-grid-3">
-      <!-- Card 1 -->
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">
-          {% icon 'building' 24 %}
+    <div class="fx-module-grid">
+      <!-- 1. Organization Management -->
+      <a href="{% url 'ui:public_module' 'FON-M01' %}" class="module-card landing-reveal">
+        <div class="module-card-img-wrap">
+          <img src="{% static 'images/module-organization.jpg' %}" alt="Organization Management" class="module-card-img" loading="lazy">
+          <div class="module-card-img-gradient"></div>
+          <span class="module-card-icon-badge">{% icon 'building' 18 %}</span>
+          <span class="module-card-num-badge">01</span>
         </div>
-        <h3 class="fx-pub-card-title">Multi-Site &amp; Location Master</h3>
-        <p class="fx-pub-card-desc">
-          Unified hierarchy spanning organizations, campus sites, buildings, floors, and specific rooms with precise spatial coordinate tracking.
+        <div class="module-card-body">
+          <div>
+            <h3 class="module-card-title">Organization Management</h3>
+            <p class="module-card-desc">Bring sites, teams, and multi-tenant structures into one connected view.</p>
+          </div>
+          <span class="module-card-action">
+            <span>View Module</span>
+            {% icon 'arrow-up-right' 13 %}
+          </span>
+        </div>
+      </a>
+
+      <!-- 2. Asset Management -->
+      <a href="{% url 'ui:public_module' 'FON-M02' %}" class="module-card landing-reveal">
+        <div class="module-card-img-wrap">
+          <img src="{% static 'images/module-assets.jpg' %}" alt="Asset Management" class="module-card-img" loading="lazy">
+          <div class="module-card-img-gradient"></div>
+          <span class="module-card-icon-badge">{% icon 'boxes' 18 %}</span>
+          <span class="module-card-num-badge">02</span>
+        </div>
+        <div class="module-card-body">
+          <div>
+            <h3 class="module-card-title">Asset Management</h3>
+            <p class="module-card-desc">Know the condition, telemetry readings, and full history of every critical asset.</p>
+          </div>
+          <span class="module-card-action">
+            <span>View Module</span>
+            {% icon 'arrow-up-right' 13 %}
+          </span>
+        </div>
+      </a>
+
+      <!-- 3. Service Management -->
+      <a href="{% url 'ui:public_module' 'FON-M05' %}" class="module-card landing-reveal">
+        <div class="module-card-img-wrap">
+          <img src="{% static 'images/module-service.jpg' %}" alt="Service Management" class="module-card-img" loading="lazy">
+          <div class="module-card-img-gradient"></div>
+          <span class="module-card-icon-badge">{% icon 'wrench' 18 %}</span>
+          <span class="module-card-num-badge">03</span>
+        </div>
+        <div class="module-card-body">
+          <div>
+            <h3 class="module-card-title">Service Management</h3>
+            <p class="module-card-desc">Deliver consistent service from automated intake to triage and fast resolution.</p>
+          </div>
+          <span class="module-card-action">
+            <span>View Module</span>
+            {% icon 'arrow-up-right' 13 %}
+          </span>
+        </div>
+      </a>
+
+      <!-- 4. Work Order Management -->
+      <a href="{% url 'ui:public_module' 'FON-M06' %}" class="module-card landing-reveal">
+        <div class="module-card-img-wrap">
+          <img src="{% static 'images/module-work-orders.jpg' %}" alt="Work Order Management" class="module-card-img" loading="lazy">
+          <div class="module-card-img-gradient"></div>
+          <span class="module-card-icon-badge">{% icon 'clipboard-list' 18 %}</span>
+          <span class="module-card-num-badge">04</span>
+        </div>
+        <div class="module-card-body">
+          <div>
+            <h3 class="module-card-title">Work Order Management</h3>
+            <p class="module-card-desc">Plan, assign, and track work orders with end-to-end task checklists.</p>
+          </div>
+          <span class="module-card-action">
+            <span>View Module</span>
+            {% icon 'arrow-up-right' 13 %}
+          </span>
+        </div>
+      </a>
+
+      <!-- 5. Inventory Management -->
+      <a href="{% url 'ui:public_module' 'FON-M09' %}" class="module-card landing-reveal">
+        <div class="module-card-img-wrap">
+          <img src="{% static 'images/module-inventory.jpg' %}" alt="Inventory Management" class="module-card-img" loading="lazy">
+          <div class="module-card-img-gradient"></div>
+          <span class="module-card-icon-badge">{% icon 'package' 18 %}</span>
+          <span class="module-card-num-badge">05</span>
+        </div>
+        <div class="module-card-body">
+          <div>
+            <h3 class="module-card-title">Inventory Management</h3>
+            <p class="module-card-desc">Keep essential parts and stock moving with double-entry ledger safety.</p>
+          </div>
+          <span class="module-card-action">
+            <span>View Module</span>
+            {% icon 'arrow-up-right' 13 %}
+          </span>
+        </div>
+      </a>
+
+      <!-- 6. Workforce Management -->
+      <a href="{% url 'ui:public_module' 'FON-M07' %}" class="module-card landing-reveal">
+        <div class="module-card-img-wrap">
+          <img src="{% static 'images/module-workforce.jpg' %}" alt="Workforce Management" class="module-card-img" loading="lazy">
+          <div class="module-card-img-gradient"></div>
+          <span class="module-card-icon-badge">{% icon 'people' 18 %}</span>
+          <span class="module-card-num-badge">06</span>
+        </div>
+        <div class="module-card-body">
+          <div>
+            <h3 class="module-card-title">Workforce Management</h3>
+            <p class="module-card-desc">Give every field technician the live context and mobile tools to do their best work.</p>
+          </div>
+          <span class="module-card-action">
+            <span>View Module</span>
+            {% icon 'arrow-up-right' 13 %}
+          </span>
+        </div>
+      </a>
+
+      <!-- 7. Maintenance Management -->
+      <a href="{% url 'ui:public_module' 'FON-M04' %}" class="module-card landing-reveal">
+        <div class="module-card-img-wrap">
+          <img src="{% static 'images/module-maintenance.jpg' %}" alt="Maintenance Management" class="module-card-img" loading="lazy">
+          <div class="module-card-img-gradient"></div>
+          <span class="module-card-icon-badge">{% icon 'calendar' 18 %}</span>
+          <span class="module-card-num-badge">07</span>
+        </div>
+        <div class="module-card-body">
+          <div>
+            <h3 class="module-card-title">Maintenance Management</h3>
+            <p class="module-card-desc">Stay ahead of downtime with automated preventive maintenance schedules.</p>
+          </div>
+          <span class="module-card-action">
+            <span>View Module</span>
+            {% icon 'arrow-up-right' 13 %}
+          </span>
+        </div>
+      </a>
+
+      <!-- 8. Analytics & Reporting -->
+      <a href="{% url 'ui:public_module' 'FON-M14' %}" class="module-card landing-reveal">
+        <div class="module-card-img-wrap">
+          <img src="{% static 'images/module-analytics.jpg' %}" alt="Analytics & Reporting" class="module-card-img" loading="lazy">
+          <div class="module-card-img-gradient"></div>
+          <span class="module-card-icon-badge">{% icon 'bar-chart' 18 %}</span>
+          <span class="module-card-num-badge">08</span>
+        </div>
+        <div class="module-card-body">
+          <div>
+            <h3 class="module-card-title">Analytics & Reporting</h3>
+            <p class="module-card-desc">Turn operational telemetry and execution logs into confident executive decisions.</p>
+          </div>
+          <span class="module-card-action">
+            <span>View Module</span>
+            {% icon 'arrow-up-right' 13 %}
+          </span>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     5. 7-Step Interactive Workflow Timeline (Scroll-Synchronized)
+     ========================================================================= -->
+<section id="workflow" class="fx-workflow-timeline-section">
+  <div class="container-xl px-4">
+    <div class="text-center max-w-2xl mx-auto mb-5 landing-reveal">
+      <div class="fx-eyebrow justify-content-center">
+        <span class="fx-eyebrow-bar"></span>
+        <span>How It Works</span>
+        <span class="fx-eyebrow-bar"></span>
+      </div>
+      <h2 class="fx-section-title">From Request to Resolution</h2>
+      <p class="fx-section-desc">
+        A clear, connected path from the first service request to the final supervisor sign-off. Every handoff accounted for.
+      </p>
+    </div>
+
+    <!-- 7 Step Nodes & Connecting Line -->
+    <div class="fx-timeline-container mb-4">
+      <div class="fx-timeline-track">
+        <div class="fx-timeline-fill" id="workflow-line-fill" style="transform: scaleX(0);"></div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="fx-timeline-step active">
+        <div class="fx-timeline-icon-box">{% icon 'file-text' 22 %}</div>
+        <div class="fx-timeline-label-wrap">
+          <span class="fx-timeline-idx">01</span>
+          <h3 class="fx-timeline-title">Request Raised</h3>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="fx-timeline-step">
+        <div class="fx-timeline-icon-box">{% icon 'broadcast' 22 %}</div>
+        <div class="fx-timeline-label-wrap">
+          <span class="fx-timeline-idx">02</span>
+          <h3 class="fx-timeline-title">Triage</h3>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="fx-timeline-step">
+        <div class="fx-timeline-icon-box">{% icon 'clipboard-list' 22 %}</div>
+        <div class="fx-timeline-label-wrap">
+          <span class="fx-timeline-idx">03</span>
+          <h3 class="fx-timeline-title">Work Order</h3>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="fx-timeline-step">
+        <div class="fx-timeline-icon-box">{% icon 'people' 22 %}</div>
+        <div class="fx-timeline-label-wrap">
+          <span class="fx-timeline-idx">04</span>
+          <h3 class="fx-timeline-title">Technician Assignment</h3>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="fx-timeline-step">
+        <div class="fx-timeline-icon-box">{% icon 'wrench' 22 %}</div>
+        <div class="fx-timeline-label-wrap">
+          <span class="fx-timeline-idx">05</span>
+          <h3 class="fx-timeline-title">Execution</h3>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="fx-timeline-step">
+        <div class="fx-timeline-icon-box">{% icon 'shield' 22 %}</div>
+        <div class="fx-timeline-label-wrap">
+          <span class="fx-timeline-idx">06</span>
+          <h3 class="fx-timeline-title">Supervisor Approval</h3>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="fx-timeline-step">
+        <div class="fx-timeline-icon-box">{% icon 'check-circle' 22 %}</div>
+        <div class="fx-timeline-label-wrap">
+          <span class="fx-timeline-idx">07</span>
+          <h3 class="fx-timeline-title">Closure</h3>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center pt-2">
+      <span class="badge px-3 py-2 rounded-pill font-weight-semibold" style="background:#FDF9EC; color:#A8841E; border:1px solid #F7EFCF; font-size:12px;">
+        One continuous, traceable service lifecycle
+      </span>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     6. Complete Operational Visibility & 2-Column Vertical Marquee
+     ========================================================================= -->
+<section id="product" class="fx-visibility-section">
+  <div class="container-xl px-4">
+    <div class="row align-items-center g-5">
+      <!-- Left text & checkmarks -->
+      <div class="col-lg-5 landing-reveal">
+        <div class="fx-eyebrow light">
+          <span class="fx-eyebrow-bar"></span>
+          <span>The Product Experience</span>
+        </div>
+        <h2 class="text-white fw-bold mb-4" style="font-size:clamp(2rem, 3.5vw, 2.75rem); line-height:1.2;">
+          Complete Operational Visibility
+        </h2>
+        <p class="text-white-50 mb-4" style="line-height:1.65; font-size:1.05rem;">
+          Monitor assets, work orders, service requests, workforce activity, SLA performance, and operational metrics from one platform. The full picture, without the complexity.
         </p>
-        <a href="{% url 'ui:public_module' 'FON-M01' %}" class="text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);">
-          Module Details &rarr;
+
+        <div class="d-flex flex-column gap-3 mb-5">
+          <div class="d-flex align-items-center gap-3">
+            <span class="rounded-circle d-flex align-items-center justify-content-center" style="width:22px; height:22px; background:rgba(245,196,81,0.2); color:#F5C451;">
+              {% icon 'check' 14 %}
+            </span>
+            <span class="text-white small">See what matters, as it happens</span>
+          </div>
+          <div class="d-flex align-items-center gap-3">
+            <span class="rounded-circle d-flex align-items-center justify-content-center" style="width:22px; height:22px; background:rgba(245,196,81,0.2); color:#F5C451;">
+              {% icon 'check' 14 %}
+            </span>
+            <span class="text-white small">Keep every team working from the same picture</span>
+          </div>
+          <div class="d-flex align-items-center gap-3">
+            <span class="rounded-circle d-flex align-items-center justify-content-center" style="width:22px; height:22px; background:rgba(245,196,81,0.2); color:#F5C451;">
+              {% icon 'check' 14 %}
+            </span>
+            <span class="text-white small">Move from insight to action with confidence</span>
+          </div>
+        </div>
+
+        <a href="#modules" class="d-inline-flex align-items-center gap-2 pb-2 text-decoration-none fw-bold" style="color:#F5C451; border-bottom:2px solid #F5C451;">
+          <span>Explore the Platform</span>
+          {% icon 'arrow-right' 16 %}
         </a>
       </div>
 
-      <!-- Card 2 -->
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">
-          {% icon 'box' 24 %}
-        </div>
-        <h3 class="fx-pub-card-title">Comprehensive Asset Registry</h3>
-        <p class="fx-pub-card-desc">
-          Complete asset lifecycle governance, critical telemetry readings, depreciation curves, parent-child component trees, and warranty records.
-        </p>
-        <a href="{% url 'ui:public_module' 'FON-M02' %}" class="text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);">
-          Module Details &rarr;
-        </a>
-      </div>
+      <!-- Right: Continuous 2-Column Vertical Marquee Workflow Gallery -->
+      <div class="col-lg-7">
+        <div class="fx-gallery-window">
+          <div class="fx-gallery-mask-top"></div>
+          <div class="fx-gallery-mask-bottom"></div>
 
-      <!-- Card 3 -->
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">
-          {% icon 'wrench' 24 %}
-        </div>
-        <h3 class="fx-pub-card-title">Preventive Maintenance Engine</h3>
-        <p class="fx-pub-card-desc">
-          Automated work-order generation rules, recurrence schedules, seasonal blackout calendars, and overdue compliance tracking.
-        </p>
-        <a href="{% url 'ui:public_module' 'FON-M04' %}" class="text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);">
-          Module Details &rarr;
-        </a>
-      </div>
+          <div class="row g-3 h-100 overflow-hidden">
+            <!-- Left Marquee Column -->
+            <div class="col-sm-6">
+              <div class="nexus-workflow-col-marquee-left">
+                <!-- Card 1 -->
+                <div class="fx-gallery-card">
+                  <div class="fx-gallery-card-img-wrap">
+                    <img src="{% static 'images/workflow-service-requests.jpg' %}" alt="Service Requests" class="fx-gallery-card-img">
+                    <div class="fx-gallery-telemetry-pill">
+                      <span class="fx-telemetry-title">WO #14872</span>
+                      <span class="fx-telemetry-sub"><span class="fx-telemetry-dot"></span> Completed</span>
+                    </div>
+                  </div>
+                  <div class="mt-2">
+                    <div class="text-warning small text-uppercase fw-bold font-monospace" style="font-size:9.5px;">SERVICE REQUESTS</div>
+                    <h4 class="text-white fw-bold mb-1" style="font-size:14px;">From Request to Resolution</h4>
+                    <p class="text-white-50 small mb-0" style="font-size:11.5px;">Raise, track and resolve service requests seamlessly</p>
+                  </div>
+                </div>
 
-      <!-- Card 4 -->
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">
-          {% icon 'clipboard' 24 %}
-        </div>
-        <h3 class="fx-pub-card-title">Work Order Lifecycle Control</h3>
-        <p class="fx-pub-card-desc">
-          Strict state transitions from draft triage to scheduling, dispatch, execution, supervisor review, and cryptographic sign-off.
-        </p>
-        <a href="{% url 'ui:public_module' 'FON-M06' %}" class="text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);">
-          Module Details &rarr;
-        </a>
-      </div>
+                <!-- Card 2 -->
+                <div class="fx-gallery-card">
+                  <div class="fx-gallery-card-img-wrap">
+                    <img src="{% static 'images/workflow-field-operations.jpg' %}" alt="Field Operations" class="fx-gallery-card-img">
+                    <div class="fx-gallery-telemetry-pill">
+                      <span class="fx-telemetry-title">Site Visit &bull; Checklist</span>
+                      <span class="fx-telemetry-sub"><span class="fx-telemetry-dot"></span> Evidence</span>
+                    </div>
+                  </div>
+                  <div class="mt-2">
+                    <div class="text-warning small text-uppercase fw-bold font-monospace" style="font-size:9.5px;">FIELD OPERATIONS</div>
+                    <h4 class="text-white fw-bold mb-1" style="font-size:14px;">Empower Field Technicians</h4>
+                    <p class="text-white-50 small mb-0" style="font-size:11.5px;">On-site execution with real-time updates</p>
+                  </div>
+                </div>
 
-      <!-- Card 5 -->
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">
-          {% icon 'people' 24 %}
-        </div>
-        <h3 class="fx-pub-card-title">Technician Workspace</h3>
-        <p class="fx-pub-card-desc">
-          Dedicated field interface for live task execution, checklist verification, labor hour timesheets, and mandatory photo evidence uploads.
-        </p>
-        <a href="{% url 'ui:public_module' 'FON-M07' %}" class="text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);">
-          Module Details &rarr;
-        </a>
-      </div>
+                <!-- Card 3 -->
+                <div class="fx-gallery-card">
+                  <div class="fx-gallery-card-img-wrap">
+                    <img src="{% static 'images/workflow-approval.jpg' %}" alt="Approval Workflow" class="fx-gallery-card-img">
+                    <div class="fx-gallery-telemetry-pill">
+                      <span class="fx-telemetry-title">Supervisor Review</span>
+                      <span class="fx-telemetry-sub"><span class="fx-telemetry-dot"></span> Approved</span>
+                    </div>
+                  </div>
+                  <div class="mt-2">
+                    <div class="text-warning small text-uppercase fw-bold font-monospace" style="font-size:9.5px;">APPROVAL WORKFLOW</div>
+                    <h4 class="text-white fw-bold mb-1" style="font-size:14px;">Review &amp; Approve</h4>
+                    <p class="text-white-50 small mb-0" style="font-size:11.5px;">Supervisor verification and compliance sign-off</p>
+                  </div>
+                </div>
 
-      <!-- Card 6 -->
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">
-          {% icon 'package' 24 %}
+                <!-- Duplicate for seamless loop -->
+                <div class="fx-gallery-card" aria-hidden="true">
+                  <div class="fx-gallery-card-img-wrap">
+                    <img src="{% static 'images/workflow-service-requests.jpg' %}" alt="Service Requests" class="fx-gallery-card-img">
+                    <div class="fx-gallery-telemetry-pill">
+                      <span class="fx-telemetry-title">WO #14872</span>
+                      <span class="fx-telemetry-sub"><span class="fx-telemetry-dot"></span> Completed</span>
+                    </div>
+                  </div>
+                  <div class="mt-2">
+                    <div class="text-warning small text-uppercase fw-bold font-monospace" style="font-size:9.5px;">SERVICE REQUESTS</div>
+                    <h4 class="text-white fw-bold mb-1" style="font-size:14px;">From Request to Resolution</h4>
+                    <p class="text-white-50 small mb-0" style="font-size:11.5px;">Raise, track and resolve service requests seamlessly</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Marquee Column -->
+            <div class="col-sm-6">
+              <div class="nexus-workflow-col-marquee-right pt-sm-4">
+                <!-- Card 4 -->
+                <div class="fx-gallery-card">
+                  <div class="fx-gallery-card-img-wrap">
+                    <img src="{% static 'images/workflow-asset-management.jpg' %}" alt="Asset Management" class="fx-gallery-card-img">
+                    <div class="fx-gallery-telemetry-pill">
+                      <span class="fx-telemetry-title">Asset Health 92%</span>
+                      <span class="fx-telemetry-sub"><span class="fx-telemetry-dot"></span> Operational</span>
+                    </div>
+                  </div>
+                  <div class="mt-2">
+                    <div class="text-warning small text-uppercase fw-bold font-monospace" style="font-size:9.5px;">ASSET MANAGEMENT</div>
+                    <h4 class="text-white fw-bold mb-1" style="font-size:14px;">Complete Asset Visibility</h4>
+                    <p class="text-white-50 small mb-0" style="font-size:11.5px;">Monitor asset health, uptime and maintenance history</p>
+                  </div>
+                </div>
+
+                <!-- Card 5 -->
+                <div class="fx-gallery-card">
+                  <div class="fx-gallery-card-img-wrap">
+                    <img src="{% static 'images/workflow-inventory-management.jpg' %}" alt="Inventory Management" class="fx-gallery-card-img">
+                    <div class="fx-gallery-telemetry-pill">
+                      <span class="fx-telemetry-title">Spare Parts: 124</span>
+                      <span class="fx-telemetry-sub"><span class="fx-telemetry-dot"></span> In Stock</span>
+                    </div>
+                  </div>
+                  <div class="mt-2">
+                    <div class="text-warning small text-uppercase fw-bold font-monospace" style="font-size:9.5px;">INVENTORY MANAGEMENT</div>
+                    <h4 class="text-white fw-bold mb-1" style="font-size:14px;">Spare Parts &amp; Stock Control</h4>
+                    <p class="text-white-50 small mb-0" style="font-size:11.5px;">Track inventory ledger and material consumption</p>
+                  </div>
+                </div>
+
+                <!-- Card 6 -->
+                <div class="fx-gallery-card">
+                  <div class="fx-gallery-card-img-wrap">
+                    <img src="{% static 'images/workflow-insights.jpg' %}" alt="Operational Insights" class="fx-gallery-card-img">
+                    <div class="fx-gallery-telemetry-pill">
+                      <span class="fx-telemetry-title">System Uptime</span>
+                      <span class="fx-telemetry-sub"><span class="fx-telemetry-dot"></span> 98.2% Live</span>
+                    </div>
+                  </div>
+                  <div class="mt-2">
+                    <div class="text-warning small text-uppercase fw-bold font-monospace" style="font-size:9.5px;">OPERATIONAL INSIGHTS</div>
+                    <h4 class="text-white fw-bold mb-1" style="font-size:14px;">Real-Time Analytics</h4>
+                    <p class="text-white-50 small mb-0" style="font-size:11.5px;">Data-driven decisions for continuous improvement</p>
+                  </div>
+                </div>
+
+                <!-- Duplicate for seamless loop -->
+                <div class="fx-gallery-card" aria-hidden="true">
+                  <div class="fx-gallery-card-img-wrap">
+                    <img src="{% static 'images/workflow-asset-management.jpg' %}" alt="Asset Management" class="fx-gallery-card-img">
+                    <div class="fx-gallery-telemetry-pill">
+                      <span class="fx-telemetry-title">Asset Health 92%</span>
+                      <span class="fx-telemetry-sub"><span class="fx-telemetry-dot"></span> Operational</span>
+                    </div>
+                  </div>
+                  <div class="mt-2">
+                    <div class="text-warning small text-uppercase fw-bold font-monospace" style="font-size:9.5px;">ASSET MANAGEMENT</div>
+                    <h4 class="text-white fw-bold mb-1" style="font-size:14px;">Complete Asset Visibility</h4>
+                    <p class="text-white-50 small mb-0" style="font-size:11.5px;">Monitor asset health, uptime and maintenance history</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <h3 class="fx-pub-card-title">Spare Parts &amp; Inventory Ledger</h3>
-        <p class="fx-pub-card-desc">
-          Atomic double-entry stock ledger, multi-warehouse bin storage, reservations, issuance, returns, and automatic reorder thresholds.
-        </p>
-        <a href="{% url 'ui:public_module' 'FON-M09' %}" class="text-decoration-none fw-semibold" style="color:var(--fx-pub-gold-600);">
-          Module Details &rarr;
-        </a>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Visual End-to-End Workflow Showcase -->
-<section class="fx-pub-section fx-pub-section-alt border-top border-bottom">
-  <div class="fx-pub-container">
-    <div class="fx-pub-section-header">
-      <div class="fx-pub-section-label">Operational Workflow</div>
-      <h2 class="fx-pub-section-title">End-to-End Field Service Execution</h2>
-      <p class="fx-pub-section-desc">
-        Explore how service incidents flow seamlessly into work order dispatch, inventory reservations, and customer closure sign-offs.
+<!-- =========================================================================
+     7. Why FieldOps Nexus (4 Pillar Benefit Cards)
+     ========================================================================= -->
+<section id="features" class="fx-benefits-section">
+  <div class="container-xl px-4">
+    <div class="max-w-2xl mb-5 landing-reveal">
+      <div class="fx-eyebrow">
+        <span class="fx-eyebrow-bar"></span>
+        <span>Why FieldOps Nexus</span>
+      </div>
+      <h2 class="fx-section-title">Built for Modern Enterprise Operations</h2>
+      <p class="fx-section-desc">
+        The intelligence and structure to make complex field operations feel effortless.
       </p>
     </div>
 
-    <!-- Workflow Visual Cards Grid -->
     <div class="row g-4">
-      <div class="col-12 col-md-4">
-        <div class="card h-100 border-0 shadow-sm overflow-hidden" style="border-radius:12px;">
-          <img src="{% static 'images/workflow-service-requests.jpg' %}" class="card-img-top" alt="Incident Logging">
-          <div class="card-body p-3">
-            <span class="badge bg-primary-subtle text-primary mb-2">Stage 1</span>
-            <h5 class="card-title fw-bold">Incident &amp; Triage</h5>
-            <p class="card-text text-secondary small">
-              Clients log breakdowns via QR code or portal. Automated SLA timers initialize immediately.
-            </p>
+      <!-- 01 Connected Data -->
+      <div class="col-md-6 landing-reveal">
+        <div class="benefit-card">
+          <div class="benefit-card-img-wrap">
+            <img src="{% static 'images/connected-data.jpg' %}" alt="Connected Data" class="benefit-card-img" loading="lazy">
+            <div class="module-card-img-gradient"></div>
+            <span class="benefit-card-icon-badge">{% icon 'database' 20 %}</span>
+            <span class="benefit-card-counter">01 <span class="text-white-50">/</span> <span style="color:#F5C451;">04</span></span>
+          </div>
+          <div class="p-4 d-flex flex-column justify-content-between flex-fill">
+            <div>
+              <h3 class="fw-bold mb-2 text-dark" style="font-size:1.25rem;">Connected Data</h3>
+              <p class="text-secondary small mb-0" style="line-height:1.6;">
+                Connect operational information across teams, asset registries, telemetry sensors, and locations.
+              </p>
+            </div>
+            <div class="d-flex align-items-center justify-content-between pt-3 mt-4 border-top border-secondary border-opacity-25 small text-uppercase fw-bold text-secondary" style="font-size:10px; letter-spacing:0.1em;">
+              <span>Enterprise Capability</span>
+              <span class="rounded-circle bg-warning d-inline-block" style="width:6px; height:6px;"></span>
+            </div>
           </div>
         </div>
       </div>
-      <div class="col-12 col-md-4">
-        <div class="card h-100 border-0 shadow-sm overflow-hidden" style="border-radius:12px;">
-          <img src="{% static 'images/workflow-field-operations.jpg' %}" class="card-img-top" alt="Field Execution">
-          <div class="card-body p-3">
-            <span class="badge bg-warning-subtle text-warning-emphasis mb-2">Stage 2</span>
-            <h5 class="card-title fw-bold">Dispatch &amp; Execution</h5>
-            <p class="card-text text-secondary small">
-              Dispatchers schedule qualified technicians. Techs execute checklists and log parts usage.
-            </p>
+
+      <!-- 02 Smarter Workflows -->
+      <div class="col-md-6 landing-reveal">
+        <div class="benefit-card">
+          <div class="benefit-card-img-wrap">
+            <img src="{% static 'images/smarter-workflows.jpg' %}" alt="Smarter Workflows" class="benefit-card-img" loading="lazy">
+            <div class="module-card-img-gradient"></div>
+            <span class="benefit-card-icon-badge">{% icon 'layers' 20 %}</span>
+            <span class="benefit-card-counter">02 <span class="text-white-50">/</span> <span style="color:#F5C451;">04</span></span>
+          </div>
+          <div class="p-4 d-flex flex-column justify-content-between flex-fill">
+            <div>
+              <h3 class="fw-bold mb-2 text-dark" style="font-size:1.25rem;">Smarter Workflows</h3>
+              <p class="text-secondary small mb-0" style="line-height:1.6;">
+                Reduce manual processes through structured multi-state workflows and automated dispatch triggers.
+              </p>
+            </div>
+            <div class="d-flex align-items-center justify-content-between pt-3 mt-4 border-top border-secondary border-opacity-25 small text-uppercase fw-bold text-secondary" style="font-size:10px; letter-spacing:0.1em;">
+              <span>Enterprise Capability</span>
+              <span class="rounded-circle bg-warning d-inline-block" style="width:6px; height:6px;"></span>
+            </div>
           </div>
         </div>
       </div>
-      <div class="col-12 col-md-4">
-        <div class="card h-100 border-0 shadow-sm overflow-hidden" style="border-radius:12px;">
-          <img src="{% static 'images/workflow-approval.jpg' %}" class="card-img-top" alt="Supervisor Verification">
-          <div class="card-body p-3">
-            <span class="badge bg-success-subtle text-success mb-2">Stage 3</span>
-            <h5 class="card-title fw-bold">Approval &amp; Audit</h5>
-            <p class="card-text text-secondary small">
-              Supervisors review evidence photos and labor hours before irreversible ledger closure.
-            </p>
+
+      <!-- 03 Operational Visibility -->
+      <div class="col-md-6 landing-reveal">
+        <div class="benefit-card">
+          <div class="benefit-card-img-wrap">
+            <img src="{% static 'images/operational-visibility.jpg' %}" alt="Operational Visibility" class="benefit-card-img" loading="lazy">
+            <div class="module-card-img-gradient"></div>
+            <span class="benefit-card-icon-badge">{% icon 'speedometer2' 20 %}</span>
+            <span class="benefit-card-counter">03 <span class="text-white-50">/</span> <span style="color:#F5C451;">04</span></span>
+          </div>
+          <div class="p-4 d-flex flex-column justify-content-between flex-fill">
+            <div>
+              <h3 class="fw-bold mb-2 text-dark" style="font-size:1.25rem;">Operational Visibility</h3>
+              <p class="text-secondary small mb-0" style="line-height:1.6;">
+                Understand what is happening across assets, field crews, and service tickets in real time.
+              </p>
+            </div>
+            <div class="d-flex align-items-center justify-content-between pt-3 mt-4 border-top border-secondary border-opacity-25 small text-uppercase fw-bold text-secondary" style="font-size:10px; letter-spacing:0.1em;">
+              <span>Enterprise Capability</span>
+              <span class="rounded-circle bg-warning d-inline-block" style="width:6px; height:6px;"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 04 Audit & Traceability -->
+      <div class="col-md-6 landing-reveal">
+        <div class="benefit-card">
+          <div class="benefit-card-img-wrap">
+            <img src="{% static 'images/audit-traceability.jpg' %}" alt="Audit & Traceability" class="benefit-card-img" loading="lazy">
+            <div class="module-card-img-gradient"></div>
+            <span class="benefit-card-icon-badge">{% icon 'shield' 20 %}</span>
+            <span class="benefit-card-counter">04 <span class="text-white-50">/</span> <span style="color:#F5C451;">04</span></span>
+          </div>
+          <div class="p-4 d-flex flex-column justify-content-between flex-fill">
+            <div>
+              <h3 class="fw-bold mb-2 text-dark" style="font-size:1.25rem;">Audit &amp; Traceability</h3>
+              <p class="text-secondary small mb-0" style="line-height:1.6;">
+                Maintain an immutable history of operational activities, checklist findings, and sign-offs.
+              </p>
+            </div>
+            <div class="d-flex align-items-center justify-content-between pt-3 mt-4 border-top border-secondary border-opacity-25 small text-uppercase fw-bold text-secondary" style="font-size:10px; letter-spacing:0.1em;">
+              <span>Enterprise Capability</span>
+              <span class="rounded-circle bg-warning d-inline-block" style="width:6px; height:6px;"></span>
+            </div>
           </div>
         </div>
       </div>
@@ -185,25 +1003,136 @@
   </div>
 </section>
 
-<!-- PRD Compliance & Acceptance Callout -->
-<section class="fx-pub-section" style="background:var(--fx-pub-navy-950); color:#ffffff;">
-  <div class="fx-pub-container text-center">
-    <div class="mx-auto" style="max-width:820px;">
-      <div class="fx-pub-pill mb-3">
-        Governance &middot; HPE-PRD-2026-FOPS02
+<!-- =========================================================================
+     8. Industries & Solutions (5 Cards)
+     ========================================================================= -->
+<section id="solutions" class="fx-industries-section">
+  <div class="container-xl px-4">
+    <div class="max-w-2xl mb-5 landing-reveal">
+      <div class="fx-eyebrow">
+        <span class="fx-eyebrow-bar"></span>
+        <span>Industries &amp; Solutions</span>
       </div>
-      <h2 class="display-6 fw-bold mb-3">Enterprise Architectural Non-Negotiables</h2>
-      <p class="text-secondary fs-5 mb-4">
-        FieldOps Nexus adheres strictly to real database persistence, full RBAC verification at the API layer, and atomic transactional control.
+      <h2 class="fx-section-title">Designed for Complex Operations</h2>
+      <p class="fx-section-desc">
+        Purpose-built flexibility for the environments where equipment uptime and reliability matter most.
       </p>
-      <div class="d-flex justify-content-center gap-3 flex-wrap">
-        <a href="{% url 'accounts:login' %}" class="btn-fx-gold">
-          Sign In to Production Workspace
-        </a>
-        <a href="{% url 'ui:public_about' %}" class="btn-fx-outline-gold">
-          Read Architecture Specification
-        </a>
+    </div>
+
+    <div class="row g-4 row-cols-1 row-cols-sm-2 row-cols-lg-5">
+      <!-- 1. Manufacturing -->
+      <div class="col landing-reveal">
+        <div class="industry-card">
+          <div class="industry-card-img-wrap">
+            <img src="{% static 'images/left.jpg' %}" alt="Manufacturing" class="industry-card-img" loading="lazy">
+            <span class="industry-card-icon-badge">{% icon 'building' 18 %}</span>
+          </div>
+          <div class="p-3">
+            <span class="text-warning small fw-bold font-monospace">01</span>
+            <h3 class="fw-bold text-dark fs-6 mt-1 mb-1">Manufacturing</h3>
+            <p class="text-secondary small mb-0" style="font-size:11.5px; line-height:1.5;">Keep production-critical assets and lines running without disruption.</p>
+          </div>
+        </div>
       </div>
+
+      <!-- 2. Facilities Management -->
+      <div class="col landing-reveal">
+        <div class="industry-card">
+          <div class="industry-card-img-wrap">
+            <img src="{% static 'images/center.jpg' %}" alt="Facilities Management" class="industry-card-img" loading="lazy">
+            <span class="industry-card-icon-badge">{% icon 'grid' 18 %}</span>
+          </div>
+          <div class="p-3">
+            <span class="text-warning small fw-bold font-monospace">02</span>
+            <h3 class="fw-bold text-dark fs-6 mt-1 mb-1">Facilities Management</h3>
+            <p class="text-secondary small mb-0" style="font-size:11.5px; line-height:1.5;">Coordinate spaces, tenant requests, HVAC, and facilities teams.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Service & Maintenance -->
+      <div class="col landing-reveal">
+        <div class="industry-card">
+          <div class="industry-card-img-wrap">
+            <img src="{% static 'images/right.jpg' %}" alt="Service & Maintenance" class="industry-card-img" loading="lazy">
+            <span class="industry-card-icon-badge">{% icon 'wrench' 18 %}</span>
+          </div>
+          <div class="p-3">
+            <span class="text-warning small fw-bold font-monospace">03</span>
+            <h3 class="fw-bold text-dark fs-6 mt-1 mb-1">Service &amp; Maintenance</h3>
+            <p class="text-secondary small mb-0" style="font-size:11.5px; line-height:1.5;">Deliver responsive field service wherever mobile crews work.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Infrastructure -->
+      <div class="col landing-reveal">
+        <div class="industry-card">
+          <div class="industry-card-img-wrap">
+            <img src="{% static 'images/fieldops-workflow-visual.jpg' %}" alt="Infrastructure" class="industry-card-img" loading="lazy">
+            <span class="industry-card-icon-badge">{% icon 'layers' 18 %}</span>
+          </div>
+          <div class="p-3">
+            <span class="text-warning small fw-bold font-monospace">04</span>
+            <h3 class="fw-bold text-dark fs-6 mt-1 mb-1">Infrastructure</h3>
+            <p class="text-secondary small mb-0" style="font-size:11.5px; line-height:1.5;">Maintain the power, water, and telecom systems communities rely on.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Enterprise Operations -->
+      <div class="col landing-reveal">
+        <div class="industry-card">
+          <div class="industry-card-img-wrap">
+            <img src="{% static 'images/workflow-insights.jpg' %}" alt="Enterprise Operations" class="industry-card-img" loading="lazy">
+            <span class="industry-card-icon-badge">{% icon 'briefcase' 18 %}</span>
+          </div>
+          <div class="p-3">
+            <span class="text-warning small fw-bold font-monospace">05</span>
+            <h3 class="fw-bold text-dark fs-6 mt-1 mb-1">Enterprise Operations</h3>
+            <p class="text-secondary small mb-0" style="font-size:11.5px; line-height:1.5;">Unify operations across regional sites and business units.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     9. Standardized CTA Section
+     ========================================================================= -->
+<section class="fx-standard-cta">
+  <div class="fx-cta-rings"></div>
+  <div class="fx-cta-rings-2"></div>
+
+  <div class="container-xl px-4 position-relative z-10 landing-reveal">
+    <div class="fx-eyebrow light justify-content-center">
+      <span class="fx-eyebrow-bar"></span>
+      <span>Let's Move Forward</span>
+      <span class="fx-eyebrow-bar"></span>
+    </div>
+    <h2 class="text-white fw-bold mb-3" style="font-size:clamp(2rem, 4vw, 3rem); line-height:1.15;">
+      Bring Your Operations Together
+    </h2>
+
+    <div class="fx-cta-gold-divider">
+      <span class="bar"></span>
+      <span class="dot"></span>
+      <span class="bar"></span>
+    </div>
+
+    <p class="text-white-50 max-w-2xl mx-auto mb-4" style="line-height:1.65; font-size:1.1rem;">
+      Connect assets, people, service activities, and operational workflows through one centralized platform.
+    </p>
+
+    <div class="d-flex flex-wrap justify-content-center gap-3">
+      <a href="mailto:hello@fieldopsnexus.com?subject=FieldOps%20Nexus%20Demo%20Request" class="btn-fx-gold px-4 py-3 fw-bold d-inline-flex align-items-center gap-2 text-decoration-none">
+        <span>Request a Demo</span>
+        {% icon 'arrow-up-right' 16 %}
+      </a>
+      <a href="mailto:hello@fieldopsnexus.com?subject=FieldOps%20Nexus%20Inquiry" class="btn btn-outline-light px-4 py-3 fw-semibold d-inline-flex align-items-center gap-2 text-decoration-none">
+        <span>Contact Operations Team</span>
+      </a>
     </div>
   </div>
 </section>

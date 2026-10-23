@@ -1,49 +1,217 @@
 {% extends "public/base_public.html" %}
 {% load static ui_tags %}
 
-{% block title %}Resources & Documentation — FieldOps Nexus{% endblock %}
+{% block title %}Resources &middot; FieldOps Nexus{% endblock %}
 
 {% block public_content %}
-<div class="fx-pub-hero" style="padding: 3.5rem 1.5rem 4rem;">
-  <div class="fx-pub-hero-inner text-center">
-    <div class="fx-pub-pill">Technical Documentation</div>
-    <h1 class="fx-pub-hero-title">Developer &amp; Operator Resources</h1>
-    <p class="fx-pub-hero-sub">
-      Architectural specifications, OpenAPI schemas, and deployment guides.
-    </p>
-  </div>
-</div>
+<!-- Hero Section -->
+<section class="position-relative overflow-hidden py-5 text-white" style="background: linear-gradient(180deg, #0B1F3B 0%, #0D2444 50%, #0B1F3B 100%); padding-top: 5rem !important; padding-bottom: 5rem !important;">
+  <div class="position-absolute top-0 start-0 end-0 bottom-0 pointer-events-none" style="background-image: linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 3.5rem 3.5rem;"></div>
 
-<section class="fx-pub-section">
-  <div class="fx-pub-container">
+  <div class="container-xl px-4 position-relative z-10 text-center">
+    <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 mb-4 small fw-bold text-uppercase" style="background: rgba(245,196,81,0.12); border: 1px solid rgba(245,196,81,0.3); color: #F5C451; font-size: 11px; letter-spacing: 0.15em;">
+      {% icon 'sparkles' 14 %}
+      <span>Operational Knowledge &amp; Playbooks</span>
+    </div>
+
+    <h1 class="display-4 fw-extrabold text-white mb-4" style="line-height: 1.15; max-width: 860px; margin-left: auto; margin-right: auto;">
+      Field Operations Intelligence &amp; <span style="color: #F5C451;">Architecture Guides.</span>
+    </h1>
+
+    <p class="lead text-white-50 max-w-2xl mx-auto mb-5" style="line-height: 1.7; font-size: 1.15rem;">
+      Best-practice frameworks, API architecture blueprints, and deployment playbooks for enterprise asset and field operations teams.
+    </p>
+
+    <div class="d-flex flex-wrap justify-content-center gap-2">
+      <span class="badge px-3 py-2 rounded-pill bg-white text-dark small">All Categories</span>
+      <span class="badge px-3 py-2 rounded-pill bg-white bg-opacity-10 text-white-50 small">Product Guides</span>
+      <span class="badge px-3 py-2 rounded-pill bg-white bg-opacity-10 text-white-50 small">Documentation</span>
+      <span class="badge px-3 py-2 rounded-pill bg-white bg-opacity-10 text-white-50 small">Industry Insights</span>
+      <span class="badge px-3 py-2 rounded-pill bg-white bg-opacity-10 text-white-50 small">Operational Playbooks</span>
+    </div>
+  </div>
+</section>
+
+<!-- Featured Playbook Section -->
+<section class="py-5 bg-white">
+  <div class="container-xl px-4 py-4">
+    <div class="card border border-secondary border-opacity-25 rounded-4 overflow-hidden shadow-sm">
+      <div class="row g-0 align-items-center">
+        <div class="col-lg-6 position-relative" style="min-height: 340px; background: #0B1F3A;">
+          <img src="{% static 'images/workflow-asset-management.jpg' %}" alt="Enterprise Asset Lifecycle Playbook" class="w-100 h-100 object-fit-cover position-absolute top-0 start-0">
+          <span class="position-absolute top-0 start-0 m-3 badge font-monospace" style="background:#F5C451; color:#0B1F3B;">FEATURED PLAYBOOK</span>
+        </div>
+        <div class="col-lg-6 p-4 p-md-5">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge bg-light text-secondary border small">Operational Playbooks</span>
+            <span class="small text-secondary">&bull; 8 min read &bull; October 2026</span>
+          </div>
+          <h2 class="h4 fw-bold text-dark mb-3">Enterprise Asset Lifecycle &amp; Preventive Maintenance Playbook</h2>
+          <p class="small text-secondary mb-4" style="line-height: 1.6;">
+            A comprehensive framework for structuring equipment hierarchies, calculating true MTBF and MTTR, and designing predictive maintenance cycles that eliminate unplanned downtime.
+          </p>
+          <div class="bg-light p-3 rounded-3 mb-4 small text-secondary">
+            <strong>Key Architecture Takeaways:</strong>
+            <ul class="mb-0 ps-3 mt-1">
+              <li>Define parent-child asset hierarchies with QR-code tagging</li>
+              <li>Automate MTBF and MTTR calculation directly from work order data</li>
+              <li>Design condition-based PM triggers alongside calendar recurrence</li>
+              <li>Establish min/max inventory safety buffers per asset category</li>
+            </ul>
+          </div>
+          <a href="mailto:hello@fieldopsnexus.com?subject=Request%20Asset%20Playbook" class="btn btn-dark btn-sm px-4 py-2 fw-semibold">
+            Download Technical Whitepaper &rarr;
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Resources Grid -->
+<section class="py-5" style="background-color: #F8FAFC; border-top: 1px solid #E2E8F0;">
+  <div class="container-xl px-4 py-4">
+    <div class="text-center max-w-2xl mx-auto mb-5">
+      <div class="fx-eyebrow justify-content-center">
+        <span class="fx-eyebrow-bar"></span>
+        <span>Technical Documentation</span>
+        <span class="fx-eyebrow-bar"></span>
+      </div>
+      <h2 class="fx-section-title">Latest Articles &amp; Technical Blueprints</h2>
+      <p class="fx-section-desc">Ground-level engineering guides for operations leaders and system architects.</p>
+    </div>
+
     <div class="row g-4">
-      <div class="col-12 col-md-4">
-        <div class="fx-pub-card h-100">
-          <div class="fx-pub-card-icon">{% icon 'code' 24 %}</div>
-          <h3 class="fx-pub-card-title">REST / OpenAPI API Docs</h3>
-          <p class="fx-pub-card-desc">Comprehensive OpenAPI 3.0 documentation generated dynamically via DRF Spectacular.</p>
-          <a href="/docs/" class="btn btn-sm btn-outline-secondary mt-auto">Open Swagger UI &rarr;</a>
-        </div>
-      </div>
-      <div class="col-12 col-md-4">
-        <div class="fx-pub-card h-100">
-          <div class="fx-pub-card-icon">{% icon 'shield' 24 %}</div>
-          <h3 class="fx-pub-card-title">RBAC &amp; Security Guide</h3>
-          <p class="fx-pub-card-desc">Detailed permission matrix covering all 8 enterprise roles and object-level scoping rules.</p>
-          <span class="small text-secondary mt-auto">PRD Section 3 &middot; Verified Invariants</span>
-        </div>
-      </div>
-      <div class="col-12 col-md-4">
-        <div class="fx-pub-card h-100">
-          <div class="fx-pub-card-icon">{% icon 'layers' 24 %}</div>
-          <h3 class="fx-pub-card-title">Health &amp; Telemetry APIs</h3>
-          <p class="fx-pub-card-desc">Liveness and readiness endpoints monitored for Docker Compose and production orchestration.</p>
-          <div class="d-flex gap-2 mt-auto">
-            <a href="/health/live/" class="small text-decoration-none">Live Probe</a> &middot;
-            <a href="/health/ready/" class="small text-decoration-none">Ready Probe</a>
+      <!-- Article 1 -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm bg-white">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="badge bg-light text-secondary border small">Product Guides</span>
+            <span class="text-secondary small font-monospace" style="font-size: 11px;">6 min read</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Optimizing Mobile Technician Dispatch &amp; Route Scheduling</h3>
+          <p class="small text-secondary mb-3" style="line-height: 1.6;">
+            How modern operations teams reduce travel time and elevate first-time fix rates using skills-based dispatch algorithms.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle">
+            <span class="small fw-semibold text-warning">Field Workforce &bull; September 2026</span>
           </div>
         </div>
       </div>
+
+      <!-- Article 2 -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm bg-white">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="badge bg-light text-secondary border small">Documentation</span>
+            <span class="text-secondary small font-monospace" style="font-size: 11px;">12 min read</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">FieldOps Nexus API &amp; ERP Integration Architecture</h3>
+          <p class="small text-secondary mb-3" style="line-height: 1.6;">
+            Technical blueprint for synchronizing spare parts, inventory ledger, and work order costs with enterprise ERP backbones.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle">
+            <span class="small fw-semibold text-warning">Architecture &bull; August 2026</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Article 3 -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm bg-white">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="badge bg-light text-secondary border small">Operational Playbooks</span>
+            <span class="text-secondary small font-monospace" style="font-size: 11px;">9 min read</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">SLA Design for Complex Multi-Site Operations</h3>
+          <p class="small text-secondary mb-3" style="line-height: 1.6;">
+            How to configure hierarchical SLA profiles, handle pending client hold exclusions, and prevent contractual compliance penalties.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle">
+            <span class="small fw-semibold text-warning">Service SLA &bull; July 2026</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Article 4 -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm bg-white">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="badge bg-light text-secondary border small">Documentation</span>
+            <span class="text-secondary small font-monospace" style="font-size: 11px;">7 min read</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Double-Entry Inventory Ledger for Spare Parts</h3>
+          <p class="small text-secondary mb-3" style="line-height: 1.6;">
+            Eliminating phantom stock and reconciliation discrepancies through strict debit/credit transaction movements.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle">
+            <span class="small fw-semibold text-warning">Supply Chain &bull; June 2026</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Article 5 -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm bg-white">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="badge bg-light text-secondary border small">Industry Insights</span>
+            <span class="text-secondary small font-monospace" style="font-size: 11px;">10 min read</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Multi-Tenant Role-Based Access Control Architecture</h3>
+          <p class="small text-secondary mb-3" style="line-height: 1.6;">
+            Enforcing strict data boundaries across organizations while enabling shared service teams and multi-plant oversight.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle">
+            <span class="small fw-semibold text-warning">Security &bull; May 2026</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Article 6 -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm bg-white">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="badge bg-light text-secondary border small">Operational Playbooks</span>
+            <span class="text-secondary small font-monospace" style="font-size: 11px;">8 min read</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Technician Mobility &amp; Digital Inspection Checklists</h3>
+          <p class="small text-secondary mb-3" style="line-height: 1.6;">
+            Converting complex physical asset check-sheets into dynamic mobile workflows with automatic corrective action creation.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle">
+            <span class="small fw-semibold text-warning">Quality &amp; Safety &bull; April 2026</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Standardized Page CTA -->
+<section class="fx-standard-cta">
+  <div class="fx-cta-rings"></div>
+  <div class="fx-cta-rings-2"></div>
+
+  <div class="container-xl px-4 position-relative z-10 text-center">
+    <h2 class="text-white fw-bold mb-3" style="font-size: clamp(2rem, 4vw, 2.75rem);">
+      Ready to Connect Your Operations?
+    </h2>
+    <div class="fx-cta-gold-divider">
+      <span class="bar"></span>
+      <span class="dot"></span>
+      <span class="bar"></span>
+    </div>
+    <p class="text-white-50 max-w-2xl mx-auto mb-4" style="font-size: 1.05rem; line-height: 1.6;">
+      Bring your assets, service requests, work orders, inventory, and operational workflows together with FieldOps Nexus.
+    </p>
+    <div class="d-flex flex-wrap justify-content-center gap-3">
+      <a href="mailto:hello@fieldopsnexus.com?subject=FieldOps%20Nexus%20Demo%20Request" class="btn-fx-gold px-4 py-3 fw-bold d-inline-flex align-items-center gap-2 text-decoration-none">
+        <span>Request Platform Demo</span>
+        {% icon 'arrow-up-right' 15 %}
+      </a>
+      <a href="{% url 'accounts:login' %}" class="btn btn-outline-light px-4 py-3 fw-semibold text-decoration-none">
+        <span>Launch ERP</span>
+      </a>
     </div>
   </div>
 </section>

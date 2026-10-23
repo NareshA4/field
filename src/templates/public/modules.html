@@ -1,37 +1,133 @@
 {% extends "public/base_public.html" %}
 {% load static ui_tags %}
 
-{% block title %}PRD Modules — FieldOps Nexus{% endblock %}
+{% block title %}PRD Modules &middot; FieldOps Nexus{% endblock %}
 
 {% block public_content %}
-<div class="fx-pub-hero" style="padding: 3.5rem 1.5rem 4rem;">
-  <div class="fx-pub-hero-inner text-center">
-    <div class="fx-pub-pill">PRD Traceability &middot; FON-M01 to FON-M15</div>
-    <h1 class="fx-pub-hero-title">Core ERP Module Architecture</h1>
-    <p class="fx-pub-hero-sub">
-      Strict adherence to Hewlett Packard Enterprise Specification HPE-PRD-2026-FOPS02.
-    </p>
-  </div>
-</div>
+<!-- Hero Section -->
+<section class="position-relative overflow-hidden py-5 text-white" style="background: linear-gradient(180deg, #0B1F3B 0%, #0D2444 50%, #0B1F3B 100%); padding-top: 5rem !important; padding-bottom: 5rem !important;">
+  <div class="position-absolute top-0 start-0 end-0 bottom-0 pointer-events-none" style="background-image: linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 3.5rem 3.5rem;"></div>
 
-<section class="fx-pub-section">
-  <div class="fx-pub-container">
+  <div class="container-xl px-4 position-relative z-10 text-center">
+    <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 mb-4 small fw-bold text-uppercase" style="background: rgba(245,196,81,0.12); border: 1px solid rgba(245,196,81,0.3); color: #F5C451; font-size: 11px; letter-spacing: 0.15em;">
+      {% icon 'sparkles' 14 %}
+      <span>Modular Platform Architecture</span>
+    </div>
+
+    <h1 class="display-4 fw-extrabold text-white mb-4" style="line-height: 1.15; max-width: 860px; margin-left: auto; margin-right: auto;">
+      15 Purpose-Built Modules. <span style="color: #F5C451;">Zero Workflow Gaps.</span>
+    </h1>
+
+    <p class="lead text-white-50 max-w-2xl mx-auto mb-5" style="line-height: 1.7; font-size: 1.15rem;">
+      Engineered strictly according to HPE-PRD-2026-FOPS02 specifications. Every module operates with tenant isolation, strict RBAC permissions, and transactional integrity.
+    </p>
+
+    <div class="d-flex flex-wrap justify-content-center gap-3">
+      <a href="#all-modules" class="btn-fx-gold px-4 py-3 fw-bold d-inline-flex align-items-center gap-2 text-decoration-none">
+        <span>Explore All 15 Modules</span>
+        {% icon 'arrow-down' 15 %}
+      </a>
+      <a href="{% url 'accounts:login' %}" class="btn btn-outline-light px-4 py-3 fw-semibold text-decoration-none">
+        <span>Launch ERP</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Selected Module Deep Dive Banner (if viewing specific module) -->
+{% if selected_module %}
+<section class="py-4" style="background-color: #FDF9EC; border-bottom: 1px solid #F7EFCF;">
+  <div class="container-xl px-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-3 bg-white rounded-3 border border-warning border-opacity-50 shadow-sm">
+      <div class="d-flex align-items-center gap-3">
+        <span class="d-flex align-items-center justify-content-center rounded-2 fw-bold font-monospace px-3 py-2" style="background:#0B1F3B; color:#F5C451; font-size:14px;">
+          {{ selected_module.id }}
+        </span>
+        <div>
+          <h2 class="h5 fw-bold text-dark mb-0">{{ selected_module.name }}</h2>
+          <span class="text-secondary small">Category: <strong>{{ selected_module.category }}</strong> &bull; Package: <code>{{ selected_module.app }}</code></span>
+        </div>
+      </div>
+      <div>
+        <a href="#all-modules" class="btn btn-sm btn-outline-secondary">View Other Modules &rarr;</a>
+      </div>
+    </div>
+    <div class="mt-3 p-3 bg-white rounded-3 border border-secondary border-opacity-25 small text-secondary">
+      <p class="mb-0"><strong>Functional Scope:</strong> {{ selected_module.desc }}</p>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- Modules Listing Section -->
+<section id="all-modules" class="py-5 bg-white">
+  <div class="container-xl px-4 py-4">
+    <div class="text-center max-w-2xl mx-auto mb-5">
+      <div class="fx-eyebrow justify-content-center">
+        <span class="fx-eyebrow-bar"></span>
+        <span>HPE Specification Compliance</span>
+        <span class="fx-eyebrow-bar"></span>
+      </div>
+      <h2 class="fx-section-title">FieldOps Nexus PRD Modules</h2>
+      <p class="fx-section-desc">Full suite of 15 modular operational capabilities governed under enterprise oversight.</p>
+    </div>
+
     <div class="row g-4">
       {% for mod in module_list %}
-        <div class="col-12 col-md-6 col-lg-4">
-          <div class="fx-pub-card h-100">
+        <div class="col-md-6 col-lg-4">
+          <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default {% if selected_module and selected_module.id == mod.id %}border-warning bg-light-subtle{% endif %}">
             <div class="d-flex align-items-center justify-content-between mb-3">
-              <span class="badge bg-dark text-warning border border-warning px-2 py-1">{{ mod.id }}</span>
-              <span class="small text-secondary fw-semibold">{{ mod.category }}</span>
+              <span class="badge font-monospace px-2.5 py-1" style="background: #0B1F3B; color: #F5C451; font-size: 11px;">
+                {{ mod.id }}
+              </span>
+              <span class="badge bg-light text-secondary border small font-monospace">
+                {{ mod.category }}
+              </span>
             </div>
-            <h3 class="fx-pub-card-title fs-5">{{ mod.name }}</h3>
-            <p class="fx-pub-card-desc small">{{ mod.desc }}</p>
-            <div class="mt-auto pt-2 border-top">
-              <span class="small text-secondary">Backend App: <code>{{ mod.app }}</code></span>
+
+            <h3 class="h6 fw-bold text-dark mb-2">{{ mod.name }}</h3>
+            <p class="small text-secondary mb-3" style="line-height: 1.6;">
+              {{ mod.desc }}
+            </p>
+
+            <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+              <span class="font-monospace text-secondary" style="font-size: 11px;">{{ mod.app }}</span>
+              <a href="{% url 'ui:public_module' mod.id %}" class="text-warning text-decoration-none small fw-bold">
+                Details &rarr;
+              </a>
             </div>
           </div>
         </div>
       {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- Standardized Page CTA -->
+<section class="fx-standard-cta">
+  <div class="fx-cta-rings"></div>
+  <div class="fx-cta-rings-2"></div>
+
+  <div class="container-xl px-4 position-relative z-10 text-center">
+    <h2 class="text-white fw-bold mb-3" style="font-size: clamp(2rem, 4vw, 2.75rem);">
+      Ready to Connect Your Operations?
+    </h2>
+    <div class="fx-cta-gold-divider">
+      <span class="bar"></span>
+      <span class="dot"></span>
+      <span class="bar"></span>
+    </div>
+    <p class="text-white-50 max-w-2xl mx-auto mb-4" style="font-size: 1.05rem; line-height: 1.6;">
+      Bring your assets, service requests, work orders, inventory, and operational workflows together with FieldOps Nexus.
+    </p>
+    <div class="d-flex flex-wrap justify-content-center gap-3">
+      <a href="mailto:hello@fieldopsnexus.com?subject=FieldOps%20Nexus%20Demo%20Request" class="btn-fx-gold px-4 py-3 fw-bold d-inline-flex align-items-center gap-2 text-decoration-none">
+        <span>Request Platform Demo</span>
+        {% icon 'arrow-up-right' 15 %}
+      </a>
+      <a href="{% url 'accounts:login' %}" class="btn btn-outline-light px-4 py-3 fw-semibold text-decoration-none">
+        <span>Launch ERP</span>
+      </a>
     </div>
   </div>
 </section>
