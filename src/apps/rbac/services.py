@@ -47,8 +47,9 @@ def _template_codes(template) -> set[str]:
 
 
 @transaction.atomic
-def seed_system_roles(org) -> dict[str, Role]:
-    """Creates any missing system roles for ``org`` and ADDS missing template permissions."""
+def seed_system_roles(org, prune_extra: bool = False) -> dict[str, Role]:
+    """Creates any missing system roles for ``org`` and adds missing template permissions.
+    When ``prune_extra=True``, also removes unapproved extra permissions from system roles."""
     sync_permissions()
     perm_by_code = {p.code: p for p in Permission.objects.all()}
     roles: dict[str, Role] = {}
@@ -59,18 +60,34 @@ def seed_system_roles(org) -> dict[str, Role]:
                         system_key=tpl.key, is_owner=tpl.is_owner)
             role.save()
         have = set(role.role_permissions.values_list("permission__code", flat=True))
-        for code in sorted(_template_codes(tpl) - have):
+        expected = _template_codes(tpl)
+        for code in sorted(expected - have):
             RolePermission.objects.create(role=role, permission=perm_by_code[code])
+        if prune_extra and not tpl.is_owner:
+            extra = have - expected
+            if extra:
+                RolePermission.objects.filter(role=role, permission__code__in=extra).delete()
         roles[tpl.key] = role
+
+    if prune_extra:
+        for role in Role.objects.unscoped().filter(organization=org, system_key__gt=""):
+            tpl = BY_KEY.get(role.system_key)
+            if tpl and not tpl.is_owner:
+                expected = _template_codes(tpl)
+                have = set(role.role_permissions.values_list("permission__code", flat=True))
+                extra = have - expected
+                if extra:
+                    RolePermission.objects.filter(role=role, permission__code__in=extra).delete()
+
     return roles
 
 
-def sync_all_organizations() -> int:
+def sync_all_organizations(prune_extra: bool = False) -> int:
     from apps.tenancy.models import Organization
 
     count = 0
     for org in Organization.objects.all():
-        seed_system_roles(org)
+        seed_system_roles(org, prune_extra=prune_extra)
         count += 1
     return count
 

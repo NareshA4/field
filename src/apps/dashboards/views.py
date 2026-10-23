@@ -42,10 +42,19 @@ class DashboardHubView(TenantPermissionMixin, View):
     ]
 
     def get(self, request):
-        section = (request.GET.get("section") or "operations").strip().lower().replace("-", "_")
-        valid_sections = dict(self.SECTIONS)
+        permitted_sections = [
+            (sec, label)
+            for sec, label in self.SECTIONS
+            if not self.SECTION_DATA_PERMISSIONS.get(sec)
+            or rbac.has_permission_anywhere(request.membership, self.SECTION_DATA_PERMISSIONS[sec])
+        ]
+        if not permitted_sections:
+            raise PermissionDenied("You do not have permission to view any dashboard sections.")
+
+        valid_sections = dict(permitted_sections)
+        section = (request.GET.get("section") or permitted_sections[0][0]).strip().lower().replace("-", "_")
         if section not in valid_sections:
-            section = "operations"
+            section = permitted_sections[0][0]
 
         # 1. Check Section Data Permission
         data_perm = self.SECTION_DATA_PERMISSIONS.get(section)
@@ -137,7 +146,7 @@ class DashboardHubView(TenantPermissionMixin, View):
         context = {
             "section": section,
             "section_display": valid_sections[section],
-            "sections": self.SECTIONS,
+            "sections": permitted_sections,
             "kpis": data.get("kpis", {}),
             "details": data.get("details", {}),
             "data": data,

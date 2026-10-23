@@ -143,15 +143,42 @@ def home(request):
     }
     if perms and all(p.startswith("portal.request.") or p in client_allowed for p in perms):  # client-only account: portal is home
         return redirect("portal:dashboard")
+    can_view_users = rbac.has_permission(request.membership, "user.view")
+    can_view_roles = rbac.has_permission(request.membership, "role.view")
+    can_view_assets = rbac.has_permission(request.membership, "asset.view")
+    can_view_sites = rbac.has_permission(request.membership, "site.view")
+    can_view_work_orders = (
+        rbac.has_permission(request.membership, "work_order.view")
+        or rbac.has_permission(request.membership, "work_order.view_assigned")
+    )
+
     stats = {
-        "active_members": Membership.objects.for_organization(org).filter(status=Membership.Status.ACTIVE).count(),
-        "pending_invites": Membership.objects.for_organization(org).filter(status=Membership.Status.INVITED).count(),
-        "roles": Role.objects.for_organization(org).count(),
+        "active_members": Membership.objects.for_organization(org).filter(status=Membership.Status.ACTIVE).count() if can_view_users else 0,
+        "pending_invites": Membership.objects.for_organization(org).filter(status=Membership.Status.INVITED).count() if can_view_users else 0,
+        "roles": Role.objects.for_organization(org).count() if can_view_roles else 0,
+        "total_assets": 0,
+        "total_sites": 0,
+        "open_work_orders": 0,
     }
+    if can_view_assets:
+        from apps.assets.models import Asset
+        stats["total_assets"] = Asset.objects.for_organization(org).exclude(status__in=["RETIRED", "DISPOSED"]).count()
+    if can_view_sites:
+        from apps.sites.models import Site
+        stats["total_sites"] = Site.objects.for_organization(org).filter(status="ACTIVE").count()
+    if can_view_work_orders:
+        from apps.workorders.models import WorkOrder
+        stats["open_work_orders"] = WorkOrder.objects.for_organization(org).exclude(status__in=[WorkOrder.Status.COMPLETED, WorkOrder.Status.CANCELLED]).count()
+
     recent = []
     if rbac.has_permission(request.membership, "audit.view"):
         recent = list(AuditLog.objects.for_organization(org)[:8])
-    return render(request, "ui/home.html", {"stats": stats, "recent": recent})
+    return render(request, "ui/home.html", {
+        "stats": stats,
+        "recent": recent,
+        "can_view_users": can_view_users,
+        "can_view_assets": can_view_assets,
+    })
 
 
 @login_required

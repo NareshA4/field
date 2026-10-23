@@ -53,6 +53,25 @@ def test_technician_forbidden_from_admin_pages(client, tech_a, url):
     assert client.get(url).status_code == 403
 
 
+def test_asset_manager_forbidden_from_admin_and_nav_filtered(client, org_a, make_member):
+    asset_mgr = make_member(org_a, "asset.mgr.test@alpha.test", "asset_manager")
+    client.force_login(asset_mgr.user)
+
+    # 1. Admin endpoints strictly return 403 Forbidden
+    for url in ("/app/organization/", "/app/users/", "/app/roles/", "/app/portal/accounts/", "/app/audit/"):
+        assert client.get(url).status_code == 403, f"Expected 403 for {url}"
+
+    # 2. Left sidebar excludes Administration and Compliance items
+    html = client.get("/app/").content.decode()
+    nav_html = html.split("fx-nav")[1] if "fx-nav" in html else html
+    for forbidden_label in ("Organization", "Users", "Roles &amp; Permissions", "Portal Accounts", "Audit Trail"):
+        assert forbidden_label not in nav_html
+
+    # 3. Operational overview shows asset/site metrics, not administrative user/role counts
+    assert "Master Assets" in html
+    assert "Facility Sites" in html
+
+
 def test_nav_is_permission_filtered(client, owner_a, tech_a):
     client.force_login(owner_a)
     html = client.get("/app/").content.decode()
