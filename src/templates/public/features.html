@@ -1,52 +1,334 @@
 {% extends "public/base_public.html" %}
 {% load static ui_tags %}
 
-{% block title %}Enterprise Features — FieldOps Nexus{% endblock %}
+{% block title %}Features &middot; FieldOps Nexus{% endblock %}
 
 {% block public_content %}
-<div class="fx-pub-hero" style="padding: 3.5rem 1.5rem 4rem;">
-  <div class="fx-pub-hero-inner text-center">
-    <div class="fx-pub-pill">Capabilities Matrix</div>
-    <h1 class="fx-pub-hero-title">Core Platform Capabilities</h1>
-    <p class="fx-pub-hero-sub">
-      A comprehensive enterprise suite built for scale, compliance, and multi-tenant isolation.
-    </p>
-  </div>
-</div>
+<!-- Hero Section -->
+<section class="position-relative overflow-hidden py-5 text-white" style="background: linear-gradient(180deg, #0B1F3B 0%, #0D2444 50%, #0B1F3B 100%); padding-top: 5rem !important; padding-bottom: 5rem !important;">
+  <div class="position-absolute top-0 start-0 end-0 bottom-0 pointer-events-none" style="background-image: linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 3.5rem 3.5rem;"></div>
 
-<section class="fx-pub-section">
-  <div class="fx-pub-container">
-    <div class="fx-pub-grid-3">
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">{% icon 'shield' 24 %}</div>
-        <h3 class="fx-pub-card-title">Multi-Tenant Isolation</h3>
-        <p class="fx-pub-card-desc">Complete data isolation across organizational boundaries with strict row-level security and middleware tenancy enforcement.</p>
+  <div class="container-xl px-4 position-relative z-10 text-center">
+    <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 mb-4 small fw-bold text-uppercase" style="background: rgba(245,196,81,0.12); border: 1px solid rgba(245,196,81,0.3); color: #F5C451; font-size: 11px; letter-spacing: 0.15em;">
+      {% icon 'sparkles' 14 %}
+      <span>FieldOps Nexus Features</span>
+    </div>
+
+    <h1 class="display-4 fw-extrabold text-white mb-4" style="line-height: 1.15; max-width: 860px; margin-left: auto; margin-right: auto;">
+      Everything your field operations need. <span style="color: #F5C451;">Connected in one platform.</span>
+    </h1>
+
+    <p class="lead text-white-50 max-w-2xl mx-auto mb-5" style="line-height: 1.7; font-size: 1.15rem;">
+      Bridge the gap between assets, technicians, work orders, inventory, and analytics. FieldOps Nexus delivers connected operational execution with enterprise-grade traceability and zero workflow fragmentation.
+    </p>
+
+    <div class="d-flex flex-wrap justify-content-center gap-3">
+      <a href="#feature-grid" class="btn-fx-gold px-4 py-3 fw-bold d-inline-flex align-items-center gap-2 text-decoration-none">
+        <span>Explore Features</span>
+        {% icon 'arrow-right' 15 %}
+      </a>
+      <a href="{% url 'accounts:login' %}" class="btn btn-outline-light px-4 py-3 fw-semibold d-inline-flex align-items-center gap-2 text-decoration-none">
+        <span>Sign In to Platform</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Feature Capabilities Grid (8 Cards) -->
+<section id="feature-grid" class="py-5 bg-white">
+  <div class="container-xl px-4 py-4">
+    <div class="text-center max-w-2xl mx-auto mb-5">
+      <div class="fx-eyebrow justify-content-center">
+        <span class="fx-eyebrow-bar"></span>
+        <span>Platform Capabilities</span>
+        <span class="fx-eyebrow-bar"></span>
       </div>
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">{% icon 'clock' 24 %}</div>
-        <h3 class="fx-pub-card-title">Real-Time SLA Engine</h3>
-        <p class="fx-pub-card-desc">Automated first-response, pause/resume rules during operational holds, and multi-tier escalation triggers backed by Celery.</p>
+      <h2 class="fx-section-title">Built for Real-World Field Operations</h2>
+      <p class="fx-section-desc">Each capability addresses a critical operational friction point with transactional integrity.</p>
+    </div>
+
+    <div class="row g-4">
+      <!-- 1. Asset Management -->
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 42px; height: 42px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'boxes' 20 %}
+            </span>
+            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 10px;">Asset Tracking</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Asset Management</h3>
+          <p class="small text-secondary mb-3" style="line-height: 1.6;">
+            Know the condition, maintenance history, telemetry, and lifecycle status of every critical asset in real time.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-dark font-monospace" style="font-size: 11px;">2,846 Active Assets</span>
+            <a href="{% url 'ui:public_module' 'FON-M02' %}" class="text-warning text-decoration-none small fw-bold">View &rarr;</a>
+          </div>
+        </div>
       </div>
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">{% icon 'package' 24 %}</div>
-        <h3 class="fx-pub-card-title">Atomic Inventory Control</h3>
-        <p class="fx-pub-card-desc">Zero drift parts accounting with database-level concurrency locking and audit-backed stock transfers.</p>
+
+      <!-- 2. Service Management -->
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 42px; height: 42px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'wrench' 20 %}
+            </span>
+            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 10px;">SLA Assurance</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Service Management</h3>
+          <p class="small text-secondary mb-3" style="line-height: 1.6;">
+            Deliver predictable, high-touch field service from automated ticket intake to rapid first-time resolution.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-dark font-monospace" style="font-size: 11px;">SLA Priority Tiers</span>
+            <a href="{% url 'ui:public_module' 'FON-M05' %}" class="text-warning text-decoration-none small fw-bold">View &rarr;</a>
+          </div>
+        </div>
       </div>
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">{% icon 'list-check' 24 %}</div>
-        <h3 class="fx-pub-card-title">Inspection Checklists</h3>
-        <p class="fx-pub-card-desc">Configurable safety and quality templates with mandatory photographic evidence and pass/fail thresholds.</p>
+
+      <!-- 3. Work Order Management -->
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 42px; height: 42px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'clipboard-list' 20 %}
+            </span>
+            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 10px;">Dispatch &amp; Ops</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Work Order Management</h3>
+          <p class="small text-secondary mb-3" style="line-height: 1.6;">
+            Plan, prioritize, assign, and track complex work orders with end-to-end task checklists and parts staging.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-dark font-monospace" style="font-size: 11px;">142 Active Orders</span>
+            <a href="{% url 'ui:public_module' 'FON-M06' %}" class="text-warning text-decoration-none small fw-bold">View &rarr;</a>
+          </div>
+        </div>
       </div>
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">{% icon 'git-branch' 24 %}</div>
-        <h3 class="fx-pub-card-title">Asset Parent-Child Hierarchy</h3>
-        <p class="fx-pub-card-desc">Multi-tiered equipment relationships with recursive lineage queries, component swappings, and rollup maintenance history.</p>
+
+      <!-- 4. Inventory Management -->
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 42px; height: 42px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'package' 20 %}
+            </span>
+            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 10px;">Parts &amp; Stock</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Inventory Management</h3>
+          <p class="small text-secondary mb-3" style="line-height: 1.6;">
+            Keep essential spare parts, tooling, and consumables synchronized across central warehouses and technician vans.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-dark font-monospace" style="font-size: 11px;">Stock Balances</span>
+            <a href="{% url 'ui:public_module' 'FON-M09' %}" class="text-warning text-decoration-none small fw-bold">View &rarr;</a>
+          </div>
+        </div>
       </div>
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">{% icon 'file-text' 24 %}</div>
-        <h3 class="fx-pub-card-title">Immutable Audit Trail</h3>
-        <p class="fx-pub-card-desc">Cryptographically verifiable, append-only operational log recording every state transition, user attribution, and IP address.</p>
+
+      <!-- 5. Maintenance Management -->
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 42px; height: 42px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'calendar' 20 %}
+            </span>
+            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 10px;">Preventive Ops</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Maintenance Management</h3>
+          <p class="small text-secondary mb-3" style="line-height: 1.6;">
+            Prevent unexpected equipment downtime through automated PM schedules, inspection triggers, and calibration cycles.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-dark font-monospace" style="font-size: 11px;">PM Schedules</span>
+            <a href="{% url 'ui:public_module' 'FON-M04' %}" class="text-warning text-decoration-none small fw-bold">View &rarr;</a>
+          </div>
+        </div>
       </div>
+
+      <!-- 6. Workforce Management -->
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 42px; height: 42px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'people' 20 %}
+            </span>
+            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 10px;">Technicians</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Workforce Management</h3>
+          <p class="small text-secondary mb-3" style="line-height: 1.6;">
+            Equip mobile technicians and supervisors with skill-based scheduling, real-time routing, and job telemetry.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-dark font-monospace" style="font-size: 11px;">68 Field Techs</span>
+            <a href="{% url 'ui:public_module' 'FON-M07' %}" class="text-warning text-decoration-none small fw-bold">View &rarr;</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. Analytics & Reporting -->
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 42px; height: 42px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'bar-chart' 20 %}
+            </span>
+            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 10px;">Intelligence</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Analytics &amp; Reporting</h3>
+          <p class="small text-secondary mb-3" style="line-height: 1.6;">
+            Convert telemetry and operational logs into actionable executive dashboards, MTTR trends, and cost metrics.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-dark font-monospace" style="font-size: 11px;">18 Executive Reports</span>
+            <a href="{% url 'ui:public_module' 'FON-M14' %}" class="text-warning text-decoration-none small fw-bold">View &rarr;</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8. Audit & Traceability -->
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm hover-shadow transition-default">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 42px; height: 42px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'shield' 20 %}
+            </span>
+            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 10px;">Compliance</span>
+          </div>
+          <h3 class="h6 fw-bold text-dark mb-2">Audit &amp; Traceability</h3>
+          <p class="small text-secondary mb-3" style="line-height: 1.6;">
+            Maintain a structured, timestamped audit trail of every signature, part consumption, and verification sign-off.
+          </p>
+          <div class="mt-auto pt-3 border-top border-light-subtle d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-dark font-monospace" style="font-size: 11px;">Activity Traceability</span>
+            <a href="{% url 'ui:public_module' 'FON-M15' %}" class="text-warning text-decoration-none small fw-bold">View &rarr;</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 8-Step Interactive Operational Workflow Tabs -->
+<section class="py-5" style="background-color: #F8FAFC; border-top: 1px solid #E2E8F0;">
+  <div class="container-xl px-4 py-4">
+    <div class="text-center max-w-2xl mx-auto mb-5">
+      <div class="fx-eyebrow justify-content-center">
+        <span class="fx-eyebrow-bar"></span>
+        <span>End-to-End Execution</span>
+        <span class="fx-eyebrow-bar"></span>
+      </div>
+      <h2 class="fx-section-title">The 8-Stage Connected Service Flow</h2>
+      <p class="fx-section-desc">See how FieldOps Nexus tracks the service lifecycle across every role and handoff.</p>
+    </div>
+
+    <div class="row g-4 align-items-center">
+      <!-- Steps Navigation -->
+      <div class="col-lg-5">
+        <div class="d-flex flex-column gap-2" role="tablist">
+          <button type="button" class="d-flex align-items-center gap-3 p-3 rounded-3 text-start border bg-white shadow-sm transition-default" style="border-left: 4px solid #F5C451 !important;">
+            <span class="fw-bold font-monospace text-warning small">01</span>
+            <div>
+              <strong class="d-block text-dark small">Asset Monitored</strong>
+              <span class="text-secondary" style="font-size:11px;">Telemetry / Sensor</span>
+            </div>
+          </button>
+          <button type="button" class="d-flex align-items-center gap-3 p-3 rounded-3 text-start border bg-white shadow-sm transition-default">
+            <span class="fw-bold font-monospace text-secondary small">02</span>
+            <div>
+              <strong class="d-block text-dark small">Service Request Logged</strong>
+              <span class="text-secondary" style="font-size:11px;">Client / Requester</span>
+            </div>
+          </button>
+          <button type="button" class="d-flex align-items-center gap-3 p-3 rounded-3 text-start border bg-white shadow-sm transition-default">
+            <span class="fw-bold font-monospace text-secondary small">03</span>
+            <div>
+              <strong class="d-block text-dark small">Work Order Formulated</strong>
+              <span class="text-secondary" style="font-size:11px;">Maintenance Planner</span>
+            </div>
+          </button>
+          <button type="button" class="d-flex align-items-center gap-3 p-3 rounded-3 text-start border bg-white shadow-sm transition-default">
+            <span class="fw-bold font-monospace text-secondary small">04</span>
+            <div>
+              <strong class="d-block text-dark small">Technician Dispatched</strong>
+              <span class="text-secondary" style="font-size:11px;">Field Technician</span>
+            </div>
+          </button>
+          <button type="button" class="d-flex align-items-center gap-3 p-3 rounded-3 text-start border bg-white shadow-sm transition-default">
+            <span class="fw-bold font-monospace text-secondary small">05</span>
+            <div>
+              <strong class="d-block text-dark small">Spare Parts Allocated</strong>
+              <span class="text-secondary" style="font-size:11px;">Warehouse / Stock</span>
+            </div>
+          </button>
+          <button type="button" class="d-flex align-items-center gap-3 p-3 rounded-3 text-start border bg-white shadow-sm transition-default">
+            <span class="fw-bold font-monospace text-secondary small">06</span>
+            <div>
+              <strong class="d-block text-dark small">Supervisor Verification</strong>
+              <span class="text-secondary" style="font-size:11px;">Field Supervisor</span>
+            </div>
+          </button>
+          <button type="button" class="d-flex align-items-center gap-3 p-3 rounded-3 text-start border bg-white shadow-sm transition-default">
+            <span class="fw-bold font-monospace text-secondary small">07</span>
+            <div>
+              <strong class="d-block text-dark small">Client Confirmation</strong>
+              <span class="text-secondary" style="font-size:11px;">Client Representative</span>
+            </div>
+          </button>
+          <button type="button" class="d-flex align-items-center gap-3 p-3 rounded-3 text-start border bg-white shadow-sm transition-default">
+            <span class="fw-bold font-monospace text-secondary small">08</span>
+            <div>
+              <strong class="d-block text-dark small">Closure &amp; Audit Trace</strong>
+              <span class="text-secondary" style="font-size:11px;">Compliance &amp; Finance</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Preview Image Showcase -->
+      <div class="col-lg-7">
+        <div class="rounded-4 overflow-hidden border border-secondary border-opacity-25 shadow-lg position-relative" style="background:#0B1F3B;">
+          <img src="{% static 'images/workflow-field-operations.jpg' %}" alt="Connected Operations Workflow" class="img-fluid w-100" style="object-fit:cover; min-height: 420px; opacity:0.92;">
+          <div class="position-absolute bottom-0 start-0 end-0 p-4" style="background: linear-gradient(to top, rgba(7,20,38,0.95), transparent);">
+            <span class="badge mb-2 font-monospace" style="background:#F5C451; color:#0B1F3B; font-size:10px;">STAGE TELEMETRY</span>
+            <h3 class="text-white fw-bold h5 mb-1">Real-Time Mobile Checklist Execution</h3>
+            <p class="text-white-50 small mb-0" style="max-width:540px;">
+              Field technicians capture sensor data, inspection photos, and labor timesheets directly on site with zero connectivity lag.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Standardized Page CTA -->
+<section class="fx-standard-cta">
+  <div class="fx-cta-rings"></div>
+  <div class="fx-cta-rings-2"></div>
+
+  <div class="container-xl px-4 position-relative z-10 text-center">
+    <h2 class="text-white fw-bold mb-3" style="font-size: clamp(2rem, 4vw, 2.75rem);">
+      Ready to Connect Your Operations?
+    </h2>
+    <div class="fx-cta-gold-divider">
+      <span class="bar"></span>
+      <span class="dot"></span>
+      <span class="bar"></span>
+    </div>
+    <p class="text-white-50 max-w-2xl mx-auto mb-4" style="font-size: 1.05rem; line-height: 1.6;">
+      Bring your assets, service requests, work orders, inventory, and operational workflows together with FieldOps Nexus.
+    </p>
+    <div class="d-flex flex-wrap justify-content-center gap-3">
+      <a href="mailto:hello@fieldopsnexus.com?subject=FieldOps%20Nexus%20Demo%20Request" class="btn-fx-gold px-4 py-3 fw-bold d-inline-flex align-items-center gap-2 text-decoration-none">
+        <span>Request Platform Demo</span>
+        {% icon 'arrow-up-right' 15 %}
+      </a>
+      <a href="{% url 'accounts:login' %}" class="btn btn-outline-light px-4 py-3 fw-semibold text-decoration-none">
+        <span>Launch ERP</span>
+      </a>
     </div>
   </div>
 </section>

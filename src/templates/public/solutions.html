@@ -1,58 +1,290 @@
 {% extends "public/base_public.html" %}
 {% load static ui_tags %}
 
-{% block title %}Industry Solutions — FieldOps Nexus{% endblock %}
+{% block title %}Solutions &middot; FieldOps Nexus{% endblock %}
 
 {% block public_content %}
-<div class="fx-pub-hero" style="padding: 3.5rem 1.5rem 4rem;">
-  <div class="fx-pub-hero-inner text-center">
-    <div class="fx-pub-pill">Engineered Verticals</div>
-    <h1 class="fx-pub-hero-title">Specialized Enterprise Solutions</h1>
-    <p class="fx-pub-hero-sub">
-      Tailored maintenance workflows, asset tracking, and SLA frameworks for critical operational sectors.
-    </p>
-  </div>
-</div>
+<!-- Hero Section -->
+<section class="position-relative overflow-hidden py-5 text-white" style="background: linear-gradient(180deg, #0B1F3B 0%, #0D2444 50%, #0B1F3B 100%); padding-top: 5rem !important; padding-bottom: 5rem !important;">
+  <div class="position-absolute top-0 start-0 end-0 bottom-0 pointer-events-none" style="background-image: linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 3.5rem 3.5rem;"></div>
 
-<section class="fx-pub-section">
-  <div class="fx-pub-container">
-    <div class="fx-pub-grid-3">
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">{% icon 'building' 24 %}</div>
-        <h3 class="fx-pub-card-title">Enterprise Operations</h3>
-        <p class="fx-pub-card-desc">Centralized multi-facility management with unified governance, global RBAC, and executive performance KPI dashboards.</p>
-        <a href="{% url 'ui:public_solution' 'enterprise-operations' %}" class="fw-semibold text-decoration-none" style="color:var(--fx-pub-gold-600);">Explore Architecture &rarr;</a>
+  <div class="container-xl px-4 position-relative z-10 text-center">
+    <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 mb-4 small fw-bold text-uppercase" style="background: rgba(245,196,81,0.12); border: 1px solid rgba(245,196,81,0.3); color: #F5C451; font-size: 11px; letter-spacing: 0.15em;">
+      {% icon 'sparkles' 14 %}
+      <span>Industry &amp; Operational Solutions</span>
+    </div>
+
+    <h1 class="display-4 fw-extrabold text-white mb-4" style="line-height: 1.15; max-width: 860px; margin-left: auto; margin-right: auto;">
+      Purpose-Built for <span style="color: #F5C451;">High-Stakes Operations.</span>
+    </h1>
+
+    <p class="lead text-white-50 max-w-2xl mx-auto mb-5" style="line-height: 1.7; font-size: 1.15rem;">
+      Whether maintaining mission-critical plant machinery, multi-site enterprise campuses, or distributed municipal infrastructure, FieldOps Nexus delivers tailored operational architectures.
+    </p>
+
+    <div class="d-flex flex-wrap justify-content-center gap-3">
+      <a href="#industries" class="btn-fx-gold px-4 py-3 fw-bold d-inline-flex align-items-center gap-2 text-decoration-none">
+        <span>Explore by Industry</span>
+        {% icon 'arrow-down' 15 %}
+      </a>
+      <a href="#use-cases" class="btn btn-outline-light px-4 py-3 fw-semibold d-inline-flex align-items-center gap-2 text-decoration-none">
+        <span>Explore by Use Case</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- By Industry Section -->
+<section id="industries" class="py-5 bg-white">
+  <div class="container-xl px-4 py-4">
+    <div class="text-center max-w-2xl mx-auto mb-5">
+      <div class="fx-eyebrow justify-content-center">
+        <span class="fx-eyebrow-bar"></span>
+        <span>By Industry</span>
+        <span class="fx-eyebrow-bar"></span>
       </div>
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">{% icon 'pin' 24 %}</div>
-        <h3 class="fx-pub-card-title">Multi-Site Campus Management</h3>
-        <p class="fx-pub-card-desc">Geographic distribution across manufacturing plants, hospital networks, educational campuses, and corporate real estate.</p>
-        <a href="{% url 'ui:public_solution' 'multi-site-management' %}" class="fw-semibold text-decoration-none" style="color:var(--fx-pub-gold-600);">Explore Architecture &rarr;</a>
+      <h2 class="fx-section-title">Built for Specialized Industrial Demands</h2>
+      <p class="fx-section-desc">Tailored data models and workflow automations calibrated to strict regulatory standards.</p>
+    </div>
+
+    <div class="row g-4">
+      <!-- 1. Manufacturing -->
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 overflow-hidden shadow-sm hover-shadow transition-default">
+          <div class="position-relative" style="height: 160px; overflow: hidden; background: #0B1F3A;">
+            <img src="{% static 'images/left.jpg' %}" alt="Manufacturing Operations" class="w-100 h-100 object-fit-cover" style="opacity: 0.85;">
+            <span class="position-absolute bottom-0 start-0 m-3 d-flex align-items-center justify-content-center rounded-2" style="width: 36px; height: 36px; background: rgba(7,20,38,0.7); color: #F5C451; backdrop-filter: blur(4px);">
+              {% icon 'building' 18 %}
+            </span>
+          </div>
+          <div class="p-4 d-flex flex-column flex-fill">
+            <h3 class="h6 fw-bold text-dark mb-2">Manufacturing</h3>
+            <p class="small text-secondary mb-3" style="line-height: 1.6;">
+              Maintain production-critical assets, monitor sensor telemetry, and avoid costly assembly downtime.
+            </p>
+            <ul class="list-unstyled small text-secondary mb-4 space-y-1" style="font-size: 11.5px;">
+              <li>&check; Automated PM schedules</li>
+              <li>&check; Spare parts inventory buffer</li>
+              <li>&check; Real-time MTBF telemetry</li>
+            </ul>
+            <div class="mt-auto pt-3 border-top border-light-subtle">
+              <a href="{% url 'ui:public_solution' 'manufacturing' %}" class="text-warning text-decoration-none small fw-bold">Explore Architecture &rarr;</a>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">{% icon 'clock' 24 %}</div>
-        <h3 class="fx-pub-card-title">High-Stakes SLA Management</h3>
-        <p class="fx-pub-card-desc">Contractual response and resolution guarantees with automated breach escalations and Celery periodic monitoring.</p>
-        <a href="{% url 'ui:public_solution' 'sla-management' %}" class="fw-semibold text-decoration-none" style="color:var(--fx-pub-gold-600);">Explore Architecture &rarr;</a>
+
+      <!-- 2. Facilities Management -->
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 overflow-hidden shadow-sm hover-shadow transition-default">
+          <div class="position-relative" style="height: 160px; overflow: hidden; background: #0B1F3A;">
+            <img src="{% static 'images/center.jpg' %}" alt="Facilities Management" class="w-100 h-100 object-fit-cover" style="opacity: 0.85;">
+            <span class="position-absolute bottom-0 start-0 m-3 d-flex align-items-center justify-content-center rounded-2" style="width: 36px; height: 36px; background: rgba(7,20,38,0.7); color: #F5C451; backdrop-filter: blur(4px);">
+              {% icon 'grid' 18 %}
+            </span>
+          </div>
+          <div class="p-4 d-flex flex-column flex-fill">
+            <h3 class="h6 fw-bold text-dark mb-2">Facilities Management</h3>
+            <p class="small text-secondary mb-3" style="line-height: 1.6;">
+              Coordinate multi-tenant commercial towers, campuses, HVAC systems, and scheduled contractor visits.
+            </p>
+            <ul class="list-unstyled small text-secondary mb-4 space-y-1" style="font-size: 11.5px;">
+              <li>&check; Multi-tenant requester portal</li>
+              <li>&check; Zone &amp; floor mapping</li>
+              <li>&check; Contractor compliance checks</li>
+            </ul>
+            <div class="mt-auto pt-3 border-top border-light-subtle">
+              <a href="{% url 'ui:public_solution' 'facilities' %}" class="text-warning text-decoration-none small fw-bold">Explore Architecture &rarr;</a>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">{% icon 'refresh-cw' 24 %}</div>
-        <h3 class="fx-pub-card-title">Connected Data &amp; Telemetry</h3>
-        <p class="fx-pub-card-desc">IoT sensor data ingestion, continuous runtime meter readings, and threshold-driven predictive work orders.</p>
-        <a href="{% url 'ui:public_solution' 'connected-data' %}" class="fw-semibold text-decoration-none" style="color:var(--fx-pub-gold-600);">Explore Architecture &rarr;</a>
+
+      <!-- 3. Service & Maintenance -->
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 overflow-hidden shadow-sm hover-shadow transition-default">
+          <div class="position-relative" style="height: 160px; overflow: hidden; background: #0B1F3A;">
+            <img src="{% static 'images/right.jpg' %}" alt="Service & Maintenance" class="w-100 h-100 object-fit-cover" style="opacity: 0.85;">
+            <span class="position-absolute bottom-0 start-0 m-3 d-flex align-items-center justify-content-center rounded-2" style="width: 36px; height: 36px; background: rgba(7,20,38,0.7); color: #F5C451; backdrop-filter: blur(4px);">
+              {% icon 'wrench' 18 %}
+            </span>
+          </div>
+          <div class="p-4 d-flex flex-column flex-fill">
+            <h3 class="h6 fw-bold text-dark mb-2">Service &amp; Maintenance</h3>
+            <p class="small text-secondary mb-3" style="line-height: 1.6;">
+              Empower mobile service engineers with offline-capable mobile checklists, parts reservation, and customer sign-off.
+            </p>
+            <ul class="list-unstyled small text-secondary mb-4 space-y-1" style="font-size: 11.5px;">
+              <li>&check; Skills-based technician dispatch</li>
+              <li>&check; Mobile photo evidence logs</li>
+              <li>&check; Digital client signatures</li>
+            </ul>
+            <div class="mt-auto pt-3 border-top border-light-subtle">
+              <a href="{% url 'ui:public_solution' 'service-maintenance' %}" class="text-warning text-decoration-none small fw-bold">Explore Architecture &rarr;</a>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">{% icon 'wrench' 24 %}</div>
-        <h3 class="fx-pub-card-title">Service Maintenance &amp; Field Dispatch</h3>
-        <p class="fx-pub-card-desc">Intelligent route scheduling, technician skill matching, mobile checklists, and inventory consumption logs.</p>
-        <a href="{% url 'ui:public_solution' 'service-maintenance' %}" class="fw-semibold text-decoration-none" style="color:var(--fx-pub-gold-600);">Explore Architecture &rarr;</a>
+
+      <!-- 4. Infrastructure & Utilities -->
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 overflow-hidden shadow-sm hover-shadow transition-default">
+          <div class="position-relative" style="height: 160px; overflow: hidden; background: #0B1F3A;">
+            <img src="{% static 'images/fieldops-workflow-visual.jpg' %}" alt="Critical Infrastructure" class="w-100 h-100 object-fit-cover" style="opacity: 0.85;">
+            <span class="position-absolute bottom-0 start-0 m-3 d-flex align-items-center justify-content-center rounded-2" style="width: 36px; height: 36px; background: rgba(7,20,38,0.7); color: #F5C451; backdrop-filter: blur(4px);">
+              {% icon 'layers' 18 %}
+            </span>
+          </div>
+          <div class="p-4 d-flex flex-column flex-fill">
+            <h3 class="h6 fw-bold text-dark mb-2">Infrastructure &amp; Utilities</h3>
+            <p class="small text-secondary mb-3" style="line-height: 1.6;">
+              Safeguard distributed power grids, clean water treatment, and telecommunications network uptime.
+            </p>
+            <ul class="list-unstyled small text-secondary mb-4 space-y-1" style="font-size: 11.5px;">
+              <li>&check; High-availability failover</li>
+              <li>&check; Regulatory audit logs</li>
+              <li>&check; Meter threshold alarms</li>
+            </ul>
+            <div class="mt-auto pt-3 border-top border-light-subtle">
+              <a href="{% url 'ui:public_solution' 'infrastructure' %}" class="text-warning text-decoration-none small fw-bold">Explore Architecture &rarr;</a>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="fx-pub-card">
-        <div class="fx-pub-card-icon">{% icon 'shield' 24 %}</div>
-        <h3 class="fx-pub-card-title">Critical Infrastructure</h3>
-        <p class="fx-pub-card-desc">Power grid, telecom, and datacentre uptime assurance with strict compliance audits and MTBF/MTTR analytics.</p>
-        <a href="{% url 'ui:public_solution' 'infrastructure' %}" class="fw-semibold text-decoration-none" style="color:var(--fx-pub-gold-600);">Explore Architecture &rarr;</a>
+    </div>
+  </div>
+</section>
+
+<!-- By Use Case Section -->
+<section id="use-cases" class="py-5" style="background-color: #F8FAFC; border-top: 1px solid #E2E8F0;">
+  <div class="container-xl px-4 py-4">
+    <div class="text-center max-w-2xl mx-auto mb-5">
+      <div class="fx-eyebrow justify-content-center">
+        <span class="fx-eyebrow-bar"></span>
+        <span>By Use Case</span>
+        <span class="fx-eyebrow-bar"></span>
       </div>
+      <h2 class="fx-section-title">Engineered for Cross-Functional Harmony</h2>
+      <p class="fx-section-desc">Solve enterprise-scale operational bottlenecks with unified data and workflows.</p>
+    </div>
+
+    <div class="row g-4">
+      <!-- 1. Enterprise Operations -->
+      <div class="col-md-6">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm bg-white">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'briefcase' 22 %}
+            </span>
+            <div>
+              <h3 class="h5 fw-bold text-dark mb-0">Enterprise Operations</h3>
+              <span class="text-secondary small">Centralized Multi-Site Governance</span>
+            </div>
+          </div>
+          <p class="small text-secondary mb-4" style="line-height: 1.6;">
+            Consolidate distributed plants, regional sites, and diverse business divisions into a single pane of glass. Role-based access controls guarantee tenant data isolation while providing executives with rolled-up operational KPIs.
+          </p>
+          <a href="{% url 'ui:public_solution' 'enterprise-operations' %}" class="btn btn-sm btn-outline-dark mt-auto d-inline-flex align-items-center gap-2 align-self-start">
+            <span>Read Architecture Case Study</span>
+            {% icon 'arrow-right' 13 %}
+          </a>
+        </div>
+      </div>
+
+      <!-- 2. SLA Management -->
+      <div class="col-md-6">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm bg-white">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'clock' 22 %}
+            </span>
+            <div>
+              <h3 class="h5 fw-bold text-dark mb-0">SLA Management &amp; Escalation</h3>
+              <span class="text-secondary small">Automated Compliance Timers</span>
+            </div>
+          </div>
+          <p class="small text-secondary mb-4" style="line-height: 1.6;">
+            Enforce contractual service level agreements with priority-based countdown timers. Automatically escalate pending tickets, pause timers during client holds, and maintain breach logs for contractual accountability.
+          </p>
+          <a href="{% url 'ui:public_solution' 'sla-management' %}" class="btn btn-sm btn-outline-dark mt-auto d-inline-flex align-items-center gap-2 align-self-start">
+            <span>Read SLA Whitepaper</span>
+            {% icon 'arrow-right' 13 %}
+          </a>
+        </div>
+      </div>
+
+      <!-- 3. Multi-Site Management -->
+      <div class="col-md-6">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm bg-white">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'geo-alt' 22 %}
+            </span>
+            <div>
+              <h3 class="h5 fw-bold text-dark mb-0">Multi-Site Management</h3>
+              <span class="text-secondary small">Campus &amp; Plant Hierarchies</span>
+            </div>
+          </div>
+          <p class="small text-secondary mb-4" style="line-height: 1.6;">
+            Structure complex operational geographies into Organization &rarr; Site &rarr; Building &rarr; Floor &rarr; Zone &rarr; Room hierarchies. Map technician dispatch boundaries and local inventory warehouses per facility.
+          </p>
+          <a href="{% url 'ui:public_solution' 'multi-site-management' %}" class="btn btn-sm btn-outline-dark mt-auto d-inline-flex align-items-center gap-2 align-self-start">
+            <span>Explore Hierarchy Mapping</span>
+            {% icon 'arrow-right' 13 %}
+          </a>
+        </div>
+      </div>
+
+      <!-- 4. Connected Data & IoT -->
+      <div class="col-md-6">
+        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm bg-white">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <span class="d-flex align-items-center justify-content-center rounded-2" style="width: 44px; height: 44px; background: #0B1F3B; color: #F5C451;">
+              {% icon 'database' 22 %}
+            </span>
+            <div>
+              <h3 class="h5 fw-bold text-dark mb-0">Connected Data &amp; IoT</h3>
+              <span class="text-secondary small">Sensor &amp; Telemetry Integration</span>
+            </div>
+          </div>
+          <p class="small text-secondary mb-4" style="line-height: 1.6;">
+            Ingest meter readings, temperature sensors, vibration spikes, and operating hours. Trigger automatic preventive maintenance work orders the instant an operating threshold crosses safe tolerance limits.
+          </p>
+          <a href="{% url 'ui:public_solution' 'connected-data' %}" class="btn btn-sm btn-outline-dark mt-auto d-inline-flex align-items-center gap-2 align-self-start">
+            <span>Explore Telemetry Protocols</span>
+            {% icon 'arrow-right' 13 %}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Standardized Page CTA -->
+<section class="fx-standard-cta">
+  <div class="fx-cta-rings"></div>
+  <div class="fx-cta-rings-2"></div>
+
+  <div class="container-xl px-4 position-relative z-10 text-center">
+    <h2 class="text-white fw-bold mb-3" style="font-size: clamp(2rem, 4vw, 2.75rem);">
+      Ready to Connect Your Operations?
+    </h2>
+    <div class="fx-cta-gold-divider">
+      <span class="bar"></span>
+      <span class="dot"></span>
+      <span class="bar"></span>
+    </div>
+    <p class="text-white-50 max-w-2xl mx-auto mb-4" style="font-size: 1.05rem; line-height: 1.6;">
+      Bring your assets, service requests, work orders, inventory, and operational workflows together with FieldOps Nexus.
+    </p>
+    <div class="d-flex flex-wrap justify-content-center gap-3">
+      <a href="mailto:hello@fieldopsnexus.com?subject=FieldOps%20Nexus%20Demo%20Request" class="btn-fx-gold px-4 py-3 fw-bold d-inline-flex align-items-center gap-2 text-decoration-none">
+        <span>Request Platform Demo</span>
+        {% icon 'arrow-up-right' 15 %}
+      </a>
+      <a href="{% url 'accounts:login' %}" class="btn btn-outline-light px-4 py-3 fw-semibold text-decoration-none">
+        <span>Launch ERP</span>
+      </a>
     </div>
   </div>
 </section>
