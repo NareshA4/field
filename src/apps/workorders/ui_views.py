@@ -68,7 +68,7 @@ def _can_view(membership, wo):
     if rbac.has_permission(membership, "work_order.view", wo.site):
         return True
     if rbac.has_permission(membership, "work_order.view_assigned", wo.site):
-        if wo.assigned_to_id == membership.pk or wo.assigned_to_id is None:
+        if wo.assigned_to_id == membership.pk:
             return True
         if wo.source_request_id and rbac.has_permission(membership, "incident.view", wo.site):
             return True

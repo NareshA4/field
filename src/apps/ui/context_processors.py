@@ -7,182 +7,229 @@ from apps.tenancy import selectors
 from . import navigation
 from .utils import is_client_membership
 
-# Role-Tailored Navigation Rules (PRD §3.2 & §3.3)
-ROLE_NAV_RULES = {
-    "admin": {
-        "allowed_sections": {"Overview", "Administration", "Assets & Locations", "Analytics", "Compliance"},
-        "allowed_url_names": {
-            "ui:home", "tenancy:organization", "tenancy:members", "rbac:roles",
-            "sites:list", "assets:list", "identification:scan", "dashboards:hub",
-            "audit:list", "audit:reports",
-        },
-    },
-    "asset_manager": {
-        "allowed_sections": {"Overview", "Assets & Locations", "Coverage", "Inventory", "Analytics"},
-        "allowed_url_names": {
-            "ui:home", "assets:list", "sites:list", "identification:scan",
-            "contracts:agreements", "contracts:expiry", "contracts:providers",
-            "inventory:movements", "dashboards:hub",
-        },
-    },
-    "maintenance_planner": {
-        "allowed_sections": {"Overview", "Maintenance", "Operations", "Assets & Locations", "Analytics"},
-        "allowed_url_names": {
-            "ui:home", "maintenance:plans", "maintenance:due", "maintenance:history",
-            "workorders:list", "checklists:list", "assets:list", "dashboards:hub",
-        },
-    },
-    "service_dispatcher": {
-        "allowed_sections": {"Overview", "Operations", "SLA & Escalation", "Assets & Locations", "Analytics"},
-        "allowed_url_names": {
-            "ui:home", "incidents:list", "workorders:list", "sla:trackings",
-            "sites:list", "dashboards:hub",
-        },
-    },
-    "technician": {
-        "allowed_sections": {"Overview", "Operations", "Assets & Locations"},
-        "allowed_url_names": {
-            "ui:home", "workspace:my_jobs", "dashboards:my_work",
-            "checklists:inspections", "identification:scan",
-        },
-    },
-    "field_technician": {
-        "allowed_sections": {"Overview", "Operations", "Assets & Locations"},
-        "allowed_url_names": {
-            "ui:home", "workspace:my_jobs", "dashboards:my_work",
-            "checklists:inspections", "identification:scan",
-        },
-    },
-    "supervisor": {
-        "allowed_sections": {"Overview", "Operations", "SLA & Escalation", "Analytics"},
-        "allowed_url_names": {
-            "ui:home", "workorders:list", "incidents:list", "checklists:inspections",
-            "checklists:list", "sla:trackings", "dashboards:hub",
-        },
-    },
-    "stores_manager": {
-        "allowed_sections": {"Overview", "Inventory", "Assets & Locations", "Analytics"},
-        "allowed_url_names": {
-            "ui:home", "inventory:parts", "inventory:stock", "inventory:warehouses",
-            "inventory:reservations", "inventory:movements", "assets:list", "dashboards:hub",
-        },
-    },
-    "stores_inventory": {
-        "allowed_sections": {"Overview", "Inventory", "Assets & Locations", "Analytics"},
-        "allowed_url_names": {
-            "ui:home", "inventory:parts", "inventory:stock", "inventory:warehouses",
-            "inventory:reservations", "inventory:movements", "assets:list", "dashboards:hub",
-        },
-    },
-    "service_manager": {
-        "allowed_sections": {"Overview", "Operations", "SLA & Escalation", "Coverage", "Analytics", "Administration"},
-        "allowed_url_names": {
-            "ui:home", "incidents:list", "sla:trackings", "contracts:agreements",
-            "contracts:providers", "portal:accounts_list", "dashboards:hub",
-        },
-    },
-    "auditor": {
-        "allowed_sections": {"Overview", "Compliance", "Assets & Locations", "Operations", "Analytics"},
-        "allowed_url_names": {
-            "ui:home", "audit:list", "audit:reports", "assets:list",
-            "workorders:list", "incidents:list", "dashboards:hub",
-        },
-    },
-    "compliance": {
-        "allowed_sections": {"Overview", "Compliance", "Assets & Locations", "Operations", "Analytics"},
-        "allowed_url_names": {
-            "ui:home", "audit:list", "audit:reports", "assets:list",
-            "workorders:list", "incidents:list", "dashboards:hub",
-        },
-    },
-    "operations_manager": {
-        "allowed_sections": {"Overview", "Operations", "Assets & Locations", "Maintenance", "SLA & Escalation", "Analytics"},
-        "allowed_url_names": {
-            "ui:home", "workorders:list", "incidents:list", "checklists:list", "checklists:inspections",
-            "sites:list", "assets:list", "maintenance:plans", "maintenance:due", "sla:trackings",
-            "dashboards:hub",
-        },
-    },
-}
+
+def _resolve_active(sections, req_path):
+    """Marks the single most specific matching nav item as active."""
+    best_item = None
+    best_len = -1
+    for sec, items in sections.items():
+        for item in items:
+            mp = item.get("match_prefix", "") or item.get("url", "")
+            if mp == "/app/" or mp == "/app":
+                if req_path.rstrip("/") == "/app" and len(mp) > best_len:
+                    best_len = len(mp)
+                    best_item = item
+            elif mp and req_path.startswith(mp):
+                if len(mp) > best_len:
+                    best_len = len(mp)
+                    best_item = item
+    if best_item:
+        best_item["active"] = True
 
 
 def shell(request):
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
         return {}
+
+    req_path = request.path
     membership = getattr(request, "membership", None)
-    nav = []
-    is_client = False
-    if membership is not None:
-        is_client = is_client_membership(membership)
-        raw_items = []
 
-        # Resolve role persona tailoring
-        role_keys = set(
-            MembershipRole.objects.filter(membership=membership).values_list("role__system_key", flat=True)
-        )
-        is_owner = rbac.is_owner(membership) or "owner" in role_keys
-        allowed_sections = None
-        allowed_url_names = None
+    # 1. Platform Super Admin (NAV-01) - Dedicated Governance Navigation
+    if getattr(user, "is_platform_admin", False) and membership is None:
+        sections = {
+            "Platform Governance": [
+                {"label": "Organizations & Tenants", "url": reverse("platform_admin:organizations"), "icon": "building", "match_prefix": "/platform/organizations"},
+                {"label": "Platform Audit Trail", "url": reverse("platform_admin:audit"), "icon": "shield", "match_prefix": "/platform/audit"},
+                {"label": "Incident Dashboard", "url": reverse("platform_admin:incident_dashboard"), "icon": "activity", "match_prefix": "/platform/incidents"},
+            ]
+        }
+        _resolve_active(sections, req_path)
+        return {
+            "shell_org": None,
+            "shell_membership": None,
+            "shell_nav_sections": sections,
+            "shell_memberships": [],
+            "shell_tenant_error": None,
+            "is_client": False,
+        }
 
-        if not is_owner and role_keys:
-            matched_rules = [ROLE_NAV_RULES[k] for k in role_keys if k in ROLE_NAV_RULES]
-            if matched_rules:
-                allowed_sections = set()
-                allowed_url_names = set()
-                for rule in matched_rules:
-                    if "allowed_sections" in rule:
-                        allowed_sections.update(rule["allowed_sections"])
-                    if "allowed_url_names" in rule:
-                        allowed_url_names.update(rule["allowed_url_names"])
+    if membership is None:
+        return {
+            "shell_org": None,
+            "shell_membership": None,
+            "shell_nav_sections": {},
+            "shell_memberships": list(selectors.active_memberships(user)),
+            "shell_tenant_error": getattr(request, "tenant_error", None),
+            "is_client": False,
+        }
 
-        for item in navigation.items():
-            if is_client:
-                # Client user should ONLY see client sub-modules (Portal section, excluding staff portal.manage)
-                if item.section != "Portal" or item.permission == "portal.manage":
-                    continue
-            else:
-                # Internal staff should NOT see client portal requester navigation items
-                if item.section == "Portal":
-                    continue
-                # Permission check
-                if item.permission and not rbac.has_permission_anywhere(membership, item.permission):
-                    continue
-                # Role-Tailored Section & URL Scoping
-                if allowed_sections is not None and item.section not in allowed_sections:
-                    continue
-                if allowed_url_names is not None and item.url_name not in allowed_url_names:
-                    continue
+    # 2. Client / Requester Navigation (M13)
+    is_client = is_client_membership(membership)
+    if is_client:
+        sections = {
+            "Portal": [
+                {"label": "Client Portal", "url": reverse("portal:dashboard"), "icon": "grid", "match_prefix": "/app/portal/"},
+                {"label": "My Requests", "url": reverse("portal:requests_list"), "icon": "list-check", "match_prefix": "/app/portal/requests"},
+                {"label": "New Request", "url": reverse("portal:request_create"), "icon": "plus-circle", "match_prefix": "/app/portal/requests/new"},
+            ]
+        }
+        _resolve_active(sections, req_path)
+        return {
+            "shell_org": getattr(request, "organization", None),
+            "shell_membership": membership,
+            "shell_nav_sections": sections,
+            "shell_memberships": getattr(request, "active_memberships", None) or list(selectors.active_memberships(user)),
+            "shell_tenant_error": getattr(request, "tenant_error", None),
+            "is_client": True,
+        }
 
-            try:
-                url = reverse(item.url_name)
-            except NoReverseMatch:
-                continue
-            raw_items.append((item, url))
+    # 3. Internal Tenant Staff Roles - Clean Sidebar Allocation (Section H)
+    role_keys = set(
+        MembershipRole.objects.filter(membership=membership).values_list("role__system_key", flat=True)
+    )
+    is_owner = rbac.is_owner(membership)
+    is_admin = "admin" in role_keys or rbac.has_permission(membership, "role.manage")
+    sections = {}
 
-        # Select the single most specific matching nav item
-        active_url_name = None
-        best_len = -1
-        req_path = request.path
-        for item, _ in raw_items:
-            mp = item.match_prefix
-            if mp == "/app/":
-                if req_path.rstrip("/") == "/app" and len(mp) > best_len:
-                    best_len = len(mp)
-                    active_url_name = item.url_name
-            elif mp and req_path.startswith(mp):
-                if len(mp) > best_len:
-                    best_len = len(mp)
-                    active_url_name = item.url_name
+    if is_owner or is_admin:
+        sections["Overview"] = [
+            {"label": "Operations Overview", "url": reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
+        ]
+        sections["Administration"] = [
+            {"label": "Organization", "url": reverse("tenancy:organization"), "icon": "building", "match_prefix": "/app/organization"},
+            {"label": "Users", "url": reverse("tenancy:members"), "icon": "people", "match_prefix": "/app/users"},
+            {"label": "Roles & Permissions", "url": reverse("rbac:roles"), "icon": "shield", "match_prefix": "/app/roles"},
+            {"label": "Portal Accounts", "url": reverse("portal:accounts_list"), "icon": "people", "match_prefix": "/app/portal/accounts"},
+        ]
+        sections["Facilities Master"] = [
+            {"label": "Sites & Locations", "url": reverse("sites:list"), "icon": "pin", "match_prefix": "/app/sites"},
+        ]
+        sections["Analytics & Governance"] = [
+            {"label": "Operational Dashboards", "url": reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
+            {"label": "Audit Trail", "url": reverse("audit:list"), "icon": "clock", "match_prefix": "/app/audit"},
+        ]
 
-        for item, url in raw_items:
-            nav.append({
-                "label": item.label, "url": url, "icon": item.icon, "section": item.section,
-                "active": (item.url_name == active_url_name),
-            })
-    sections: dict[str, list] = {}
-    for n in nav:
-        sections.setdefault(n["section"], []).append(n)
+    elif role_keys & {"technician", "field_technician"}:
+        sections["Field Execution"] = [
+            {"label": "My Assigned Jobs", "url": reverse("workspace:my_jobs"), "icon": "wrench", "match_prefix": "/app/workspace"},
+        ]
+
+    elif role_keys & {"stores_manager", "stores_inventory"}:
+        sections["Inventory & Warehouses"] = [
+            {"label": "Parts", "url": reverse("inventory:parts"), "icon": "box", "match_prefix": "/app/inventory/parts"},
+            {"label": "Stock", "url": reverse("inventory:stock"), "icon": "grid", "match_prefix": "/app/inventory/stock"},
+            {"label": "Warehouses", "url": reverse("inventory:warehouses"), "icon": "building", "match_prefix": "/app/inventory/warehouses"},
+            {"label": "Reservations", "url": reverse("inventory:reservations"), "icon": "list-check", "match_prefix": "/app/inventory/reservations"},
+            {"label": "Movements", "url": reverse("inventory:movements"), "icon": "clipboard", "match_prefix": "/app/inventory/movements"},
+        ]
+        if rbac.has_permission_anywhere(membership, "report.view"):
+            sections["Analytics"] = [
+                {"label": "Analytics Hub", "url": reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
+            ]
+
+    elif "asset_manager" in role_keys:
+        sections["Asset Lifecycle"] = [
+            {"label": "Sites & Locations", "url": reverse("sites:list"), "icon": "pin", "match_prefix": "/app/sites"},
+            {"label": "Assets", "url": reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"},
+            {"label": "Scan Label", "url": reverse("identification:scan"), "icon": "qr", "match_prefix": "/app/scan"},
+        ]
+        sections["Commercial"] = [
+            {"label": "Warranties & contracts", "url": reverse("contracts:agreements"), "icon": "shield", "match_prefix": "/app/contracts/agreements"},
+            {"label": "Expiring coverage", "url": reverse("contracts:expiry"), "icon": "clock", "match_prefix": "/app/contracts/expiry"},
+        ]
+        if rbac.has_permission_anywhere(membership, "report.view"):
+            sections["Analytics"] = [
+                {"label": "Analytics Hub", "url": reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
+            ]
+
+    elif "maintenance_planner" in role_keys:
+        sections["Maintenance Planning"] = [
+            {"label": "Maintenance plans", "url": reverse("maintenance:plans"), "icon": "wrench", "match_prefix": "/app/maintenance/plans"},
+            {"label": "Due & upcoming", "url": reverse("maintenance:due"), "icon": "clock", "match_prefix": "/app/maintenance/due"},
+            {"label": "PM history", "url": reverse("maintenance:history"), "icon": "list-check", "match_prefix": "/app/maintenance/history"},
+        ]
+        sections["Work Management"] = [
+            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
+            {"label": "Checklists", "url": reverse("checklists:list"), "icon": "list-check", "match_prefix": "/app/checklists"},
+        ]
+        if rbac.has_permission_anywhere(membership, "report.view"):
+            sections["Analytics"] = [
+                {"label": "Analytics Hub", "url": reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
+            ]
+
+    elif "supervisor" in role_keys:
+        sections["Supervisory Operations"] = [
+            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
+            {"label": "Inspections", "url": reverse("checklists:inspections"), "icon": "clipboard", "match_prefix": "/app/inspections"},
+            {"label": "Checklists", "url": reverse("checklists:list"), "icon": "list-check", "match_prefix": "/app/checklists"},
+            {"label": "Incidents & Requests", "url": reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
+        ]
+        if rbac.has_permission_anywhere(membership, "sla.view"):
+            sections["Service Level Agreements"] = [
+                {"label": "SLA & Escalation", "url": reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
+            ]
+        if rbac.has_permission_anywhere(membership, "report.view"):
+            sections["Analytics"] = [
+                {"label": "Analytics Hub", "url": reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
+            ]
+
+    elif "service_dispatcher" in role_keys:
+        sections["Operations"] = [
+            {"label": "Operations Overview", "url": reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
+            {"label": "Incidents & Requests", "url": reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
+            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
+        ]
+        sections["Service Level Agreements"] = [
+            {"label": "SLA & Escalation", "url": reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
+        ]
+
+    elif "service_manager" in role_keys:
+        sections["Service Assurance"] = [
+            {"label": "Incidents & Requests", "url": reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
+            {"label": "SLA & Escalation", "url": reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
+            {"label": "Warranties & contracts", "url": reverse("contracts:agreements"), "icon": "shield", "match_prefix": "/app/contracts/agreements"},
+            {"label": "Analytics Hub", "url": reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
+        ]
+
+    elif role_keys & {"auditor", "compliance"}:
+        sections["Audit & Compliance"] = [
+            {"label": "Audit Trail", "url": reverse("audit:list"), "icon": "shield", "match_prefix": "/app/audit/"},
+            {"label": "Compliance reports", "url": reverse("audit:reports"), "icon": "list-check", "match_prefix": "/app/audit/reports"},
+            {"label": "Analytics Hub", "url": reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
+        ]
+
+    else:
+        # Fallback for legacy operations_manager or custom composite roles
+        sections["Overview"] = [
+            {"label": "Operations Overview", "url": reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
+        ]
+        if rbac.has_permission_anywhere(membership, "work_order.view"):
+            sections.setdefault("Operations", []).append(
+                {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"}
+            )
+        if rbac.has_permission_anywhere(membership, "incident.view"):
+            sections.setdefault("Operations", []).append(
+                {"label": "Incidents & Requests", "url": reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"}
+            )
+        if rbac.has_permission_anywhere(membership, "asset.view"):
+            sections.setdefault("Assets & Locations", []).append(
+                {"label": "Sites & Locations", "url": reverse("sites:list"), "icon": "pin", "match_prefix": "/app/sites"}
+            )
+            sections.setdefault("Assets & Locations", []).append(
+                {"label": "Assets", "url": reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"}
+            )
+        if rbac.has_permission_anywhere(membership, "sla.view"):
+            sections["Service Level Agreements"] = [
+                {"label": "SLA & Escalation", "url": reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
+            ]
+        if rbac.has_permission_anywhere(membership, "report.view"):
+            sections["Analytics"] = [
+                {"label": "Analytics Hub", "url": reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},
+            ]
+
+    _resolve_active(sections, req_path)
+
     return {
         "shell_org": getattr(request, "organization", None),
         "shell_membership": membership,
