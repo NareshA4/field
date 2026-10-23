@@ -10,11 +10,7 @@
   {% hierarchy_trail sr.asset %}
 </div>
   <div class="d-flex gap-2">{% if can.update and editable %}<a class="btn btn-outline-primary" href="{% url 'incidents:edit' sr.pk %}">Edit</a>{% endif %}
-<<<<<<< Updated upstream
     {% if can.create_work_order %}<form method="post" action="{% url 'incidents:create_work_order' sr.pk %}">{% csrf_token %}<button class="btn btn-primary" type="submit" id="header-btn-convert-wo" title="Create work order">Convert to Work Order</button></form>{% endif %}
-=======
-    {% if can.create_work_order %}<form method="post" action="{% url 'incidents:create_work_order' sr.pk %}">{% csrf_token %}<button class="btn btn-primary" type="submit" id="header-btn-convert-wo">Convert to Work Order <span class="visually-hidden">Create work order</span></button></form>{% endif %}
->>>>>>> Stashed changes
     {% if linked_work_order %}<a class="btn btn-outline-primary" href="{% url 'workorders:detail' linked_work_order.pk %}">Open {{ linked_work_order.order_number }}</a>{% endif %}</div></div>
 <div class="fx-tabs" role="tablist">{% for key, label in tabs %}<a role="tab" class="{% if tab == key %}active{% endif %}" href="?tab={{ key }}">{{ label }}</a>{% endfor %}</div>
 
