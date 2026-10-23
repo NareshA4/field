@@ -165,10 +165,14 @@ class CreateWorkOrderSerializer(StrictInputSerializer):
             raise serializers.ValidationError({"component": "Invalid component for the selected asset."})
         if start and end and end <= start:
             raise serializers.ValidationError({"planned_end": "Planned end must be after planned start."})
-        if due and end and due <= end:
-            raise serializers.ValidationError({"due_at": "Due date must be later than planned end."})
+        if due and end and due < end:
+            raise serializers.ValidationError({"due_at": "Due date must be on or after planned end."})
+        if due and start and due <= start:
+            raise serializers.ValidationError({"due_at": "Due date must be later than planned start."})
         hours = attrs.get("estimated_hours")
-        if start and end and hours is not None and hours > Decimal(str((end - start).total_seconds())) / Decimal("3600"):
+        if hours is not None and hours <= 0:
+            raise serializers.ValidationError({"estimated_hours": "Estimated hours must be greater than zero."})
+        elif start and end and end > start and hours is not None and hours > Decimal(str((end - start).total_seconds())) / Decimal("3600"):
             raise serializers.ValidationError({"estimated_hours": "Estimated hours cannot exceed the planned start-to-end window."})
         return attrs
 
@@ -227,10 +231,14 @@ class UpdateWorkOrderSerializer(StrictInputSerializer):
         due = attrs.get("due_at", instance.due_at)
         if start and end and end <= start:
             raise serializers.ValidationError({"planned_end": "Planned end must be after planned start."})
-        if due and end and due <= end:
-            raise serializers.ValidationError({"due_at": "Due date must be later than planned end."})
+        if due and end and due < end:
+            raise serializers.ValidationError({"due_at": "Due date must be on or after planned end."})
+        if due and start and due <= start:
+            raise serializers.ValidationError({"due_at": "Due date must be later than planned start."})
         hours = attrs.get("estimated_hours", instance.estimated_hours)
-        if start and end and hours is not None and hours > Decimal(str((end - start).total_seconds())) / Decimal("3600"):
+        if hours is not None and hours <= 0:
+            raise serializers.ValidationError({"estimated_hours": "Estimated hours must be greater than zero."})
+        elif start and end and end > start and hours is not None and hours > Decimal(str((end - start).total_seconds())) / Decimal("3600"):
             raise serializers.ValidationError({"estimated_hours": "Estimated hours cannot exceed the planned start-to-end window."})
         return attrs
 
@@ -248,10 +256,14 @@ class PlanSerializer(serializers.Serializer):
     def validate(self, attrs):
         if attrs["planned_end"] <= attrs["planned_start"]:
             raise serializers.ValidationError({"planned_end": "Planned end must be later than planned start."})
-        if attrs["due_at"] <= attrs["planned_end"]:
-            raise serializers.ValidationError({"due_at": "Due date must be later than planned end."})
+        if attrs["due_at"] < attrs["planned_end"]:
+            raise serializers.ValidationError({"due_at": "Due date must be on or after planned end."})
+        if attrs["due_at"] <= attrs["planned_start"]:
+            raise serializers.ValidationError({"due_at": "Due date must be later than planned start."})
         hours = attrs.get("estimated_hours")
-        if hours is not None and hours > Decimal(str((attrs["planned_end"] - attrs["planned_start"]).total_seconds())) / Decimal("3600"):
+        if hours is not None and hours <= 0:
+            raise serializers.ValidationError({"estimated_hours": "Estimated hours must be greater than zero."})
+        elif hours is not None and attrs["planned_end"] > attrs["planned_start"] and hours > Decimal(str((attrs["planned_end"] - attrs["planned_start"]).total_seconds())) / Decimal("3600"):
             raise serializers.ValidationError({"estimated_hours": "Estimated hours cannot exceed the planned start-to-end window."})
         return attrs
 

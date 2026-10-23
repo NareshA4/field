@@ -35,6 +35,13 @@ TRANSITIONS = {
     WorkOrder.Status.SUPERVISOR_REVIEW: {WorkOrder.Status.CLOSED, WorkOrder.Status.IN_PROGRESS},
 }
 
+CANCELLABLE_STATUSES = {
+    WorkOrder.Status.DRAFT,
+    WorkOrder.Status.PLANNED,
+    WorkOrder.Status.ASSIGNED,
+    WorkOrder.Status.DISPATCHED,
+}
+
 EVIDENCE_REQUIRED_TYPES = (WorkOrder.WorkType.CORRECTIVE, WorkOrder.WorkType.INSTALLATION)
 def allowed_actions(wo, membership):
     """Return the current user's actionable workflow controls for this order."""
@@ -91,8 +98,8 @@ def _need(membership, code, site):
 
 def _transition(work_order, target):
     if target == WorkOrder.Status.CANCELLED:
-        if work_order.status not in (WorkOrder.Status.DRAFT, WorkOrder.Status.PLANNED, WorkOrder.Status.ASSIGNED, WorkOrder.Status.DISPATCHED):
-            raise InvalidTransition(f"Cannot move work order from {work_order.status} to {target}.",
+        if work_order.status not in CANCELLABLE_STATUSES:
+            raise InvalidTransition(f"Cannot cancel work order in status {work_order.status}.",
                                     code="invalid_work_order_transition")
         return
     if target not in TRANSITIONS.get(work_order.status, set()):
@@ -153,15 +160,14 @@ def _snapshot(wo):
 
 def _validate_schedule_window(start, end, due_at, estimated_hours):
     if start and end and end <= start:
-        raise ValidationFailed("Planned end must be later than planned start.", code="invalid_schedule",
-                               details={"fields": {"planned_end": ["Planned end must be later than planned start."]}})
-    if due_at and end and due_at <= end:
-        raise ValidationFailed("Due date must be later than planned end.", code="due_not_after_end",
-                               details={"fields": {"due_at": ["Due date must be later than planned end."]}})
+        raise ValidationFailed("Planned end must be later than planned start.", code="invalid_schedule")
+    if due_at and end and due_at < end:
+        raise ValidationFailed("Due date must be on or after planned end.", code="due_not_after_end")
+    if due_at and start and due_at <= start:
+        raise ValidationFailed("Due date must be later than planned start.", code="due_not_after_start")
     if estimated_hours is not None and Decimal(estimated_hours) <= 0:
-        raise ValidationFailed("Estimated hours must be greater than zero.", code="estimate_not_positive",
-                               details={"fields": {"estimated_hours": ["Estimated hours must be greater than zero."]}})
-    if start and end and estimated_hours is not None:
+        raise ValidationFailed("Estimated hours must be greater than zero.", code="estimate_not_positive")
+    if start and end and end > start and estimated_hours is not None:
         available_hours = Decimal(str((end - start).total_seconds())) / Decimal("3600")
         if Decimal(estimated_hours) > available_hours:
             raise ValidationFailed("Estimated hours cannot exceed the planned start-to-end window.",
@@ -348,6 +354,9 @@ def create_work_order(organization, *, site_id=None, title=None, actor, membersh
         fields["source_reference"] = source_reference
     if is_pm and not source_reference:
         raise ValidationFailed("A preventive-maintenance schedule reference is required.", code="pm_reference_required")
+    if is_pm and not fields.get("source_id"):
+        import uuid
+        fields["source_id"] = uuid.uuid5(uuid.NAMESPACE_DNS, f"{organization.pk}:{source_reference}")
     if is_pm and WorkOrder.objects.for_organization(organization).filter(
             source_type__in=(WorkOrder.SourceType.PM, WorkOrder.SourceType.PREVENTIVE_MAINTENANCE),
             source_reference=source_reference).exclude(
@@ -616,8 +625,8 @@ def assign_work_order(wo, *, membership, actor, assignee_id, scheduled_start=Non
     if not scheduled_start or not scheduled_end or scheduled_end <= scheduled_start:
         raise ValidationFailed("Enter a valid scheduled start and end; end must be later than start.",
                                code="invalid_schedule")
-    if wo.due_at and wo.due_at <= scheduled_end:
-        raise ValidationFailed("Due date must be later than scheduled end.", code="due_before_schedule_end")
+    if wo.due_at and wo.due_at < scheduled_end:
+        raise ValidationFailed("Due date must be on or after scheduled end.", code="due_before_schedule_end")
     if wo.estimated_hours is not None and Decimal(wo.estimated_hours) > Decimal(
             str((scheduled_end - scheduled_start).total_seconds())) / Decimal("3600"):
         raise ValidationFailed("Estimated hours cannot exceed the scheduled window.", code="estimate_exceeds_schedule")
@@ -666,8 +675,8 @@ def reschedule_assigned_work_order(wo, *, membership, actor, scheduled_start, sc
         raise NotFound("Technician not found.")
     if not scheduled_start or not scheduled_end or scheduled_end <= scheduled_start:
         raise ValidationFailed("Scheduled end must be later than scheduled start.", code="invalid_schedule")
-    if wo.due_at and wo.due_at <= scheduled_end:
-        raise ValidationFailed("Due date must be later than scheduled end.", code="due_before_schedule_end")
+    if wo.due_at and wo.due_at < scheduled_end:
+        raise ValidationFailed("Due date must be on or after scheduled end.", code="due_before_schedule_end")
     if wo.estimated_hours is not None and Decimal(wo.estimated_hours) > Decimal(
             str((scheduled_end - scheduled_start).total_seconds())) / Decimal("3600"):
         raise ValidationFailed("Estimated hours cannot exceed the scheduled window.", code="estimate_exceeds_schedule")

@@ -637,3 +637,33 @@ def complete_inspection(inspection: Inspection, *, membership, actor, summary: s
     audit.record("inspection.completed", actor=actor, organization=insp.organization, target=insp,
                  after={"status": insp.status, "findings": insp.findings.count()}, request=request)
     return insp
+
+
+@transaction.atomic
+def ensure_default_template(org, *, actor, work_type="", template_ref="", request=None) -> ChecklistTemplate:
+    """Auto-provision a baseline active checklist template if the organization has none for this work type."""
+    existing = ChecklistTemplate.objects.for_organization(org).filter(
+        status=ACTIVE, work_type=work_type
+    ).first()
+    if existing:
+        return existing
+
+    label = work_type.replace("_", " ").title() if work_type else "General Inspection"
+    name = f"Standard {label} Verification Checklist"
+    if template_ref:
+        name = f"{name} ({template_ref})"
+
+    t = create_template(org, actor=actor, name=name,
+                        description=f"Standard verification checklist for {label.lower()} work orders.",
+                        work_type=work_type or "", is_required=True, request=request)
+
+    items = [
+        ("Safety inspection completed and work area isolated", "BOOLEAN", True),
+        ("Execution steps performed according to operational standard", "BOOLEAN", True),
+        ("System operational verification and sign-off", "BOOLEAN", True),
+        ("Technician observations & completion notes", "TEXT", False),
+    ]
+    for prompt, item_type, req in items:
+        add_item(t, actor=actor, prompt=prompt, item_type=item_type, required=req, request=request)
+
+    return activate_template(t, actor=actor, request=request)

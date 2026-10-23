@@ -107,7 +107,7 @@ class WorkOrderViewSet(TenantAPIMixin, viewsets.GenericViewSet):
         OpenApiParameter("site", OpenApiTypes.UUID),
         OpenApiParameter("assignee", OpenApiTypes.UUID, description="Technician membership id"),
         OpenApiParameter("work_type", OpenApiTypes.STR, enum=[key for key, _ in WorkOrder.WorkType.choices]),
-        OpenApiParameter("source", OpenApiTypes.STR, enum=[key for key, _ in WorkOrder.SourceType.choices]),
+        OpenApiParameter("source", OpenApiTypes.STR, enum=[key for key, _ in WorkOrder.SourceType.distinct_choices()]),
         OpenApiParameter("overdue", OpenApiTypes.BOOL),
         OpenApiParameter("q", OpenApiTypes.STR, description="Search number, title, asset, or source reference"),
         OpenApiParameter("ordering", OpenApiTypes.STR, description="Allowed ordering: created_at, due_at, priority, planned_start, order_number; prefix with - for descending"),

@@ -9,7 +9,7 @@
   <form method="post" autocomplete="off" {% if title != "Create work order" %}data-workorder-date-validation{% endif %}>{% csrf_token %}
     {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
     <div class="wo-form-grid">
-      {% for field in form %}<div class="mb-3 {% if field.name == 'description' %}wo-field-wide{% endif %}" {% if field.name == 'source_request' %}id="source-record-row"{% endif %} {% if field.name == 'source_reference' and title == 'Create work order' %}id="source-reference-row" hidden{% endif %} {% if field.name == 'source_type' %}id="source-type-row"{% endif %}>
+      {% for field in form %}<div class="mb-3 {% if field.name == 'title' or field.name == 'description' or field.name == 'component' %}wo-field-wide{% elif field.name == 'source_type' or field.name == 'site' or field.name == 'work_type' or field.name == 'planned_start' or field.name == 'due_at' %}wo-field-col-1{% elif field.name == 'source_request' or field.name == 'source_reference' or field.name == 'asset' or field.name == 'priority' or field.name == 'planned_end' or field.name == 'estimated_hours' %}wo-field-col-2{% endif %}" {% if field.name == 'source_request' %}id="source-record-row"{% endif %} {% if field.name == 'source_reference' and title == 'Create work order' %}id="source-reference-row" hidden{% endif %} {% if field.name == 'source_type' %}id="source-type-row"{% endif %}>
         <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}{% if field.name == 'source_request' %}<span id="source-record-required" class="text-danger" hidden> *</span><span id="source-record-optional" class="text-secondary fw-normal"> (Optional)</span>{% elif field.field.required %}<span class="text-danger"> *</span>{% else %}<span class="text-secondary fw-normal"> (Optional)</span>{% endif %}</label>
         {{ field }}
         {% if field.name == 'asset' and title == 'Create work order' %}<div id="asset-site-empty" class="wo-inline-state is-warning mt-1" role="status" hidden><span id="asset-site-empty-message"></span> {% if can_create_asset %}<a id="asset-site-create-link" href="{% url 'assets:create' %}">Create asset</a>{% endif %}</div>{% endif %}
@@ -29,7 +29,7 @@
       <div id="source-record-empty" class="wo-inline-state is-info mb-2" role="status" hidden><span id="source-record-empty-message">No approved source records</span> {% if can_create_incident %}· <a href="{% url 'incidents:list' %}">View incidents and requests</a>{% endif %}</div>
       {% if source_metadata %}{{ source_metadata|json_script:"workorder-source-metadata" }}{% endif %}
     {% endif %}
-    <div class="d-flex flex-wrap gap-2 mt-2">
+    <div class="wo-form-actions d-flex flex-wrap gap-2 mt-3">
       <button class="btn btn-primary" type="submit">{{ submit }}</button>
       <a class="btn btn-outline-secondary" href="{% if wo %}{% url 'workorders:detail' wo.pk %}{% else %}{% url 'workorders:list' %}{% endif %}">Cancel</a>
     </div>

@@ -14,14 +14,16 @@
   <form method="post" enctype="multipart/form-data" data-workorder-date-validation>{% csrf_token %}
     {% if return_to_complete %}<input type="hidden" name="return_to" value="complete">{% endif %}
     {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
-    {% for field in form %}{% if field.is_hidden %}{{ field }}{% else %}
-      <div class="mb-3">
-        <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span class="text-danger"> *</span>{% else %}<span class="text-secondary fw-normal"> (Optional)</span>{% endif %}</label>{{ field }}
-        {% if field.name == 'planned_end' %}<div id="planned-end-rule-error" class="text-danger small" role="alert" hidden></div>{% endif %}{% if field.name == 'due_at' %}<div id="due-at-rule-error" class="text-danger small" role="alert" hidden></div>{% endif %}{% if field.name == 'estimated_hours' %}<div id="estimated-hours-rule-error" class="text-danger small" role="alert" hidden></div>{% endif %}{% for error in field.errors %}<div class="text-danger small" role="alert">{{ error }}</div>{% endfor %}
-      </div>
-    {% endif %}{% endfor %}
+    <div class="wo-form-grid">
+      {% for field in form %}{% if field.is_hidden %}{{ field }}{% else %}
+        <div class="mb-3 {% if field.name == 'resolution_notes' or field.name == 'update' or field.name == 'reason' or field.name == 'notes' or field.name == 'comment' or field.name == 'items' or field.name == 'description' or field.name == 'assigned_to' or field.name == 'approved' %}wo-field-wide{% elif field.name == 'work_type' or field.name == 'planned_start' or field.name == 'due_at' or field.name == 'scheduled_start' or field.name == 'work_date' or field.name == 'item_name' or field.name == 'quantity' or field.name == 'file' %}wo-field-col-1{% elif field.name == 'priority' or field.name == 'planned_end' or field.name == 'estimated_hours' or field.name == 'scheduled_end' or field.name == 'hours' or field.name == 'part_reference' or field.name == 'unit' %}wo-field-col-2{% endif %}">
+          <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span class="text-danger"> *</span>{% else %}<span class="text-secondary fw-normal"> (Optional)</span>{% endif %}</label>{{ field }}
+          {% if field.name == 'planned_end' %}<div id="planned-end-rule-error" class="text-danger small" role="alert" hidden></div>{% endif %}{% if field.name == 'due_at' %}<div id="due-at-rule-error" class="text-danger small" role="alert" hidden></div>{% endif %}{% if field.name == 'estimated_hours' %}<div id="estimated-hours-rule-error" class="text-danger small" role="alert" hidden></div>{% endif %}{% for error in field.errors %}<div class="text-danger small" role="alert">{{ error }}</div>{% endfor %}
+        </div>
+      {% endif %}{% endfor %}
+    </div>
     {% if 'expected_version' not in form.fields %}<input type="hidden" name="expected_version" value="{{ expected_version }}">{% endif %}
-    <div class="d-flex flex-wrap gap-2 mt-4"><button class="btn btn-primary" type="submit" {% if operation == 'Assign' and not form.fields.assigned_to.queryset.exists %}disabled{% endif %} {% if is_close_action %}data-confirm="Approve and close this work order? This cannot be undone."{% endif %}>{% if operation == 'Complete' %}Complete work{% elif operation == 'Labor' %}Save labor entry{% elif operation == 'Materials' %}Record material{% else %}Confirm {{ operation|lower }}{% endif %}</button><a class="btn btn-outline-secondary" href="{% url 'workorders:detail' wo.pk %}">Back to work order</a></div>
+    <div class="wo-form-actions d-flex flex-wrap gap-2 mt-4"><button class="btn btn-primary" type="submit" {% if operation == 'Assign' and not form.fields.assigned_to.queryset.exists %}disabled{% endif %} {% if is_close_action %}data-confirm="Approve and close this work order? This cannot be undone."{% endif %}>{% if operation == 'Complete' %}Complete work{% elif operation == 'Labor' %}Save labor entry{% elif operation == 'Materials' %}Record material{% else %}Confirm {{ operation|lower }}{% endif %}</button><a class="btn btn-outline-secondary" href="{% url 'workorders:detail' wo.pk %}">Back to work order</a></div>
   </form>
 </div>
 {% endblock %}

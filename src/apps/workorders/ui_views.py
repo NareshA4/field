@@ -152,7 +152,10 @@ class WorkOrderListView(TenantPermissionMixin, View):
             qs = qs.filter(due_at__lt=timezone.now()).exclude(
                 status__in=[WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED])
         if source in dict(WorkOrder.SourceType.choices):
-            qs = qs.filter(source_type=source)
+            if source == WorkOrder.SourceType.PM:
+                qs = qs.filter(source_type__in=[WorkOrder.SourceType.PM, WorkOrder.SourceType.PREVENTIVE_MAINTENANCE])
+            else:
+                qs = qs.filter(source_type=source)
         if state:
             qs = qs.filter(status=state)
         if search:
@@ -189,7 +192,7 @@ class WorkOrderListView(TenantPermissionMixin, View):
             "work_types": WorkOrder.WorkType.choices, "sites": sites, "assignees": assignees,
             "selected_status": state, "selected_priority": priority, "selected_work_type": work_type,
             "selected_site": site_id, "selected_assignee": assignee_id, "overdue": overdue,
-            "selected_source": source, "source_types": WorkOrder.SourceType.choices,
+            "selected_source": source, "source_types": WorkOrder.SourceType.distinct_choices(),
               "selected_ordering": ordering, "q": search,
               "querystring": query.urlencode(),
               "has_visible_work_orders": has_visible_work_orders,
@@ -1001,6 +1004,15 @@ class WorkOrderChecklistExecuteView(TenantPermissionMixin, View):
 
             if not template:
                 template = checklist_services.required_templates(wo).first()
+
+            if not template:
+                try:
+                    template = checklist_services.ensure_default_template(
+                        request.organization, actor=request.user, work_type=wo.work_type,
+                        template_ref=wo.checklist_template_ref, request=request
+                    )
+                except Exception:
+                    pass
 
             if not template:
                 messages.error(request, f"No active checklist template found matching '{wo.checklist_template_ref or wo.work_type}'.")
