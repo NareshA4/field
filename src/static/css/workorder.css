@@ -42,8 +42,8 @@
 .wo-table { width: 100%; border-collapse: collapse; font-size: .7rem; }
 .wo-table th { padding: .55rem .72rem; border-bottom: 1px solid #e8ebf0; background: #fbfcfe; color: #77869c; text-align: left; font-size: .59rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
 .wo-table td { padding: .65rem .72rem; border-bottom: 1px solid #edf0f4; color: #3d4d66; white-space: nowrap; }
-.wo-actions-heading,.wo-actions-cell { width: 92px; text-align: right !important; }
-.wo-edit-button,.wo-view-button { display: inline-flex; min-width: 58px; min-height: 30px; align-items: center; justify-content: center; padding: .32rem .65rem; border: 1px solid #dce2e9; border-radius: 4px; color: #0b1728; background: #fff; text-decoration: none; font-size: .68rem; font-weight: 600; }
+.wo-actions-heading,.wo-actions-cell { min-width: 92px; width: 92px; text-align: right; }
+.wo-edit-button,.wo-view-button { display: inline-flex; min-width: 58px; min-height: 30px; align-items: center; justify-content: center; padding: .32rem .65rem; border: 1px solid #dce2e9; border-radius: 4px; color: #0b1728; background: #fff; text-decoration: none; font-size: .68rem; font-weight: 600; white-space: nowrap !important; overflow-wrap: normal !important; word-break: normal !important; }
 .wo-update-action { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; padding: .4rem .75rem; border: 1px solid #C9A227; border-radius: 4px; color: #0B1F3A; background: #C9A227; text-decoration: none; font-size: .72rem; font-weight: 600; }
 .wo-update-action:hover { border-color: #b5901f; background: #b5901f; color: #0B1F3A; }
 .wo-edit-button { border-color: #C9A227; background: #C9A227; color: #0B1F3A; }
@@ -274,9 +274,9 @@
 .wo-list-table .wo-row-title { max-width: 100%; }
 .wo-list-table .wo-actions-cell { vertical-align: middle; }
 .wo-list-table .wo-row-actions { align-items: stretch; }
-.wo-list-table .wo-actions-cell a,.wo-list-table .wo-actions-cell button { width: 100%; min-width: 0; white-space: normal; line-height: 1.2; }
-.wo-list-table .wo-actions-cell form { width: 100%; }
-.wo-list-table .wo-actions-cell .wo-status-button { padding: .35rem .4rem; }
+.wo-list-table .wo-actions-cell a,.wo-list-table .wo-actions-cell button { width: auto; min-width: 58px; white-space: nowrap !important; overflow-wrap: normal !important; word-break: normal !important; line-height: 1.2; }
+.wo-list-table .wo-actions-cell form { width: auto; margin: 0; display: inline-flex; }
+.wo-list-table .wo-actions-cell .wo-status-button { padding: .35rem .55rem; white-space: nowrap !important; }
 
 @media (max-width: 900px) {
   .wo-records .table-responsive { overflow: visible; }
@@ -286,8 +286,9 @@
   .wo-list-table tbody tr { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-content: start; border: 1px solid var(--wo-border); border-radius: 6px; overflow: hidden; background: #fff; }
   .wo-list-table tbody tr td { display: flex; flex-direction: column; gap: .15rem; min-width: 0; padding: .55rem .65rem; white-space: normal; }
   .wo-list-table tbody tr td::before { content: attr(data-label); color: #8392aa; font-size: .58rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
-  .wo-list-table tbody tr td.wo-actions-cell { grid-column: 1 / -1; border-top: 1px solid var(--wo-border); }
-  .wo-list-table .wo-row-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .35rem; }
+  .wo-list-table tbody tr td.wo-actions-cell { grid-column: 1 / -1 !important; width: 100% !important; max-width: 100% !important; border-top: 1px solid var(--wo-border); text-align: left !important; }
+  .wo-list-table .wo-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; width: 100%; }
+  .wo-list-table .wo-actions-cell a,.wo-list-table .wo-actions-cell button { width: auto !important; min-width: 68px !important; white-space: nowrap !important; }
   .wo-list-table tbody tr .wo-empty { grid-column: 1 / -1; }
 }
 
@@ -349,4 +350,507 @@
   .wo-simple-job-row { grid-template-columns: minmax(0,1fr); gap: .4rem; padding: .7rem 0; }
   .wo-simple-job-notes { grid-column: auto; }
   .wo-simple-job-actions { justify-content: flex-start; }
+}
+
+
+/* ==========================================================================
+   Responsive Enhancements & Form Alignment (Desktop, Tablet, Mobile)
+   ========================================================================== */
+
+/* Key-value summary grid for Overview, Assignment, and Closure tabs */
+.wo-summary-grid {
+  display: grid;
+  grid-template-columns: minmax(130px, 170px) 1fr;
+  gap: 0.65rem 1.25rem;
+  margin: 0;
+  font-size: 0.8rem;
+  align-items: baseline;
+}
+.wo-summary-grid dt {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 0;
+  line-height: 1.4;
+}
+.wo-summary-grid dd {
+  margin: 0;
+  color: #1e293b;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* Event / Audit timeline list in tabs */
+.wo-event-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.wo-event-list li {
+  position: relative;
+  padding: 0.6rem 0.8rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  color: #334155;
+  line-height: 1.4;
+}
+.wo-event-list li p {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+  font-size: 0.74rem;
+}
+
+/* Stable column positioning for forms */
+.wo-form-grid .wo-field-col-1 {
+  grid-column: 1;
+}
+.wo-form-grid .wo-field-col-2 {
+  grid-column: 2;
+}
+.wo-form-grid .wo-field-wide {
+  grid-column: 1 / -1;
+}
+
+/* Mobile & Tablet Specific Form & Layout Alignment */
+@media (max-width: 991px) and (min-width: 601px) {
+  /* Tablet layout for filter bar */
+  .wo-filter-form > label:not(.wo-search):not(.wo-overdue) {
+    flex: 1 1 calc(33.333% - 0.5rem);
+    min-width: 140px;
+  }
+  .wo-filter-form select {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Forms stack neatly on tablet portrait and mobile */
+  .wo-form-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .wo-form-grid .wo-field-col-1,
+  .wo-form-grid .wo-field-col-2,
+  .wo-form-grid .wo-field-wide {
+    grid-column: 1;
+  }
+  .wo-detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .wo-status-track {
+    padding: 0.5rem 0.6rem;
+  }
+  .wo-detail-nav {
+    gap: 0.15rem;
+  }
+  .wo-detail-nav a {
+    min-height: 36px;
+    padding: 0.5rem 0.65rem;
+    font-size: 0.72rem;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Mobile header alignment */
+  .wo-detail-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  .wo-detail-header h1 {
+    font-size: 1.2rem;
+  }
+  .wo-workflow-intro {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+  .wo-summary-grid {
+    grid-template-columns: 1fr;
+    gap: 0.2rem 0;
+  }
+  .wo-summary-grid dt {
+    margin-top: 0.65rem;
+    font-size: 0.68rem;
+  }
+  .wo-summary-grid dt:first-child {
+    margin-top: 0;
+  }
+  .wo-form-card {
+    padding: 1rem 0.85rem;
+    border-radius: 6px;
+  }
+  .wo-form-card h1 {
+    font-size: 1.15rem;
+  }
+  .wo-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+  .wo-status-card {
+    min-height: 72px;
+    padding: 0.6rem 0.6rem 0.5rem;
+  }
+  .wo-status-count {
+    font-size: 1.1rem;
+  }
+  .wo-status-label {
+    font-size: 0.65rem;
+    margin-top: 0.3rem;
+  }
+  .wo-action-row {
+    gap: 0.45rem;
+  }
+  .wo-action-row .btn,
+  .wo-action-row .wo-update-action {
+    min-height: 36px;
+  }
+}
+
+@media (max-width: 420px) {
+  /* Small mobile phones (<420px) */
+  .wo-filter-form > label:not(.wo-search):not(.wo-overdue) {
+    flex: 1 1 100%;
+  }
+  .wo-status-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .wo-form-card {
+    padding: 0.85rem 0.65rem;
+  }
+}
+
+
+/* ==========================================================================
+   Comprehensive Button, Control & Action Alignment (Desktop, Tablet, Mobile)
+   ========================================================================== */
+
+/* Universal Form Action Row */
+.wo-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 1.5rem;
+}
+.wo-form-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0.45rem 1.25rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 5px;
+  line-height: 1.25;
+  transition: all 0.15s ease;
+}
+
+/* Workflow Actions Row Uniformity */
+.wo-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+.wo-action-row form {
+  display: inline-flex;
+  margin: 0;
+}
+.wo-action-row .btn,
+.wo-action-row .wo-update-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0.38rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: 4px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* Filter Bar Buttons Uniformity */
+.wo-filter-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 33px;
+  height: 33px;
+  padding: 0.32rem 0.85rem;
+  border: 1px solid #0B1F3A;
+  border-radius: 4px;
+  color: #fff;
+  background: #0B1F3A;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+.wo-reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 33px;
+  height: 33px;
+  padding: 0.32rem 0.75rem;
+  border: 1px solid #dce2ea;
+  border-radius: 4px;
+  color: #4b5d78;
+  background: #fff;
+  text-decoration: none;
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.wo-reset:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+/* Tab Header Action Uniformity */
+.wo-detail-card > .d-flex.justify-content-between.align-items-center {
+  gap: 0.75rem;
+}
+.wo-detail-card > .d-flex.justify-content-between.align-items-center h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.wo-detail-card > .d-flex.justify-content-between.align-items-center .wo-view-button {
+  min-height: 34px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+/* TABLET SPECIFIC BUTTON & ACTION ALIGNMENTS (601px - 991px) */
+@media (min-width: 601px) and (max-width: 991px) {
+  .wo-form-actions .btn {
+    min-height: 40px;
+    padding: 0.48rem 1.4rem;
+    font-size: 0.84rem;
+  }
+  .wo-action-row {
+    gap: 0.5rem;
+  }
+  .wo-action-row .btn,
+  .wo-action-row .wo-update-action {
+    min-height: 36px;
+    padding: 0.42rem 0.95rem;
+    font-size: 0.8rem;
+  }
+  .wo-filter-button,
+  .wo-reset {
+    min-height: 36px;
+    height: 36px;
+    font-size: 0.76rem;
+    padding: 0.38rem 0.95rem;
+  }
+  .wo-list-table tbody tr td.wo-actions-cell {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-top: 1px solid var(--wo-border);
+    padding: 0.6rem 0.75rem;
+    text-align: left !important;
+  }
+  .wo-list-table .wo-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    width: 100%;
+  }
+  .wo-list-table .wo-row-actions a,
+  .wo-list-table .wo-row-actions button {
+    min-height: 34px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    text-align: center;
+    justify-content: center;
+    width: auto !important;
+    min-width: 68px !important;
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+}
+
+/* MOBILE SPECIFIC BUTTON & ACTION ALIGNMENTS (<= 640px) */
+@media (max-width: 640px) {
+  /* Form submit & cancel stack cleanly with full-width touch targets */
+  .wo-form-actions {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 0.55rem;
+    width: 100%;
+    margin-top: 1.25rem;
+  }
+  .wo-form-actions .btn {
+    width: 100%;
+    min-height: 44px;
+    font-size: 0.9rem;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* Operations Create button full width on mobile header */
+  .wo-panel-heading-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+  .wo-primary-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 42px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-radius: 5px;
+    text-align: center;
+  }
+
+  /* Workflow Actions 2-column balanced touch grid */
+  .wo-action-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    width: 100%;
+  }
+  .wo-action-row form {
+    display: flex;
+    width: 100%;
+  }
+  .wo-action-row .btn,
+  .wo-action-row .wo-update-action {
+    width: 100%;
+    min-height: 42px;
+    font-size: 0.8rem;
+    padding: 0.45rem 0.5rem;
+    text-align: center;
+    justify-content: center;
+    white-space: normal;
+  }
+  .wo-action-row > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  /* Filter bar actions on mobile */
+  .wo-filter-form {
+    gap: 0.45rem;
+    padding: 0.65rem 0.75rem;
+  }
+  .wo-filter-form .wo-search {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+  .wo-filter-form > label:not(.wo-search):not(.wo-overdue) {
+    flex: 1 1 calc(50% - 0.25rem);
+    min-width: 0;
+  }
+  .wo-filter-form select,
+  .wo-filter-form input[type=search] {
+    min-height: 38px;
+    height: 38px;
+    font-size: 0.78rem;
+  }
+  .wo-filter-form .wo-overdue {
+    flex: 1 1 100%;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    margin: 0.15rem 0;
+    font-size: 0.78rem;
+  }
+  .wo-filter-button {
+    flex: 1 1 calc(50% - 0.25rem);
+    min-height: 40px;
+    height: 40px;
+    font-size: 0.82rem;
+  }
+  .wo-reset {
+    flex: 1 1 calc(50% - 0.25rem);
+    min-height: 40px;
+    height: 40px;
+    font-size: 0.82rem;
+  }
+
+  /* Tab header action wrap */
+  .wo-detail-card > .d-flex.justify-content-between.align-items-center {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+  }
+  .wo-detail-card > .d-flex.justify-content-between.align-items-center .wo-view-button {
+    width: 100%;
+    min-height: 40px;
+    font-size: 0.82rem;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* Table card actions on mobile */
+  .wo-list-table tbody tr td.wo-actions-cell {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-top: 1px solid var(--wo-border);
+    text-align: left !important;
+  }
+  .wo-list-table .wo-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0;
+    width: 100%;
+  }
+  .wo-list-table .wo-row-actions a,
+  .wo-list-table .wo-row-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto !important;
+    min-width: 72px !important;
+    min-height: 36px;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+  .wo-list-table .wo-actions-cell form {
+    width: auto !important;
+    margin: 0;
+    display: inline-flex;
+  }
+
+  /* Modal actions on mobile */
+  .wo-assignment-modal-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .wo-assignment-modal-actions button {
+    width: 100%;
+    min-height: 42px;
+    font-size: 0.85rem;
+    justify-content: center;
+  }
 }

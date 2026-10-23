@@ -34,6 +34,16 @@ class WorkOrder(TenantOwnedModel):
         PREVENTIVE_MAINTENANCE = "PREVENTIVE_MAINTENANCE", "Preventive maintenance"
         MANUAL = "MANUAL", "Manual"
 
+        @classmethod
+        def distinct_choices(cls):
+            seen = set()
+            res = []
+            for val, label in cls.choices:
+                if label not in seen and val != cls.PREVENTIVE_MAINTENANCE:
+                    seen.add(label)
+                    res.append((val, label))
+            return res
+
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"
         PLANNED = "PLANNED", "Planned"

@@ -32,7 +32,7 @@ class DataAttributeSelect(forms.Select):
 
 
 class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
-    source_choices = list(WorkOrder.SourceType.choices)
+    source_choices = WorkOrder.SourceType.distinct_choices()
     source_type = forms.ChoiceField(choices=[("", "Select a source") , *source_choices], initial="",
         error_messages={"required": "Choose a work-order source.",
                         "invalid_choice": "Choose a valid work-order source."})
@@ -133,7 +133,7 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
                     self.add_error("asset", "Asset must match the selected source record.")
         elif source_type == WorkOrder.SourceType.MANUAL and source_request:
             self.add_error("source_request", "Manual work orders cannot be linked to an incident or request.")
-        elif source_type == WorkOrder.SourceType.PM:
+        elif source_type in (WorkOrder.SourceType.PM, WorkOrder.SourceType.PREVENTIVE_MAINTENANCE):
             if not cleaned.get("source_reference", "").strip():
                 self.add_error("source_reference", "Enter the originating preventive-maintenance schedule reference.")
         elif source_type == WorkOrder.SourceType.MANUAL and cleaned.get("source_reference", "").strip():
@@ -181,7 +181,7 @@ class EditWorkOrderForm(BootstrapFormMixin, forms.Form):
                                       widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}))
     due_at = forms.DateTimeField(required=False, input_formats=["%Y-%m-%dT%H:%M"],
                                  widget=forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}))
-    estimated_hours = forms.DecimalField(max_digits=6, decimal_places=2, min_value=0, required=False)
+    estimated_hours = forms.DecimalField(max_digits=6, decimal_places=2, min_value=0.01, required=False)
 
     def __init__(self, *args, membership, work_order, **kwargs):
         initial = {
@@ -235,11 +235,17 @@ class EditWorkOrderForm(BootstrapFormMixin, forms.Form):
         start, end, due = cleaned.get("planned_start"), cleaned.get("planned_end"), cleaned.get("due_at")
         if start and end and end <= start:
             self.add_error("planned_end", "Planned end must be after planned start.")
-        if due and end and due <= end:
-            self.add_error("due_at", "Due date must be later than planned end.")
+        if due and end and due < end:
+            self.add_error("due_at", "Due date must be on or after planned end.")
+        if due and start and due <= start:
+            self.add_error("due_at", "Due date must be later than planned start.")
         hours = cleaned.get("estimated_hours")
-        if start and end and hours is not None and hours > Decimal(str((end - start).total_seconds())) / Decimal("3600"):
-            self.add_error("estimated_hours", "Estimated hours cannot exceed the planned start-to-end window.")
+        if hours is not None and hours <= 0:
+            self.add_error("estimated_hours", "Estimated hours must be greater than zero.")
+        elif start and end and end > start and hours is not None:
+            available_hours = Decimal(str((end - start).total_seconds())) / Decimal("3600")
+            if hours > available_hours:
+                self.add_error("estimated_hours", "Estimated hours cannot exceed the planned start-to-end window.")
         return cleaned
 
 
@@ -270,17 +276,25 @@ class PlanForm(BootstrapFormMixin, forms.Form):
         if work_order and work_order.source_request_id:
             self.fields["priority"].disabled = True
             self.fields["priority"].help_text = "Inherited from the linked approved source record."
+            if work_order.priority:
+                self.initial.setdefault("priority", work_order.priority)
 
     def clean(self):
         cleaned = super().clean()
         start, end, due = (cleaned.get("planned_start"), cleaned.get("planned_end"), cleaned.get("due_at"))
         if start and end and end <= start:
             self.add_error("planned_end", "Planned end must be later than planned start.")
-        if due and end and due <= end:
-            self.add_error("due_at", "Due date must be later than planned end.")
+        if due and end and due < end:
+            self.add_error("due_at", "Due date must be on or after planned end.")
+        if due and start and due <= start:
+            self.add_error("due_at", "Due date must be later than planned start.")
         hours = cleaned.get("estimated_hours")
-        if start and end and hours is not None and hours > Decimal(str((end - start).total_seconds())) / Decimal("3600"):
-            self.add_error("estimated_hours", "Estimated hours cannot exceed the planned start-to-end window.")
+        if hours is not None and hours <= 0:
+            self.add_error("estimated_hours", "Estimated hours must be greater than zero.")
+        elif start and end and end > start and hours is not None:
+            available_hours = Decimal(str((end - start).total_seconds())) / Decimal("3600")
+            if hours > available_hours:
+                self.add_error("estimated_hours", "Estimated hours cannot exceed the planned start-to-end window.")
         return cleaned
 
 

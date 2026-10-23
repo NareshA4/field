@@ -466,6 +466,9 @@ def test_create_work_order_form_contains_only_creation_fields(
     assert not blank.is_valid()
     assert list(blank.fields["source_type"].choices)[0] == ("", "Select a source")
     assert WorkOrder.SourceType.PM in {value for value, _label in blank.fields["source_type"].choices}
+    # Verify no duplicate labels in source_type dropdown
+    dropdown_labels = [label for _val, label in blank.fields["source_type"].choices]
+    assert len(dropdown_labels) == len(set(dropdown_labels))
     planning_fields = {"work_type", "priority", "planned_start", "planned_end", "due_at", "estimated_hours"}
     assert not planning_fields & set(blank.fields)
     for name in ("site", "asset", "component"):
@@ -670,17 +673,39 @@ def test_plan_form_requires_valid_schedule_and_due_dates():
     assert "Enter the planned end date and time." in blank.errors["planned_end"]
     assert "Enter the due date and time before planning this work order." in blank.errors["due_at"]
 
-    valid = PlanForm({"work_type": "CORRECTIVE", "priority": "MEDIUM",
-                      "planned_start": "2030-01-01T09:00", "planned_end": "2030-01-01T11:00",
-                      "due_at": "2030-01-01T11:01", "estimated_hours": "2.00"})
-    assert valid.is_valid(), valid.errors
+    # Tdue == Tend is valid (equality allowed by Tdue >= Tend)
+    valid_exact = PlanForm({"work_type": "CORRECTIVE", "priority": "MEDIUM",
+                            "planned_start": "2030-01-01T09:00", "planned_end": "2030-01-01T11:00",
+                            "due_at": "2030-01-01T11:00", "estimated_hours": "2.00"})
+    assert valid_exact.is_valid(), valid_exact.errors
 
+    # Tdue > Tend is also valid
+    valid_later = PlanForm({"work_type": "CORRECTIVE", "priority": "MEDIUM",
+                            "planned_start": "2030-01-01T09:00", "planned_end": "2030-01-01T11:00",
+                            "due_at": "2030-01-01T12:00", "estimated_hours": "1.50"})
+    assert valid_later.is_valid(), valid_later.errors
+
+    # Tdue < Tend is rejected
+    due_before_end = PlanForm({"work_type": "CORRECTIVE", "priority": "MEDIUM",
+                               "planned_start": "2030-01-01T09:00", "planned_end": "2030-01-01T11:00",
+                               "due_at": "2030-01-01T10:30", "estimated_hours": "1.00"})
+    assert not due_before_end.is_valid()
+    assert "Due date must be on or after planned end." in due_before_end.errors["due_at"]
+
+    # hours > (Tend - Tstart) is rejected
+    hours_exceeded = PlanForm({"work_type": "CORRECTIVE", "priority": "MEDIUM",
+                               "planned_start": "2030-01-01T09:00", "planned_end": "2030-01-01T11:00",
+                               "due_at": "2030-01-01T11:00", "estimated_hours": "2.01"})
+    assert not hours_exceeded.is_valid()
+    assert "Estimated hours cannot exceed the planned start-to-end window." in hours_exceeded.errors["estimated_hours"]
+
+    # Tend <= Tstart is rejected
     invalid_window = PlanForm({"work_type": "CORRECTIVE", "priority": "MEDIUM",
                                "planned_start": "2030-01-01T11:00", "planned_end": "2030-01-01T09:00",
-                               "due_at": "2030-01-01T09:00", "estimated_hours": "2.00"})
+                               "due_at": "2030-01-01T08:00", "estimated_hours": "2.00"})
     assert not invalid_window.is_valid()
     assert "Planned end must be later than planned start." in invalid_window.errors["planned_end"]
-    assert "Due date must be later than planned end." in invalid_window.errors["due_at"]
+    assert "Due date must be on or after planned end." in invalid_window.errors["due_at"]
 
 
 def test_ui_workflow_plan_assign_dispatch_execute_and_supervisor_close(
