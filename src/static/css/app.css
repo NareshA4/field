@@ -981,21 +981,23 @@ body.fx-app {
 /* Interactive Hierarchy Hub & Tree View Styles */
 .fx-hierarchy-wrapper {
   background: var(--fx-surface);
+  border: 1px solid var(--fx-border);
   border-radius: var(--fx-radius);
+  overflow: hidden;
   position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .fx-hierarchy-toolbar {
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 1.15rem;
   background: #F8FAFC;
   border-bottom: 1px solid var(--fx-border);
-  border-top-left-radius: var(--fx-radius);
-  border-top-right-radius: var(--fx-radius);
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.75rem;
+  position: static !important;
 }
 
 .fx-hierarchy-toolbar .btn-sm {
@@ -1091,67 +1093,61 @@ body.fx-app {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
-.fx-hierarchy-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.75rem 1.15rem;
-  background: #F8FAFC;
-  border-bottom: 1px solid var(--fx-border);
-  flex-wrap: wrap;
-  position: sticky;
-  top: 0;
-  z-index: 20;
-}
-
 .fx-hierarchy-container {
-  padding: 1rem 1.15rem 2rem;
+  padding: 1.25rem 1.25rem 2rem;
   overflow-x: auto;
+  overflow-y: visible;
   min-height: 280px;
-  scrollbar-width: thin;
+  background: #FFFFFF;
 }
 
 .fx-tree-actions .dropdown-menu {
   z-index: 1060;
 }
 
-.fx-tree-root,
-.fx-tree-branch {
+.fx-tree-root {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
 .fx-tree-branch {
-  padding-left: 1.5rem;
+  list-style: none;
+  margin: 0.45rem 0 0 0;
+  padding: 0 0 0 1.75rem;
   position: relative;
-  margin-top: 0.4rem;
-}
-
-.fx-tree-branch::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 1.2rem;
-  left: 0.7rem;
-  width: 2px;
-  background: #94A3B8;
 }
 
 .fx-tree-node-item {
   position: relative;
-  margin-bottom: 0.45rem;
+  margin-bottom: 0.55rem;
 }
 
-.fx-tree-branch>.fx-tree-node-item::before {
+/* Continuous vertical guide line connecting sibling nodes */
+.fx-tree-branch > .fx-tree-node-item::before {
   content: "";
   position: absolute;
-  top: 1.25rem;
-  left: -0.8rem;
-  width: 0.8rem;
+  top: 0;
+  left: -0.95rem;
+  width: 2px;
+  height: 100%;
+  background: #CBD5E1;
+}
+
+/* Last child terminates the vertical guide cleanly at the horizontal branch */
+.fx-tree-branch > .fx-tree-node-item:last-child::before {
+  height: 1.65rem;
+}
+
+/* Horizontal branch connecting vertical guide into the node card */
+.fx-tree-branch > .fx-tree-node-item::after {
+  content: "";
+  position: absolute;
+  top: 1.65rem;
+  left: -0.95rem;
+  width: 0.95rem;
   height: 2px;
-  background: #94A3B8;
+  background: #CBD5E1;
 }
 
 .fx-tree-node-card {
@@ -1159,19 +1155,22 @@ body.fx-app {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 0.5rem 0.75rem;
+  gap: 0.6rem 0.95rem;
   background: #FFFFFF;
   border: 1px solid var(--fx-border);
   border-left: 4px solid #94A3B8;
   border-radius: 8px;
-  padding: 0.65rem 0.85rem;
-  transition: all 0.12s ease;
+  padding: 0.65rem 0.95rem;
+  min-height: 52px;
+  transition: all 0.15s ease;
   min-width: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .fx-tree-node-card:hover {
   border-color: #94A3B8;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
 }
 
 .fx-tree-node-card.role-root {
@@ -1254,6 +1253,67 @@ body.fx-app {
   background: #ECFDF5;
   color: #047857;
   border: 1px solid #A7F3D0;
+}
+
+.fx-role-badge .fx-qty-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.05rem 0.35rem;
+  margin-left: 0.3rem;
+  background: rgba(0, 0, 0, 0.07);
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.7rem;
+}
+
+.fx-part-badge {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 6px;
+  border: 1px solid #CBD5E1;
+  background: #F8FAFC;
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.fx-part-badge .fx-part-copy-btn {
+  background: transparent;
+  border: 0;
+  padding: 0.28rem 0.5rem;
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  font-weight: 500;
+  font-family: inherit;
+  font-size: inherit;
+  transition: all 0.12s ease;
+}
+
+.fx-part-badge .fx-part-copy-btn:hover {
+  background: #EDF2F7;
+  color: #0B1F3A;
+}
+
+.fx-part-badge .fx-part-link-btn {
+  border: 0;
+  border-left: 1px solid #CBD5E1;
+  padding: 0.28rem 0.45rem;
+  color: #64748B;
+  background: #F1F5F9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: all 0.12s ease;
+}
+
+.fx-part-badge .fx-part-link-btn:hover {
+  background: #E2E8F0;
+  color: #0d6efd;
 }
 
 .fx-part-pill {
