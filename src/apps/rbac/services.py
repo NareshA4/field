@@ -47,8 +47,9 @@ def _template_codes(template) -> set[str]:
 
 
 @transaction.atomic
-def seed_system_roles(org) -> dict[str, Role]:
-    """Creates any missing system roles for ``org`` and ADDS missing template permissions."""
+def seed_system_roles(org, prune_extra: bool = False) -> dict[str, Role]:
+    """Creates any missing system roles for ``org`` and adds missing template permissions.
+    When ``prune_extra=True``, also removes unapproved extra permissions from system roles."""
     sync_permissions()
     perm_by_code = {p.code: p for p in Permission.objects.all()}
     roles: dict[str, Role] = {}
@@ -59,18 +60,34 @@ def seed_system_roles(org) -> dict[str, Role]:
                         system_key=tpl.key, is_owner=tpl.is_owner)
             role.save()
         have = set(role.role_permissions.values_list("permission__code", flat=True))
-        for code in sorted(_template_codes(tpl) - have):
+        expected = _template_codes(tpl)
+        for code in sorted(expected - have):
             RolePermission.objects.create(role=role, permission=perm_by_code[code])
+        if prune_extra and not tpl.is_owner:
+            extra = have - expected
+            if extra:
+                RolePermission.objects.filter(role=role, permission__code__in=extra).delete()
         roles[tpl.key] = role
+
+    if prune_extra:
+        for role in Role.objects.unscoped().filter(organization=org, system_key__gt=""):
+            tpl = BY_KEY.get(role.system_key)
+            if tpl and not tpl.is_owner:
+                expected = _template_codes(tpl)
+                have = set(role.role_permissions.values_list("permission__code", flat=True))
+                extra = have - expected
+                if extra:
+                    RolePermission.objects.filter(role=role, permission__code__in=extra).delete()
+
     return roles
 
 
-def sync_all_organizations() -> int:
+def sync_all_organizations(prune_extra: bool = False) -> int:
     from apps.tenancy.models import Organization
 
     count = 0
     for org in Organization.objects.all():
-        seed_system_roles(org)
+        seed_system_roles(org, prune_extra=prune_extra)
         count += 1
     return count
 
@@ -308,6 +325,8 @@ def set_membership_assignments(membership, assignments: list, *, actor, request=
         if actor_membership is not None and not is_owner(actor_membership):
             new_assignments = {k: v for k, v in wanted.items() if k not in current}
             if new_assignments:
+                if membership.user_id == getattr(actor, "pk", None):
+                    raise PermissionDenied("You cannot assign new roles to yourself.", code="self_assignment")
                 if not has_role_assignment_permission(actor_membership):
                     raise PermissionDenied(
                         "You do not have permission to assign roles.",
@@ -323,36 +342,34 @@ def set_membership_assignments(membership, assignments: list, *, actor, request=
                                 "Organization-wide role assignment requires full site authority.",
                                 code="site_scope_exceeded",
                             )
-                        if not has_permission(actor_membership, "role.manage"):
-                            r_perms = set(r.role_permissions.values_list("permission__code", flat=True))
-                            excess = r_perms - actor_org_perms
-                            if excess:
-                                raise PermissionDenied(
-                                    "Cannot assign roles with permissions beyond your own authority.",
-                                    code="privilege_escalation",
-                                    details={"excess": sorted(excess)},
-                                )
+                        r_perms = set(r.role_permissions.values_list("permission__code", flat=True))
+                        excess = r_perms - actor_org_perms
+                        if excess:
+                            raise PermissionDenied(
+                                "Cannot assign roles with permissions beyond your own authority.",
+                                code="privilege_escalation",
+                                details={"excess": sorted(excess)},
+                            )
                     else:
                         if not actor_site_scope.allows(site):
                             raise PermissionDenied(
                                 f"You do not have permission to assign roles for site {getattr(site, 'code', site)}.",
                                 code="unauthorized_site",
                             )
-                        if not has_permission(actor_membership, "role.manage"):
-                            site_key = _site_id(site)
-                            site_perms_for_site = set(actor_site_perms.get(site_key, frozenset()))
-                            actor_effective = actor_org_perms | site_perms_for_site
-                            r_site_perms = {
-                                c for c in r.role_permissions.values_list("permission__code", flat=True)
-                                if c in catalog.site_scoped_codes()
-                            }
-                            excess = r_site_perms - actor_effective
-                            if excess:
-                                raise PermissionDenied(
-                                    "Cannot assign roles with permissions beyond your own authority.",
-                                    code="privilege_escalation",
-                                    details={"excess": sorted(excess)},
-                                )
+                        site_key = _site_id(site)
+                        site_perms_for_site = set(actor_site_perms.get(site_key, frozenset()))
+                        actor_effective = actor_org_perms | site_perms_for_site
+                        r_site_perms = {
+                            c for c in r.role_permissions.values_list("permission__code", flat=True)
+                            if c in catalog.site_scoped_codes()
+                        }
+                        excess = r_site_perms - actor_effective
+                        if excess:
+                            raise PermissionDenied(
+                                "Cannot assign roles with permissions beyond your own authority.",
+                                code="privilege_escalation",
+                                details={"excess": sorted(excess)},
+                            )
     removed_owner = any(mr.role.is_owner for key, mr in current.items() if key not in wanted)
     if removed_owner and not any(r.is_owner for r, _ in wanted.values()):
         assert_not_last_owner(membership)
@@ -389,6 +406,16 @@ def create_role(org, *, name: str, description: str, permission_codes: list[str]
         raise ValidationFailed("Role name is required.")
     if Role.objects.unscoped().filter(organization=org, name__iexact=name).exists():
         raise Conflict("A role with this name already exists.", code="duplicate_role")
+    actor_membership = _membership_of(actor, org)
+    if actor_membership is not None and not is_owner(actor_membership):
+        actor_org_perms = set(membership_permissions(actor_membership))
+        excess = set(permission_codes) - actor_org_perms
+        if excess:
+            raise PermissionDenied(
+                "Cannot create a role with permissions beyond your own authority.",
+                code="privilege_escalation",
+                details={"excess": sorted(excess)},
+            )
     role = Role(organization=org, name=name, description=description.strip())
     role.save()
     _apply_permissions(role, permission_codes)
@@ -405,9 +432,31 @@ def update_role(role: Role, *, name: str, description: str, permission_codes: li
     if not name:
         raise ValidationFailed("Role name is required.")
     if role.is_system and name != role.name:
-        raise ValidationFailed("System roles cannot be renamed.", code="system_role")
+        aliases_map = {
+            "technician": {"Technician", "Field Technician"},
+            "stores_manager": {"Stores Manager", "Stores / Inventory", "Stores"},
+            "auditor": {"Auditor", "Auditor / Report Consumer", "Auditor / Compliance", "Compliance"},
+            "owner": {"Organization Owner", "Super Admin", "Super Admin / Organization Owner"},
+            "supervisor": {"Supervisor", "Maintenance Supervisor"},
+        }
+        valid_names = {role.name} | aliases_map.get(role.system_key, set())
+        tmpl = BY_KEY.get(role.system_key)
+        if tmpl:
+            valid_names.add(tmpl.name)
+        if name not in valid_names:
+            raise ValidationFailed("System roles cannot be renamed.", code="system_role")
     if Role.objects.unscoped().filter(organization=role.organization, name__iexact=name).exclude(pk=role.pk).exists():
         raise Conflict("A role with this name already exists.", code="duplicate_role")
+    actor_membership = _membership_of(actor, role.organization)
+    if actor_membership is not None and not is_owner(actor_membership):
+        actor_org_perms = set(membership_permissions(actor_membership))
+        excess = set(permission_codes) - actor_org_perms
+        if excess:
+            raise PermissionDenied(
+                "Cannot grant permissions beyond your own authority.",
+                code="privilege_escalation",
+                details={"excess": sorted(excess)},
+            )
     before = {"name": role.name, "description": role.description,
               "permissions": sorted(role.role_permissions.values_list("permission__code", flat=True))}
     role.name, role.description = name, description.strip()

@@ -231,35 +231,45 @@ body.fx-public-site {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.5rem 0.75rem;
+  padding: 6px 14px;
   font-size: 15px;
   font-weight: 500;
   color: #162A4B;
   text-decoration: none;
-  border-radius: 6px;
-  border: none;
+  border-radius: 9999px;
+  border: 1.5px solid transparent;
   background: transparent;
   cursor: pointer;
-  transition: color 0.18s ease-out;
+  transition: all 0.18s ease-out;
 }
 .fx-pub-nav-link:hover {
   color: #B88A00;
 }
-.fx-pub-nav-link.active,
-.fx-pub-nav-link.is-open {
+.fx-pub-nav-link.active {
   font-weight: 600;
   color: #0B1F3B;
 }
-.fx-pub-nav-link.active::after,
-.fx-pub-nav-link.is-open::after {
+.fx-pub-nav-link.active:not(.is-open)::after {
   content: '';
   position: absolute;
-  bottom: -2px;
-  left: 10px;
-  right: 10px;
-  height: 2.5px;
+  bottom: 0px;
+  left: 12px;
+  right: 12px;
+  height: 2px;
   border-radius: 2px;
   background-color: #F5C451;
+}
+.fx-pub-nav-link.is-open,
+.fx-pub-nav-link[aria-expanded="true"] {
+  border-color: #C9A227;
+  border-radius: 9999px;
+  color: #0B1F3B;
+  font-weight: 600;
+  background-color: transparent;
+}
+.fx-pub-nav-link.is-open::after,
+.fx-pub-nav-link[aria-expanded="true"]::after {
+  display: none !important;
 }
 
 .fx-pub-nav-chevron {
@@ -1607,9 +1617,14 @@ body.fx-public-site {
   grid-template-columns: 1fr;
   gap: 2.5rem;
 }
-@media (min-width: 768px) {
+@media (min-width: 576px) {
   .fx-footer-grid {
-    grid-template-columns: 1.4fr 1fr 1fr 1.2fr;
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 992px) {
+  .fx-footer-grid {
+    grid-template-columns: 2fr repeat(4, 1fr);
   }
 }
 .fx-footer-heading {

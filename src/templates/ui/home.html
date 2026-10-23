@@ -28,15 +28,27 @@
 
 <!-- Reusable KPI Cards Grid -->
 <div class="row g-3 mb-4">
-  <div class="col-12 col-sm-6 col-lg-4">
-    {% include "components/_kpi_card.html" with title="Active Users" value=stats.active_members subtitle="Active tenant memberships" tone="accent" icon="people" %}
-  </div>
-  <div class="col-12 col-sm-6 col-lg-4">
-    {% include "components/_kpi_card.html" with title="Pending Invitations" value=stats.pending_invites subtitle="Pending activation links" tone="warning" icon="clock" %}
-  </div>
-  <div class="col-12 col-sm-6 col-lg-4">
-    {% include "components/_kpi_card.html" with title="RBAC Roles" value=stats.roles subtitle="Configured system & custom roles" tone="gold" icon="shield" %}
-  </div>
+  {% if can_view_users %}
+    <div class="col-12 col-sm-6 col-lg-4">
+      {% include "components/_kpi_card.html" with title="Active Users" value=stats.active_members subtitle="Active tenant memberships" tone="accent" icon="people" %}
+    </div>
+    <div class="col-12 col-sm-6 col-lg-4">
+      {% include "components/_kpi_card.html" with title="Pending Invitations" value=stats.pending_invites subtitle="Pending activation links" tone="warning" icon="clock" %}
+    </div>
+    <div class="col-12 col-sm-6 col-lg-4">
+      {% include "components/_kpi_card.html" with title="RBAC Roles" value=stats.roles subtitle="Configured system & custom roles" tone="gold" icon="shield" %}
+    </div>
+  {% else %}
+    <div class="col-12 col-sm-6 col-lg-4">
+      {% include "components/_kpi_card.html" with title="Master Assets" value=stats.total_assets subtitle="Operating plant & facility assets" tone="accent" icon="box" %}
+    </div>
+    <div class="col-12 col-sm-6 col-lg-4">
+      {% include "components/_kpi_card.html" with title="Facility Sites" value=stats.total_sites subtitle="Active physical plant sites" tone="gold" icon="building" %}
+    </div>
+    <div class="col-12 col-sm-6 col-lg-4">
+      {% include "components/_kpi_card.html" with title="Active Work Orders" value=stats.open_work_orders subtitle="Scheduled & in-progress jobs" tone="warning" icon="clipboard" %}
+    </div>
+  {% endif %}
 </div>
 
 <!-- Operational Modules Quick Jump & Recent Activity -->
@@ -100,7 +112,7 @@
     <!-- Governance Badge -->
     <div class="card border-0 shadow-sm p-3 bg-light text-secondary small" style="border-radius:10px;">
       <div class="fw-semibold text-dark mb-1">Governance Status</div>
-      <div>Spec: <code>HPE-PRD-2026-FOPS03</code></div>
+      <div>Compliance: <code>SEC-AUD-2026</code></div>
       <div>Multi-Tenancy: <strong>Enforced</strong></div>
       <div>Audit Immutability: <strong>Active</strong></div>
     </div>

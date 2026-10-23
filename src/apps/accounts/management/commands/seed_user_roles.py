@@ -37,7 +37,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"[OK] Organization: {org.name} ({org.slug})"))
 
         # 2. Seed System Roles for the Organization
-        roles_dict = seed_system_roles(org)
+        roles_dict = seed_system_roles(org, prune_extra=True)
         self.stdout.write(self.style.SUCCESS(f"[OK] Seeded {len(roles_dict)} system roles"))
 
         # 3. Define Standard User Personas

@@ -527,10 +527,7 @@ def consume_job_part(
 
     assert_can_execute_job(work_order, membership)
 
-    if not (
-        rbac.has_permission(membership, "inventory.consume", work_order.site)
-        or rbac.has_permission(membership, "work_order.record", work_order.site)
-    ):
+    if not rbac.has_permission(membership, "inventory.consume", work_order.site):
         raise PermissionDenied("You do not have permission to consume inventory parts for this work order.")
 
     part_line = WorkOrderPart.objects.filter(
