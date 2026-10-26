@@ -160,7 +160,7 @@ def pending_required_counts(org, work_orders) -> dict:
     wos = list(work_orders)
     required = list(ChecklistTemplate.objects.for_organization(org).filter(status=ACTIVE, is_required=True))
     pm_keys = dict(MaintenanceCycle.objects.for_organization(org).filter(
-        work_order__in=[w for w in wos if w.source_type == "PREVENTIVE_MAINTENANCE"]).exclude(
+        work_order__in=[w for w in wos if w.source_type in ("PREVENTIVE_MAINTENANCE", "PM")]).exclude(
         schedule__plan__checklist_key="").values_list("work_order_id", "schedule__plan__checklist_key"))
     if not wos or (not required and not pm_keys):
         return {wo.pk: 0 for wo in wos}

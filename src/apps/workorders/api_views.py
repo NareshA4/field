@@ -65,7 +65,7 @@ class WorkOrderWriteSerializer(serializers.Serializer):
     site = serializers.UUIDField(required=False)
     asset = serializers.UUIDField()
     component = serializers.UUIDField(required=False, allow_null=True)
-    source_type = serializers.ChoiceField(choices=WorkOrder.SourceType.choices, required=False)
+    source_type = serializers.ChoiceField(choices=WorkOrder.SourceType.distinct_choices(), required=False)
     source_reference = serializers.CharField(max_length=150, required=False, allow_blank=True)
     title = serializers.CharField(max_length=200)
     description = serializers.CharField(required=False, allow_blank=True)

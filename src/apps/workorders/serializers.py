@@ -34,7 +34,7 @@ class WorkOrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = WorkOrder
-        fields = ["id", "order_number", "site", "site_name", "asset", "asset_tag", "asset_reference",
+        fields = ["id", "order_number", "number", "site", "site_name", "asset", "asset_tag", "asset_reference",
                   "component", "component_tag", "component_reference", "source_request", "service_request_reference",
                   "source_type", "source_reference", "title", "description", "work_type", "priority", "status",
                   "planned_start", "planned_end", "due_at",
@@ -44,7 +44,7 @@ class WorkOrderSerializer(serializers.ModelSerializer):
                   "checklist_status", "checklist_validation_state", "provisional_checklist", "supervisor_notes",
                   "closure_approvals",
                   "created_at", "updated_at"]
-        read_only_fields = ["id", "order_number", "status", "assigned_to", "assignee_name", "created_by",
+        read_only_fields = ["id", "order_number", "number", "status", "assigned_to", "assignee_name", "created_by",
                             "asset", "component", "source_request", "asset_tag", "component_tag",
                             "started_at", "completed_at", "closed_at", "hold_reason", "resolution_notes",
                             "closed_by", "supervisor_notes", "version", "created_at", "updated_at", "checklist",
@@ -97,7 +97,7 @@ class CreateWorkOrderSerializer(StrictInputSerializer):
         "required": "Asset is required.", "does_not_exist": "Invalid asset for the selected site.",
         "incorrect_type": "Choose a valid asset."})
     component = serializers.PrimaryKeyRelatedField(queryset=Asset.objects.none(), required=False, allow_null=True)
-    source_type = serializers.ChoiceField(choices=WorkOrder.SourceType.choices, default=WorkOrder.SourceType.MANUAL)
+    source_type = serializers.ChoiceField(choices=WorkOrder.SourceType.distinct_choices(), default=WorkOrder.SourceType.MANUAL)
     source_reference = serializers.CharField(max_length=150, required=False, allow_blank=True)
     source_request = serializers.PrimaryKeyRelatedField(queryset=ServiceRequest.objects.none(), required=False,
                                                         allow_null=True)

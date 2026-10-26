@@ -332,7 +332,7 @@ def required_templates(wo):
 
 def maintenance_checklist_key(wo) -> str:
     """M04 contract (lazy import): the checklist key of the PM plan that generated this work order, or ''."""
-    if getattr(wo, "source_type", "") != "PREVENTIVE_MAINTENANCE":
+    if getattr(wo, "source_type", "") not in ("PREVENTIVE_MAINTENANCE", "PM"):
         return ""
     from apps.maintenance import services as maintenance
 

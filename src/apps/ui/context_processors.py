@@ -28,6 +28,16 @@ def shell(request):
                     continue
                 if item.permission and not rbac.has_permission_anywhere(membership, item.permission):
                     continue
+                if item.url_name in ("workspace:my_jobs", "workorders:mine"):
+                    is_tech = bool(
+                        membership.membership_roles.filter(role__system_key="technician").exists()
+                        or (
+                            not rbac.has_permission_anywhere(membership, "work_order.view")
+                            and rbac.has_permission_anywhere(membership, "work_order.view_assigned")
+                        )
+                    )
+                    if not is_tech:
+                        continue
 
             try:
                 url = reverse(item.url_name)

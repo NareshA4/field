@@ -176,17 +176,8 @@ def _validate_schedule_window(start, end, due_at, estimated_hours):
 
 
 def _validate_linked_priority(work_order, priority):
-    if not work_order.source_request_id:
-        return
-    expected = {
-        "LOW": WorkOrder.Priority.LOW,
-        "MEDIUM": WorkOrder.Priority.MEDIUM,
-        "HIGH": WorkOrder.Priority.HIGH,
-        "CRITICAL": WorkOrder.Priority.CRITICAL,
-    }.get(work_order.source_request.severity)
-    if priority != expected:
-        raise ValidationFailed("Priority must match the linked approved incident or service request.",
-                               code="source_priority_mismatch")
+    # Priority is automatically defaulted from the linked source record, but manual adjustments by planners are permitted.
+    return
 
 
 def _record(wo, *, actor, action, before=None, notes="", metadata=None, request=None):
@@ -560,6 +551,12 @@ def plan_work_order(wo, *, membership=None, actor=None, planned_start=None, plan
         membership = Membership.objects.filter(organization=wo.organization, user=actor, status=Membership.Status.ACTIVE).first()
     if actor is not None or membership is not None:
         _need(membership, "work_order.plan", wo.site)
+    if wo.site and wo.site.status != Site.Status.ACTIVE:
+        raise ValidationFailed("Cannot plan work order for an inactive site.", code="site_inactive")
+    if wo.asset:
+        from apps.assets.models import Asset
+        if wo.asset.status in (Asset.Status.RETIRED, Asset.Status.DISPOSED):
+            raise ValidationFailed(f"Cannot plan work order for an asset in status {wo.asset.status}.", code="asset_decommissioned")
     wo = WorkOrder.objects.select_for_update().get(pk=wo.pk)
     _transition(wo, WorkOrder.Status.PLANNED)
     if not planned_start or not planned_end or planned_end <= planned_start:
