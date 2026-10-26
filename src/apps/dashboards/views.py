@@ -179,7 +179,19 @@ class DashboardHubView(TenantPermissionMixin, View):
         # 5. Precompute Pure CSS Bar Percentages
         css_bars = self._compute_css_bars(section, data.get("details", {}))
 
+        is_technician = bool(
+            request.membership
+            and (
+                request.membership.membership_roles.filter(role__system_key="technician").exists()
+                or (
+                    not rbac.has_permission_anywhere(request.membership, "work_order.view")
+                    and rbac.has_permission_anywhere(request.membership, "work_order.view_assigned")
+                )
+            )
+        )
+
         context = {
+            "is_technician": is_technician,
             "section": section,
             "section_display": valid_sections[section],
             "sections": permitted_sections,
@@ -278,7 +290,19 @@ class MyWorkDashboardView(MemberOnlyMixin, View):
         logged = data["details"]["total_labor_hours"]
         util_pct = min(100.0, round((logged / capacity) * 100.0, 1))
 
+        is_technician = bool(
+            request.membership
+            and (
+                request.membership.membership_roles.filter(role__system_key="technician").exists()
+                or (
+                    not rbac.has_permission_anywhere(request.membership, "work_order.view")
+                    and rbac.has_permission_anywhere(request.membership, "work_order.view_assigned")
+                )
+            )
+        )
+
         context = {
+            "is_technician": is_technician,
             "data": data,
             "kpis": data.get("kpis", {}),
             "open_jobs": open_jobs,

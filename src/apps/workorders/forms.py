@@ -50,9 +50,6 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
         "required": "Asset is required.",
         "invalid_choice": "Invalid asset for the selected site.",
     })
-    component = forms.ModelChoiceField(queryset=AssetComponent.objects.none(), required=False, initial=None, label="Component",
-        empty_label="No component selected",
-        error_messages={"invalid_choice": "Invalid component for the selected asset."})
     title = forms.CharField(min_length=3, max_length=200, error_messages={
         "required": "Enter a work-order title.",
         "min_length": "Enter a clear title with at least 3 characters.",
@@ -74,16 +71,33 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
             choices=self.fields["site"].choices, option_data={
             str(site.pk): {"data-site-id": str(site.pk)} for site in sites})
         site_ids = list(sites.values_list("pk", flat=True))
+        linked_references = WorkOrder.objects.for_organization(membership.organization).exclude(
+            source_reference=""
+        ).values_list("source_reference", flat=True)
+        linked_source_ids = WorkOrder.objects.for_organization(membership.organization).exclude(
+            source_id__isnull=True
+        ).values_list("source_id", flat=True)
+
         source_qs = ServiceRequest.objects.for_organization(
-            membership.organization).filter(status=APPROVED, site_id__in=site_ids,
-            work_order__isnull=True).select_related("site", "asset").order_by("-created_at")
+            membership.organization).filter(
+            status=APPROVED, site_id__in=site_ids, work_order__isnull=True, duplicate_of__isnull=True
+        ).exclude(
+            number__in=linked_references
+        ).exclude(
+            pk__in=linked_source_ids
+        ).select_related("site", "asset").order_by("-created_at")
+
         self.fields["source_request"].queryset = source_qs
         self.fields["source_request"].label_from_instance = lambda sr: f"{sr.number} · {sr.title}"
         source_widget_attrs = self.fields["source_request"].widget.attrs.copy()
         self.fields["source_request"].widget = DataAttributeSelect(attrs=source_widget_attrs,
             choices=self.fields["source_request"].choices, option_data={
-            str(sr.pk): {"data-source-kind": ("REQUEST" if sr.kind == ServiceRequest.Kind.SERVICE_REQUEST
-                                               else "INCIDENT")} for sr in source_qs})
+            str(sr.pk): {
+                "data-source-kind": ("REQUEST" if sr.kind == ServiceRequest.Kind.SERVICE_REQUEST else "INCIDENT"),
+                "data-site-id": str(sr.site_id),
+                "data-asset-id": str(sr.asset_id),
+                "data-severity": getattr(sr, "severity", ""),
+            } for sr in source_qs})
 
         site_value = self.data.get("site") if self.is_bound else self.initial.get("site")
         try:
@@ -101,24 +115,13 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
             str(asset.pk): {"data-site-id": str(asset.site_id)} for asset in assets})
         self.fields["asset"].label_from_instance = lambda asset: (
             f"{asset.asset_tag} · {asset.name} · {asset.site.code}")
-        component_qs = AssetComponent.objects.filter(
-            organization=membership.organization, parent__site_id__in=site_ids,
-            parent__status=Asset.Status.ACTIVE, child__status=Asset.Status.ACTIVE,
-            relationship_type=AssetComponent.Relationship.COMPONENT).select_related("child")
-        self.fields["component"].queryset = component_qs
-        self.fields["component"].label_from_instance = lambda link: (
-            f"{link.parent.asset_tag} → {link.child.asset_tag} · {link.child.name}")
-        component_widget_attrs = self.fields["component"].widget.attrs.copy()
-        self.fields["component"].widget = DataAttributeSelect(attrs=component_widget_attrs,
-            choices=self.fields["component"].choices, option_data={
-            str(link.pk): {"data-parent-asset": str(link.parent_id)} for link in component_qs})
 
     def clean(self):
         cleaned = super().clean()
         if "status" in self.data:
             self.add_error(None, "Status is assigned by the workflow; new work orders are created as Draft.")
         source_type, source_request = cleaned.get("source_type"), cleaned.get("source_request")
-        site, asset, component = cleaned.get("site"), cleaned.get("asset"), cleaned.get("component")
+        site, asset = cleaned.get("site"), cleaned.get("asset")
         if source_type in (WorkOrder.SourceType.REQUEST, WorkOrder.SourceType.INCIDENT):
             if source_request is None:
                 self.add_error("source_request", "Select a valid approved incident or service request.")
@@ -131,6 +134,7 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
                     self.add_error("site", "Site must match the selected source record.")
                 if asset and source_request.asset_id != asset.pk:
                     self.add_error("asset", "Asset must match the selected source record.")
+
         elif source_type == WorkOrder.SourceType.MANUAL and source_request:
             self.add_error("source_request", "Manual work orders cannot be linked to an incident or request.")
         elif source_type in (WorkOrder.SourceType.PM, WorkOrder.SourceType.PREVENTIVE_MAINTENANCE):
@@ -147,14 +151,7 @@ class CreateWorkOrderForm(BootstrapFormMixin, forms.Form):
                     self.add_error("asset", "Selected asset is inactive.")
                 elif site and candidate.site_id != site.pk:
                     self.add_error("asset", "Invalid asset for the selected site.")
-        if component and asset and component.parent_id != asset.pk:
-            self.add_error("component", "Invalid component for the selected asset.")
-        if self.is_bound and not component and self.data.get("component") and asset:
-            component_asset = Asset.objects.for_organization(self.organization).filter(
-                pk=self.data.get("component")).first()
-            if component_asset and not AssetComponent.objects.filter(
-                    organization=self.organization, parent=asset, child=component_asset).exists():
-                self.add_error("component", "Invalid component for the selected asset.")
+
         title = cleaned.get("title")
         if title and len(title.strip()) < 3:
             self.add_error("title", "Enter a clear title with at least 3 non-space characters.")
@@ -269,15 +266,40 @@ class PlanForm(BootstrapFormMixin, forms.Form):
     estimated_hours = forms.DecimalField(max_digits=6, decimal_places=2, min_value=0.01,
         error_messages={"required": "Enter estimated hours.", "invalid": "Enter estimated hours as a number.",
                         "min_value": "Estimated hours must be greater than zero."},
+        widget=forms.NumberInput(attrs={"step": "0.01", "min": "0.01", "placeholder": "e.g. 2.00"}),
         help_text="Required. Must be greater than zero and fit within the planned start-to-end duration.")
 
     def __init__(self, *args, work_order=None, **kwargs):
         super().__init__(*args, **kwargs)
-        if work_order and work_order.source_request_id:
-            self.fields["priority"].disabled = True
-            self.fields["priority"].help_text = "Inherited from the linked approved source record."
-            if work_order.priority:
-                self.initial.setdefault("priority", work_order.priority)
+        if work_order:
+            default_work_type = work_order.work_type
+            if not default_work_type:
+                if work_order.source_type == WorkOrder.SourceType.INCIDENT or (
+                    work_order.source_request and work_order.source_request.kind == "INCIDENT"
+                ):
+                    default_work_type = WorkOrder.WorkType.CORRECTIVE
+                elif work_order.source_type in (WorkOrder.SourceType.PM, WorkOrder.SourceType.PREVENTIVE_MAINTENANCE):
+                    default_work_type = WorkOrder.WorkType.PREVENTIVE
+                elif work_order.source_request and work_order.source_request.kind == "SERVICE_REQUEST":
+                    default_work_type = WorkOrder.WorkType.CORRECTIVE
+
+            if default_work_type:
+                self.initial.setdefault("work_type", default_work_type)
+
+            default_priority = work_order.priority
+            if not default_priority and work_order.source_request:
+                default_priority = {
+                    "LOW": WorkOrder.Priority.LOW,
+                    "MEDIUM": WorkOrder.Priority.MEDIUM,
+                    "HIGH": WorkOrder.Priority.HIGH,
+                    "CRITICAL": WorkOrder.Priority.CRITICAL,
+                }.get(getattr(work_order.source_request, "severity", ""), "")
+
+            if default_priority:
+                self.initial.setdefault("priority", default_priority)
+
+            if work_order.source_request_id:
+                self.fields["priority"].help_text = "Defaulted from linked source record; can be adjusted manually." 
 
     def clean(self):
         cleaned = super().clean()

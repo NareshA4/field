@@ -9,11 +9,13 @@
     <h1 class="h3 fw-bold mb-1">Operational Dashboards</h1>
     <div class="text-body-secondary small">Live metric aggregations across operational records (Decision D-052).</div>
   </div>
+  {% if is_technician %}
   <div class="d-flex align-items-center gap-2">
     <a href="{% url 'dashboards:my_work' %}" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1">
       {% icon 'user' 14 %} My Work Cockpit
     </a>
   </div>
+  {% endif %}
 </div>
 
 <!-- Section Navigation Tabs -->

@@ -48,7 +48,9 @@
   <section class="wo-panel wo-records" aria-labelledby="records-title">
     <div class="wo-record-heading">
       <div><h2 id="records-title">Work orders</h2></div>
+      {% if is_technician %}
       <div class="wo-view-links"><a href="{% url 'workorders:schedule' %}">Schedule board</a><a href="{% url 'workorders:mine' %}">My jobs</a></div>
+      {% endif %}
     </div>
     <form class="wo-filter-form" method="get" hx-get="{% url 'workorders:list' %}" hx-trigger="change delay:250ms, submit" hx-target="#workorder-results" hx-select="#workorder-results" hx-swap="outerHTML" hx-push-url="true">
       <label class="wo-search"><span class="visually-hidden">Search work orders</span><input type="search" name="q" value="{{ q }}" placeholder="Search number or title"></label>
