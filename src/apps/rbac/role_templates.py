@@ -32,7 +32,8 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     RoleTemplate(
         "asset_manager", "Asset Manager", "Owns the asset registry, documentation, meters, and hierarchy.",
         ("asset.*", "site.view", "site.create", "site.update", "zone.view", "zone.create", "zone.update",
-         "incident.view", "calendar.view", "contract.*", "qr.*", "work_order.view", "report.view"),
+         "incident.view", "calendar.view", "contract.*", "qr.*", "work_order.view", "inventory.view",
+         "inventory.part.view", "report.view"),
     ),
     RoleTemplate(
         "maintenance_planner", "Maintenance Planner", "Plans, schedules and assigns preventive and corrective maintenance work.",
@@ -40,7 +41,7 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
          "work_order.view", "work_order.create", "work_order.plan", "work_order.assign",
          "work_order.dispatch", "work_order.update", "work_order.cancel", "work_order.attach", "checklist.view",
          "checklist.manage", "inspection.view", "inventory.view", "inventory.part.view", "inventory.request",
-         "sla.view", "contract.view", "contract.check", "qr.scan"),
+         "sla.view", "contract.view", "contract.check", "report.view", "qr.scan"),
     ),
     RoleTemplate(
         "service_dispatcher", "Service Dispatcher", "Assignment, dispatch, rescheduling, route coordination and escalation.",
@@ -65,7 +66,7 @@ TEMPLATES: tuple[RoleTemplate, ...] = (
     ),
     RoleTemplate(
         "stores_manager", "Stores Manager", "Part master, warehouse stock, reservations, issue/return, transfers and reconciliation.",
-        ("inventory.*", "asset.view", "work_order.view", "site.view", "qr.scan"),
+        ("inventory.*", "asset.view", "work_order.view", "site.view", "report.view", "qr.scan"),
     ),
     RoleTemplate(
         "service_manager", "Service Manager", "SLA policy, breach review, contract/AMC operations and service requests.",

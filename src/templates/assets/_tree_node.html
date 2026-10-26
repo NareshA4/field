@@ -47,23 +47,19 @@
     <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
       {% if node.link %}
         {% if node.link.relationship_type == 'ASSEMBLY' %}
-          <span class="fx-role-badge fx-role-assembly">{% icon 'layers' 12 %} Assembly</span>
+          <span class="fx-role-badge fx-role-assembly">{% icon 'layers' 12 %} Assembly{% if node.link.quantity > 1 %}<span class="fx-qty-pill">&times;{{ node.link.quantity }}</span>{% endif %}</span>
         {% elif node.link.relationship_type == 'REPLACEABLE_PART' %}
-          <span class="fx-role-badge fx-role-replaceable">{% icon 'refresh-cw' 12 %} Replaceable Part</span>
+          <span class="fx-role-badge fx-role-replaceable">{% icon 'refresh-cw' 12 %} Replaceable Part{% if node.link.quantity > 1 %}<span class="fx-qty-pill">&times;{{ node.link.quantity }}</span>{% endif %}</span>
         {% else %}
-          <span class="fx-role-badge fx-role-component">{% icon 'package' 12 %} Component</span>
-        {% endif %}
-
-        {% if node.link.quantity > 1 %}
-          <span class="badge text-bg-light border small">&times; {{ node.link.quantity }}</span>
+          <span class="fx-role-badge fx-role-component">{% icon 'package' 12 %} Component{% if node.link.quantity > 1 %}<span class="fx-qty-pill">&times;{{ node.link.quantity }}</span>{% endif %}</span>
         {% endif %}
 
         {% if node.link.part_number %}
-          <div class="d-inline-flex align-items-center gap-1">
-            <button type="button" class="fx-part-pill btn p-1 text-decoration-none" data-copy="{{ node.link.part_number }}" title="Click to copy part number">
+          <div class="fx-part-badge">
+            <button type="button" class="fx-part-copy-btn" data-copy="{{ node.link.part_number }}" title="Click to copy part number {{ node.link.part_number }}">
               {% icon 'copy' 11 %} Part # {{ node.link.part_number }}
             </button>
-            <a href="{% url 'inventory:parts' %}?q={{ node.link.part_number|urlencode }}" class="btn btn-sm btn-outline-secondary p-1 fx-tree-btn" title="Search '{{ node.link.part_number }}' in Parts Catalog">
+            <a href="{% url 'inventory:parts' %}?q={{ node.link.part_number|urlencode }}" class="fx-part-link-btn" title="View '{{ node.link.part_number }}' in Parts Catalog">
               {% icon 'external-link' 11 %}
             </a>
           </div>
