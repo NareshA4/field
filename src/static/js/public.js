@@ -665,5 +665,134 @@ document.addEventListener('DOMContentLoaded', () => {
 
     requestAnimationFrame(loop);
   }
+
+  // =========================================================================
+  // 12. Resources Page: Category Filter Logic
+  // =========================================================================
+  const resourceFilterButtons = document.querySelectorAll('.fx-resources-filter-bar .fx-filter-btn');
+  const resourceCards = document.querySelectorAll('.fx-resource-card-col');
+  const quickFilterTriggers = document.querySelectorAll('[data-filter-trigger]');
+
+  if (resourceFilterButtons.length > 0 && resourceCards.length > 0) {
+    const applyFilter = (filterKey) => {
+      // Update filter button states
+      resourceFilterButtons.forEach((btn) => {
+        const isMatch = btn.getAttribute('data-filter') === filterKey;
+        btn.classList.toggle('active', isMatch);
+        btn.setAttribute('aria-selected', isMatch ? 'true' : 'false');
+      });
+
+      // Filter card columns
+      resourceCards.forEach((cardCol) => {
+        const cardCategory = cardCol.getAttribute('data-category');
+        if (filterKey === 'all' || cardCategory === filterKey) {
+          cardCol.style.display = '';
+          cardCol.style.opacity = '0';
+          cardCol.style.transform = 'translateY(12px)';
+          requestAnimationFrame(() => {
+            cardCol.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            cardCol.style.opacity = '1';
+            cardCol.style.transform = 'translateY(0)';
+          });
+        } else {
+          cardCol.style.display = 'none';
+        }
+      });
+    };
+
+    resourceFilterButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const filter = btn.getAttribute('data-filter');
+        applyFilter(filter);
+      });
+    });
+
+    // Quick links in hero overlay
+    quickFilterTriggers.forEach((trigger) => {
+      trigger.addEventListener('click', (e) => {
+        e.preventDefault();
+        const category = trigger.getAttribute('data-filter-trigger');
+        applyFilter(category);
+
+        // Smooth scroll to catalog section
+        const catalogSec = document.getElementById('resources-grid');
+        if (catalogSec) {
+          catalogSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  }
+
+  // =========================================================================
+  // 13. Resources Page: Expandable Article Cards (Inline Expansion)
+  // =========================================================================
+  const resourceCardsList = document.querySelectorAll('.fx-resource-card');
+
+  if (resourceCardsList.length > 0) {
+    resourceCardsList.forEach((card) => {
+      const expandBtn = card.querySelector('.fx-card-expand-btn');
+      const collapseBtn = card.querySelector('.fx-collapse-trigger');
+      const readMoreLink = card.querySelector('.fx-read-more-link');
+
+      const toggleCard = (forceState) => {
+        const isExpanded = card.classList.contains('is-expanded');
+        const nextState = typeof forceState === 'boolean' ? forceState : !isExpanded;
+        card.classList.toggle('is-expanded', nextState);
+        if (expandBtn) {
+          expandBtn.setAttribute('aria-expanded', nextState ? 'true' : 'false');
+          expandBtn.setAttribute('title', nextState ? 'Collapse article' : 'Expand article');
+        }
+      };
+
+      // Expand button or expand link ("Read Article")
+      if (expandBtn) {
+        expandBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          toggleCard();
+        });
+      }
+
+      // Collapse button in footer
+      if (collapseBtn) {
+        collapseBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          toggleCard(false);
+        });
+      }
+
+      // Read Article control (button or link)
+      if (readMoreLink) {
+        readMoreLink.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (readMoreLink.classList.contains('fx-card-expand-link') || readMoreLink.tagName.toLowerCase() === 'button') {
+            e.preventDefault();
+            toggleCard();
+          }
+        });
+      }
+
+      // Clicking anywhere on the card surface toggles expansion (except links/buttons)
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('a') || e.target.closest('button')) {
+          return;
+        }
+        toggleCard();
+      });
+
+      // Keyboard accessibility (Enter or Space)
+      card.addEventListener('keydown', (e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && !e.target.closest('a')) {
+          if (e.target === card || e.target === expandBtn || e.target === collapseBtn) {
+            e.preventDefault();
+            toggleCard();
+          }
+        }
+      });
+    });
+  }
 });
+
+
 

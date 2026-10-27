@@ -4,182 +4,136 @@
 {% block title %}Resources &middot; FieldOps Nexus{% endblock %}
 
 {% block public_content %}
-<!-- Hero Section -->
-<section class="position-relative overflow-hidden py-5 text-white" style="background: linear-gradient(180deg, #0B1F3B 0%, #0D2444 50%, #0B1F3B 100%); padding-top: 5rem !important; padding-bottom: 5rem !important;">
-  <div class="position-absolute top-0 start-0 end-0 bottom-0 pointer-events-none" style="background-image: linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 3.5rem 3.5rem;"></div>
+<!-- Resources Hero Section -->
+<section class="fx-resources-hero">
+  <div class="container-xl px-4">
+    <div class="row align-items-center g-5">
+      <!-- Left Column: Content & Statistics -->
+      <div class="col-lg-6">
+        <div class="fx-resources-pill-badge">
+          {% icon 'book-open' 14 %}
+          <span>FIELDOPS NEXUS RESOURCES</span>
+        </div>
 
-  <div class="container-xl px-4 position-relative z-10 text-center">
-    <div class="d-inline-flex align-items-center gap-2 rounded-pill px-3 py-1 mb-4 small fw-bold text-uppercase" style="background: rgba(245,196,81,0.12); border: 1px solid rgba(245,196,81,0.3); color: #F5C451; font-size: 11px; letter-spacing: 0.15em;">
-      {% icon 'sparkles' 14 %}
-      <span>Operational Knowledge &amp; Playbooks</span>
+        <h1 class="fx-resources-hero-title">
+          Knowledge that keeps<br>
+          <span class="text-gold">operations moving</span>
+        </h1>
+
+        <p class="fx-resources-hero-desc">
+          Explore expert guides, technical documentation, industry insights and operational playbooks to build more reliable, efficient and connected field operations.
+        </p>
+
+        <!-- Compact Resource Statistics -->
+        <div class="fx-resources-stats">
+          <div class="fx-stat-item">
+            <div class="fx-stat-icon">
+              {% icon 'file-text' 18 %}
+            </div>
+            <div>
+              <div class="fx-stat-num">200+</div>
+              <div class="fx-stat-lbl">Technical Resources</div>
+            </div>
+          </div>
+
+          <div class="fx-stat-item">
+            <div class="fx-stat-icon">
+              {% icon 'users' 18 %}
+            </div>
+            <div>
+              <div class="fx-stat-num">25+</div>
+              <div class="fx-stat-lbl">Industry Use Cases</div>
+            </div>
+          </div>
+
+          <div class="fx-stat-item">
+            <div class="fx-stat-icon">
+              {% icon 'play-circle' 18 %}
+            </div>
+            <div>
+              <div class="fx-stat-num">50+</div>
+              <div class="fx-stat-lbl">Operational Playbooks</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Industrial Control-Room Visual & Quick Links -->
+      <div class="col-lg-6">
+        <div class="fx-resources-hero-media">
+          <img src="{% static 'images/resources_hero.jpg' %}" alt="FieldOps Nexus Industrial Control Room and Telemetry Dashboards" class="fx-resources-hero-img">
+          
+          <!-- Floating Category Quick Links Panel -->
+          <div class="fx-resources-quick-panel" aria-label="Category Quick Links">
+            <button type="button" class="fx-quick-link-item" data-filter-trigger="product-guides">
+              <span class="fx-quick-icon">{% icon 'book' 13 %}</span>
+              <span>Guides</span>
+            </button>
+            <button type="button" class="fx-quick-link-item" data-filter-trigger="documentation">
+              <span class="fx-quick-icon">{% icon 'file-text' 13 %}</span>
+              <span>Documentation</span>
+            </button>
+            <button type="button" class="fx-quick-link-item" data-filter-trigger="industry-insights">
+              <span class="fx-quick-icon">{% icon 'activity' 13 %}</span>
+              <span>Industry Insights</span>
+            </button>
+            <button type="button" class="fx-quick-link-item" data-filter-trigger="operational-playbooks">
+              <span class="fx-quick-icon">{% icon 'cpu' 13 %}</span>
+              <span>Operational Playbooks</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <h1 class="display-4 fw-extrabold text-white mb-4" style="line-height: 1.15; max-width: 860px; margin-left: auto; margin-right: auto;">
-      Field Operations Intelligence &amp; <span style="color: #F5C451;">Architecture Guides.</span>
-    </h1>
-
-    <p class="lead text-white-50 max-w-2xl mx-auto mb-5" style="line-height: 1.7; font-size: 1.15rem;">
-      Best-practice frameworks, API architecture blueprints, and deployment playbooks for enterprise asset and field operations teams.
-    </p>
-
-    <div class="d-flex flex-wrap justify-content-center gap-2">
-      <span class="badge px-3 py-2 rounded-pill bg-white text-dark small">All Categories</span>
-      <span class="badge px-3 py-2 rounded-pill bg-white bg-opacity-10 text-white-50 small">Product Guides</span>
-      <span class="badge px-3 py-2 rounded-pill bg-white bg-opacity-10 text-white-50 small">Documentation</span>
-      <span class="badge px-3 py-2 rounded-pill bg-white bg-opacity-10 text-white-50 small">Industry Insights</span>
-      <span class="badge px-3 py-2 rounded-pill bg-white bg-opacity-10 text-white-50 small">Operational Playbooks</span>
-    </div>
-  </div>
-</section>
-
-<!-- Featured Playbook Section -->
-<section class="py-5 bg-white">
-  <div class="container-xl px-4 py-4">
-    <div class="card border border-secondary border-opacity-25 rounded-4 overflow-hidden shadow-sm">
-      <div class="row g-0 align-items-center">
-        <div class="col-lg-6 position-relative" style="min-height: 340px; background: #0B1F3A;">
-          <img src="{% static 'images/workflow-asset-management.jpg' %}" alt="Enterprise Asset Lifecycle Playbook" class="w-100 h-100 object-fit-cover position-absolute top-0 start-0">
-          <span class="position-absolute top-0 start-0 m-3 badge font-monospace" style="background:#F5C451; color:#0B1F3B;">FEATURED PLAYBOOK</span>
-        </div>
-        <div class="col-lg-6 p-4 p-md-5">
-          <div class="d-flex align-items-center gap-2 mb-2">
-            <span class="badge bg-light text-secondary border small">Operational Playbooks</span>
-            <span class="small text-secondary">&bull; 8 min read &bull; October 2026</span>
-          </div>
-          <h2 class="h4 fw-bold text-dark mb-3">Enterprise Asset Lifecycle &amp; Preventive Maintenance Playbook</h2>
-          <p class="small text-secondary mb-4" style="line-height: 1.6;">
-            A comprehensive framework for structuring equipment hierarchies, calculating true MTBF and MTTR, and designing predictive maintenance cycles that eliminate unplanned downtime.
-          </p>
-          <div class="bg-light p-3 rounded-3 mb-4 small text-secondary">
-            <strong>Key Architecture Takeaways:</strong>
-            <ul class="mb-0 ps-3 mt-1">
-              <li>Define parent-child asset hierarchies with QR-code tagging</li>
-              <li>Automate MTBF and MTTR calculation directly from work order data</li>
-              <li>Design condition-based PM triggers alongside calendar recurrence</li>
-              <li>Establish min/max inventory safety buffers per asset category</li>
-            </ul>
-          </div>
-          <a href="mailto:hello@fieldopsnexus.com?subject=Request%20Asset%20Playbook" class="btn btn-dark btn-sm px-4 py-2 fw-semibold">
-            Download Technical Whitepaper &rarr;
-          </a>
-        </div>
+    <!-- Featured Resource Banner -->
+    <div class="fx-featured-banner">
+      <div class="fx-featured-thumb-wrap">
+        <img src="{% static 'images/resources_featured_thumb.jpg' %}" alt="Enterprise Asset Lifecycle & Preventive Maintenance Playbook" class="fx-featured-thumb-img">
       </div>
-    </div>
-  </div>
-</section>
 
-<!-- Resources Grid -->
-<section class="py-5" style="background-color: #F8FAFC; border-top: 1px solid #E2E8F0;">
-  <div class="container-xl px-4 py-4">
-    <div class="text-center max-w-2xl mx-auto mb-5">
-      <div class="fx-eyebrow justify-content-center">
-        <span class="fx-eyebrow-bar"></span>
-        <span>Technical Documentation</span>
-        <span class="fx-eyebrow-bar"></span>
-      </div>
-      <h2 class="fx-section-title">Latest Articles &amp; Technical Blueprints</h2>
-      <p class="fx-section-desc">Ground-level engineering guides for operations leaders and system architects.</p>
-    </div>
-
-    <div class="row g-4">
-      <!-- Article 1 -->
-      <div class="col-md-6 col-lg-4">
-        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm bg-white">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="badge bg-light text-secondary border small">Product Guides</span>
-            <span class="text-secondary small font-monospace" style="font-size: 11px;">6 min read</span>
-          </div>
-          <h3 class="h6 fw-bold text-dark mb-2">Optimizing Mobile Technician Dispatch &amp; Route Scheduling</h3>
-          <p class="small text-secondary mb-3" style="line-height: 1.6;">
-            How modern operations teams reduce travel time and elevate first-time fix rates using skills-based dispatch algorithms.
-          </p>
-          <div class="mt-auto pt-3 border-top border-light-subtle">
-            <span class="small fw-semibold text-warning">Field Workforce &bull; September 2026</span>
-          </div>
+      <div class="fx-featured-content">
+        <span class="fx-featured-pill">FEATURED RESOURCE</span>
+        <h2 class="fx-featured-title">Enterprise Asset Lifecycle &amp; Preventive Maintenance Playbook</h2>
+        <p class="fx-featured-desc">
+          A comprehensive framework for structuring asset hierarchies, calculating true MTBF/MTTR, and designing predictive maintenance cycles.
+        </p>
+        <div class="fx-featured-meta">
+          <span class="d-inline-flex align-items-center gap-1">{% icon 'calendar' 13 %} October 2026</span>
+          <span class="text-white-50">&bull;</span>
+          <span class="d-inline-flex align-items-center gap-1">{% icon 'clock' 13 %} 8 min read</span>
         </div>
       </div>
 
-      <!-- Article 2 -->
-      <div class="col-md-6 col-lg-4">
-        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm bg-white">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="badge bg-light text-secondary border small">Documentation</span>
-            <span class="text-secondary small font-monospace" style="font-size: 11px;">12 min read</span>
+      <!-- Right Column: Premium Benefits Panel -->
+      <div class="fx-featured-benefits" aria-label="Featured resource key takeaways">
+        <div class="fx-benefit-item">
+          <div class="fx-benefit-icon" aria-hidden="true">
+            {% icon 'clipboard-check' 18 %}
           </div>
-          <h3 class="h6 fw-bold text-dark mb-2">FieldOps Nexus API &amp; ERP Integration Architecture</h3>
-          <p class="small text-secondary mb-3" style="line-height: 1.6;">
-            Technical blueprint for synchronizing spare parts, inventory ledger, and work order costs with enterprise ERP backbones.
-          </p>
-          <div class="mt-auto pt-3 border-top border-light-subtle">
-            <span class="small fw-semibold text-warning">Architecture &bull; August 2026</span>
+          <div class="fx-benefit-body">
+            <h3 class="fx-benefit-title">Practical Frameworks</h3>
+            <p class="fx-benefit-desc">Ready-to-use templates and checklists.</p>
           </div>
         </div>
-      </div>
 
-      <!-- Article 3 -->
-      <div class="col-md-6 col-lg-4">
-        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm bg-white">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="badge bg-light text-secondary border small">Operational Playbooks</span>
-            <span class="text-secondary small font-monospace" style="font-size: 11px;">9 min read</span>
+        <div class="fx-benefit-item">
+          <div class="fx-benefit-icon" aria-hidden="true">
+            {% icon 'building' 18 %}
           </div>
-          <h3 class="h6 fw-bold text-dark mb-2">SLA Design for Complex Multi-Site Operations</h3>
-          <p class="small text-secondary mb-3" style="line-height: 1.6;">
-            How to configure hierarchical SLA profiles, handle pending client hold exclusions, and prevent contractual compliance penalties.
-          </p>
-          <div class="mt-auto pt-3 border-top border-light-subtle">
-            <span class="small fw-semibold text-warning">Service SLA &bull; July 2026</span>
+          <div class="fx-benefit-body">
+            <h3 class="fx-benefit-title">Real-World Examples</h3>
+            <p class="fx-benefit-desc">Lessons from industry implementations.</p>
           </div>
         </div>
-      </div>
 
-      <!-- Article 4 -->
-      <div class="col-md-6 col-lg-4">
-        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm bg-white">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="badge bg-light text-secondary border small">Documentation</span>
-            <span class="text-secondary small font-monospace" style="font-size: 11px;">7 min read</span>
+        <div class="fx-benefit-item">
+          <div class="fx-benefit-icon" aria-hidden="true">
+            {% icon 'trending-up' 18 %}
           </div>
-          <h3 class="h6 fw-bold text-dark mb-2">Double-Entry Inventory Ledger for Spare Parts</h3>
-          <p class="small text-secondary mb-3" style="line-height: 1.6;">
-            Eliminating phantom stock and reconciliation discrepancies through strict debit/credit transaction movements.
-          </p>
-          <div class="mt-auto pt-3 border-top border-light-subtle">
-            <span class="small fw-semibold text-warning">Supply Chain &bull; June 2026</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Article 5 -->
-      <div class="col-md-6 col-lg-4">
-        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm bg-white">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="badge bg-light text-secondary border small">Industry Insights</span>
-            <span class="text-secondary small font-monospace" style="font-size: 11px;">10 min read</span>
-          </div>
-          <h3 class="h6 fw-bold text-dark mb-2">Multi-Tenant Role-Based Access Control Architecture</h3>
-          <p class="small text-secondary mb-3" style="line-height: 1.6;">
-            Enforcing strict data boundaries across organizations while enabling shared service teams and multi-plant oversight.
-          </p>
-          <div class="mt-auto pt-3 border-top border-light-subtle">
-            <span class="small fw-semibold text-warning">Security &bull; May 2026</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Article 6 -->
-      <div class="col-md-6 col-lg-4">
-        <div class="card h-100 border border-secondary border-opacity-25 rounded-3 p-4 shadow-sm bg-white">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="badge bg-light text-secondary border small">Operational Playbooks</span>
-            <span class="text-secondary small font-monospace" style="font-size: 11px;">8 min read</span>
-          </div>
-          <h3 class="h6 fw-bold text-dark mb-2">Technician Mobility &amp; Digital Inspection Checklists</h3>
-          <p class="small text-secondary mb-3" style="line-height: 1.6;">
-            Converting complex physical asset check-sheets into dynamic mobile workflows with automatic corrective action creation.
-          </p>
-          <div class="mt-auto pt-3 border-top border-light-subtle">
-            <span class="small fw-semibold text-warning">Quality &amp; Safety &bull; April 2026</span>
+          <div class="fx-benefit-body">
+            <h3 class="fx-benefit-title">Actionable Insights</h3>
+            <p class="fx-benefit-desc">Improve asset reliability and reduce downtime.</p>
           </div>
         </div>
       </div>
@@ -187,31 +141,645 @@
   </div>
 </section>
 
-<!-- Standardized Page CTA -->
-<section class="fx-standard-cta">
-  <div class="fx-cta-rings"></div>
-  <div class="fx-cta-rings-2"></div>
-
-  <div class="container-xl px-4 position-relative z-10 text-center">
-    <h2 class="text-white fw-bold mb-3" style="font-size: clamp(2rem, 4vw, 2.75rem);">
-      Ready to Connect Your Operations?
-    </h2>
-    <div class="fx-cta-gold-divider">
-      <span class="bar"></span>
-      <span class="dot"></span>
-      <span class="bar"></span>
+<!-- Resource Catalog Section with Category Filters & Grid -->
+<section class="fx-resources-catalog-section" id="resources-grid">
+  <div class="container-xl px-4">
+    <!-- Category Filter Bar -->
+    <div class="fx-resources-filter-bar" role="tablist" aria-label="Resource category filters">
+      <button type="button" class="fx-filter-btn active" data-filter="all" role="tab" aria-selected="true">All</button>
+      <button type="button" class="fx-filter-btn" data-filter="product-guides" role="tab" aria-selected="false">Product Guides</button>
+      <button type="button" class="fx-filter-btn" data-filter="documentation" role="tab" aria-selected="false">Documentation</button>
+      <button type="button" class="fx-filter-btn" data-filter="industry-insights" role="tab" aria-selected="false">Industry Insights</button>
+      <button type="button" class="fx-filter-btn" data-filter="operational-playbooks" role="tab" aria-selected="false">Operational Playbooks</button>
     </div>
-    <p class="text-white-50 max-w-2xl mx-auto mb-4" style="font-size: 1.05rem; line-height: 1.6;">
-      Bring your assets, service requests, work orders, inventory, and operational workflows together with FieldOps Nexus.
-    </p>
-    <div class="d-flex flex-wrap justify-content-center gap-3">
-      <a href="mailto:hello@fieldopsnexus.com?subject=FieldOps%20Nexus%20Demo%20Request" class="btn-fx-gold px-4 py-3 fw-bold d-inline-flex align-items-center gap-2 text-decoration-none">
-        <span>Request Platform Demo</span>
-        {% icon 'arrow-up-right' 15 %}
-      </a>
-      <a href="{% url 'accounts:login' %}" class="btn btn-outline-light px-4 py-3 fw-semibold text-decoration-none">
-        <span>Launch ERP</span>
-      </a>
+
+    <!-- 3-Column Resource Cards Grid -->
+    <div class="fx-resources-grid">
+      
+      <!-- Card 1: Enterprise Asset Lifecycle & Preventive Maintenance Playbook -->
+      <div class="fx-resource-card-col" data-category="operational-playbooks">
+        <article class="fx-resource-card" tabindex="0" role="region" aria-label="Enterprise Asset Lifecycle &amp; Preventive Maintenance Playbook">
+          <div class="fx-resource-thumb-wrap">
+            <img src="{% static 'images/resources_featured_thumb.jpg' %}" alt="Enterprise Asset Lifecycle &amp; Preventive Maintenance Playbook" class="fx-resource-thumb">
+            <button type="button" class="fx-card-expand-btn" aria-label="Toggle article preview" aria-expanded="false">
+              <svg class="fx-chevron-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          </div>
+          <div class="fx-resource-card-body">
+            <div class="fx-card-top-meta">
+              <span class="fx-card-category">OPERATIONAL PLAYBOOKS</span>
+              <span class="fx-card-read-time">8 min read</span>
+            </div>
+            <h3 class="fx-card-title">Enterprise Asset Lifecycle &amp; Preventive Maintenance Playbook</h3>
+            <p class="fx-card-desc">
+              A comprehensive framework for structuring asset hierarchies, calculating true MTBF/MTTR, and designing predictive maintenance cycles.
+            </p>
+
+            <!-- Expandable Detailed Article Preview -->
+            <div class="fx-card-expanded-content">
+              <p class="fx-card-extended-text">
+                Industrial and facilities management organizations face a persistent challenge: the reactive maintenance cycle. Equipment fails without warning, technicians scramble, production halts, and costs spiral. This playbook provides a comprehensive framework for enterprise maintenance teams transitioning from reactive firefighting to precision preventive and predictive maintenance, covering asset hierarchy design, reliability metric automation, and coordinated inventory planning.
+              </p>
+
+              <div class="fx-card-takeaways-box">
+                <div class="fx-takeaways-heading">KEY TAKEAWAYS</div>
+                <ul class="fx-takeaways-list">
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Define parent-child asset hierarchies with QR-code tagging</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Automate MTBF and MTTR calculation from work order data</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Design condition-based PM triggers alongside calendar schedules</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Establish min/max inventory safety buffers per asset class</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="fx-card-expanded-meta">
+                <span class="fx-badge-best-practice">Best Practice</span>
+                <span class="fx-expanded-meta-text">October 2026 &bull; 8 min read</span>
+              </div>
+            </div>
+
+            <div class="fx-card-footer">
+              <span class="fx-card-date">October 2026</span>
+              <div class="fx-card-footer-actions">
+                <button type="button" class="fx-collapse-trigger" aria-label="Collapse article preview">
+                  <span>Collapse</span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="18 15 12 9 6 15"></polyline>
+                  </svg>
+                </button>
+                <button type="button" class="fx-read-more-link fx-card-expand-link" aria-label="Expand article preview">
+                  <span>Read Article</span>
+                  <span class="fx-read-more-arrow">&gt;</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Card 2: Optimizing Mobile Technician Dispatch & Route Scheduling -->
+      <div class="fx-resource-card-col" data-category="product-guides">
+        <article class="fx-resource-card" tabindex="0" role="region" aria-label="Optimizing Mobile Technician Dispatch &amp; Route Scheduling">
+          <div class="fx-resource-thumb-wrap">
+            <img src="{% static 'images/workflow-field-operations.jpg' %}" alt="Optimizing Mobile Technician Dispatch &amp; Route Scheduling" class="fx-resource-thumb">
+            <button type="button" class="fx-card-expand-btn" aria-label="Toggle article preview" aria-expanded="false">
+              <svg class="fx-chevron-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          </div>
+          <div class="fx-resource-card-body">
+            <div class="fx-card-top-meta">
+              <span class="fx-card-category">PRODUCT GUIDES</span>
+              <span class="fx-card-read-time">6 min read</span>
+            </div>
+            <h3 class="fx-card-title">Optimizing Mobile Technician Dispatch &amp; Route Scheduling</h3>
+            <p class="fx-card-desc">
+              How modern operations teams reduce travel time and elevate first-time fix rates using skills-based dispatch algorithms.
+            </p>
+
+            <!-- Expandable Detailed Article Preview -->
+            <div class="fx-card-expanded-content">
+              <p class="fx-card-extended-text">
+                Field workforce efficiency hinges on matching technical qualifications to emergency asset telemetry in real time. Dispatchers often struggle with fragmented geo-data and manual schedules, leading to delayed arrivals and duplicate dispatches. This technical guide outlines how automated routing models synthesize traffic, skill certifications, SLA deadlines, and onboard van inventory to optimize field crew assignments.
+              </p>
+
+              <div class="fx-card-takeaways-box">
+                <div class="fx-takeaways-heading">KEY TAKEAWAYS</div>
+                <ul class="fx-takeaways-list">
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Deploy skills-matrix matching against specific asset criticality tiers</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Incorporate dynamic real-time traffic and van inventory verification</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Automate client communication and live technician ETA tracking</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Reduce daily transit mileage by up to 24% across mobile crews</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="fx-card-expanded-meta">
+                <span class="fx-badge-best-practice">Technical Guide</span>
+                <span class="fx-expanded-meta-text">September 2026 &bull; 6 min read</span>
+              </div>
+            </div>
+
+            <div class="fx-card-footer">
+              <span class="fx-card-date">September 2026</span>
+              <div class="fx-card-footer-actions">
+                <button type="button" class="fx-collapse-trigger" aria-label="Collapse article preview">
+                  <span>Collapse</span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="18 15 12 9 6 15"></polyline>
+                  </svg>
+                </button>
+                <button type="button" class="fx-read-more-link fx-card-expand-link" aria-label="Expand article preview">
+                  <span>Read Article</span>
+                  <span class="fx-read-more-arrow">&gt;</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Card 3: FieldOps Nexus API & ERP Integration Architecture -->
+      <div class="fx-resource-card-col" data-category="documentation">
+        <article class="fx-resource-card" tabindex="0" role="region" aria-label="FieldOps Nexus API &amp; ERP Integration Architecture">
+          <div class="fx-resource-thumb-wrap">
+            <img src="{% static 'images/resources_hero.jpg' %}" alt="FieldOps Nexus API &amp; ERP Integration Architecture" class="fx-resource-thumb">
+            <button type="button" class="fx-card-expand-btn" aria-label="Toggle article preview" aria-expanded="false">
+              <svg class="fx-chevron-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          </div>
+          <div class="fx-resource-card-body">
+            <div class="fx-card-top-meta">
+              <span class="fx-card-category">DOCUMENTATION</span>
+              <span class="fx-card-read-time">12 min read</span>
+            </div>
+            <h3 class="fx-card-title">FieldOps Nexus API &amp; ERP Integration Architecture</h3>
+            <p class="fx-card-desc">
+              Technical blueprint for synchronizing spare parts, inventory ledger, and work order costs with enterprise ERP backbones.
+            </p>
+
+            <!-- Expandable Detailed Article Preview -->
+            <div class="fx-card-expanded-content">
+              <p class="fx-card-extended-text">
+                Disconnected point systems between enterprise resource planning backbones and field execution tools create costly inventory reconciliation lags. This architectural blueprint demonstrates how FieldOps Nexus uses bi-directional REST webhooks and atomic transaction queues to synchronize parts consumption, job costing, and asset deprecation with SAP, Oracle NetSuite, and Microsoft Dynamics.
+              </p>
+
+              <div class="fx-card-takeaways-box">
+                <div class="fx-takeaways-heading">KEY TAKEAWAYS</div>
+                <ul class="fx-takeaways-list">
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Atomic two-phase commit protocols for work order costing</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Idempotent webhook delivery with automatic retry exponential backoff</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Real-time synchronization of warehouse and mobile van stock balances</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Role-scoped API keys with granular tenant permission boundaries</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="fx-card-expanded-meta">
+                <span class="fx-badge-best-practice">Architecture Spec</span>
+                <span class="fx-expanded-meta-text">August 2026 &bull; 12 min read</span>
+              </div>
+            </div>
+
+            <div class="fx-card-footer">
+              <span class="fx-card-date">August 2026</span>
+              <div class="fx-card-footer-actions">
+                <button type="button" class="fx-collapse-trigger" aria-label="Collapse article preview">
+                  <span>Collapse</span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="18 15 12 9 6 15"></polyline>
+                  </svg>
+                </button>
+                <button type="button" class="fx-read-more-link fx-card-expand-link" aria-label="Expand article preview">
+                  <span>Read Article</span>
+                  <span class="fx-read-more-arrow">&gt;</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Card 4: Continuous Audit Readiness: Eliminating Paper Compliance Gaps -->
+      <div class="fx-resource-card-col" data-category="industry-insights">
+        <article class="fx-resource-card" tabindex="0" role="region" aria-label="Continuous Audit Readiness: Eliminating Paper Compliance Gaps">
+          <div class="fx-resource-thumb-wrap">
+            <img src="{% static 'images/audit-traceability.jpg' %}" alt="Continuous Audit Readiness: Eliminating Paper Compliance Gaps" class="fx-resource-thumb">
+            <button type="button" class="fx-card-expand-btn" aria-label="Toggle article preview" aria-expanded="false">
+              <svg class="fx-chevron-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          </div>
+          <div class="fx-resource-card-body">
+            <div class="fx-card-top-meta">
+              <span class="fx-card-category">INDUSTRY INSIGHTS</span>
+              <span class="fx-card-read-time">5 min read</span>
+            </div>
+            <h3 class="fx-card-title">Continuous Audit Readiness: Eliminating Paper Compliance Gaps</h3>
+            <p class="fx-card-desc">
+              Audit preparation has traditionally been one of the most labor-intensive activities in heavy industrial and facilities management.
+            </p>
+
+            <!-- Expandable Detailed Article Preview -->
+            <div class="fx-card-expanded-content">
+              <p class="fx-card-extended-text">
+                Regulatory audits and ISO compliance certifications often disrupt routine operations when maintenance history is stored across paper binders and siloed spreadsheets. By enforcing cryptographic digital signatures, mandatory photo verification, and immutable timestamped logs on every inspection, organizations achieve continuous audit compliance with instant one-click report generation.
+              </p>
+
+              <div class="fx-card-takeaways-box">
+                <div class="fx-takeaways-heading">KEY TAKEAWAYS</div>
+                <ul class="fx-takeaways-list">
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Immutable SHA-256 audit logs for every work order transition</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Mandatory calibration verification with GPS-stamped geotagging</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Automated non-conformance escalation and corrective action triggers</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>One-click OSHA, EPA, and ISO compliance reporting exports</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="fx-card-expanded-meta">
+                <span class="fx-badge-best-practice">Compliance Guide</span>
+                <span class="fx-expanded-meta-text">May 2026 &bull; 5 min read</span>
+              </div>
+            </div>
+
+            <div class="fx-card-footer">
+              <span class="fx-card-date">May 2026</span>
+              <div class="fx-card-footer-actions">
+                <button type="button" class="fx-collapse-trigger" aria-label="Collapse article preview">
+                  <span>Collapse</span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="18 15 12 9 6 15"></polyline>
+                  </svg>
+                </button>
+                <button type="button" class="fx-read-more-link fx-card-expand-link" aria-label="Expand article preview">
+                  <span>Read Article</span>
+                  <span class="fx-read-more-arrow">&gt;</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Card 5: Double-Entry Inventory Ledger for Spare Parts -->
+      <div class="fx-resource-card-col" data-category="documentation">
+        <article class="fx-resource-card" tabindex="0" role="region" aria-label="Double-Entry Inventory Ledger for Spare Parts">
+          <div class="fx-resource-thumb-wrap">
+            <img src="{% static 'images/workflow-inventory-management.jpg' %}" alt="Double-Entry Inventory Ledger for Spare Parts" class="fx-resource-thumb">
+            <button type="button" class="fx-card-expand-btn" aria-label="Toggle article preview" aria-expanded="false">
+              <svg class="fx-chevron-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          </div>
+          <div class="fx-resource-card-body">
+            <div class="fx-card-top-meta">
+              <span class="fx-card-category">DOCUMENTATION</span>
+              <span class="fx-card-read-time">7 min read</span>
+            </div>
+            <h3 class="fx-card-title">Double-Entry Inventory Ledger for Spare Parts</h3>
+            <p class="fx-card-desc">
+              Eliminating phantom stock and reconciliation discrepancies through strict debit/credit transaction movements.
+            </p>
+
+            <!-- Expandable Detailed Article Preview -->
+            <div class="fx-card-expanded-content">
+              <p class="fx-card-extended-text">
+                Phantom inventory and unaccounted stock depletion are among the largest drivers of asset repair downtime. This documentation explains the mathematical foundations of double-entry inventory tracking, where every spare part transaction creates balanced debit and credit entries between central warehouses, mobile technicians, and asset work orders.
+              </p>
+
+              <div class="fx-card-takeaways-box">
+                <div class="fx-takeaways-heading">KEY TAKEAWAYS</div>
+                <ul class="fx-takeaways-list">
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Strict double-entry ledger eliminates unrecorded inventory movements</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Automated safety-stock reorder triggers integrated with vendor POs</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Serial and lot tracking for high-value and safety-critical components</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Real-time mobile barcode and QR scanning during truck transfers</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="fx-card-expanded-meta">
+                <span class="fx-badge-best-practice">Supply Chain</span>
+                <span class="fx-expanded-meta-text">June 2026 &bull; 7 min read</span>
+              </div>
+            </div>
+
+            <div class="fx-card-footer">
+              <span class="fx-card-date">June 2026</span>
+              <div class="fx-card-footer-actions">
+                <button type="button" class="fx-collapse-trigger" aria-label="Collapse article preview">
+                  <span>Collapse</span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="18 15 12 9 6 15"></polyline>
+                  </svg>
+                </button>
+                <button type="button" class="fx-read-more-link fx-card-expand-link" aria-label="Expand article preview">
+                  <span>Read Article</span>
+                  <span class="fx-read-more-arrow">&gt;</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Card 6: SLA Design for Complex Multi-Site Operations -->
+      <div class="fx-resource-card-col" data-category="operational-playbooks">
+        <article class="fx-resource-card" tabindex="0" role="region" aria-label="SLA Design for Complex Multi-Site Operations">
+          <div class="fx-resource-thumb-wrap">
+            <img src="{% static 'images/operational-visibility.jpg' %}" alt="SLA Design for Complex Multi-Site Operations" class="fx-resource-thumb">
+            <button type="button" class="fx-card-expand-btn" aria-label="Toggle article preview" aria-expanded="false">
+              <svg class="fx-chevron-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          </div>
+          <div class="fx-resource-card-body">
+            <div class="fx-card-top-meta">
+              <span class="fx-card-category">OPERATIONAL PLAYBOOKS</span>
+              <span class="fx-card-read-time">9 min read</span>
+            </div>
+            <h3 class="fx-card-title">SLA Design for Complex Multi-Site Operations</h3>
+            <p class="fx-card-desc">
+              How to configure hierarchical SLA profiles, handle pending client hold exclusions, and prevent contractual compliance penalties.
+            </p>
+
+            <!-- Expandable Detailed Article Preview -->
+            <div class="fx-card-expanded-content">
+              <p class="fx-card-extended-text">
+                Managing enterprise service contracts across distributed industrial facilities requires multi-tiered SLA matrices that distinguish between catastrophic equipment downtime and routine cosmetic service requests. This playbook shows operational leaders how to establish dynamic SLA timers, automate breach warning notifications, and manage client-caused hold times.
+              </p>
+
+              <div class="fx-card-takeaways-box">
+                <div class="fx-takeaways-heading">KEY TAKEAWAYS</div>
+                <ul class="fx-takeaways-list">
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Hierarchical SLA timers based on site tier and asset severity</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Automated pause conditions for parts procurement and client holds</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Proactive breach alert escalations at 50%, 75%, and 90% SLA thresholds</span>
+                  </li>
+                  <li>
+                    <span class="fx-takeaway-bullet">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="4" fill="#F5C451"></circle>
+                      </svg>
+                    </span>
+                    <span>Contractual rebate and penalty calculation automation</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="fx-card-expanded-meta">
+                <span class="fx-badge-best-practice">Operations SLA</span>
+                <span class="fx-expanded-meta-text">July 2026 &bull; 9 min read</span>
+              </div>
+            </div>
+
+            <div class="fx-card-footer">
+              <span class="fx-card-date">July 2026</span>
+              <div class="fx-card-footer-actions">
+                <button type="button" class="fx-collapse-trigger" aria-label="Collapse article preview">
+                  <span>Collapse</span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="18 15 12 9 6 15"></polyline>
+                  </svg>
+                </button>
+                <button type="button" class="fx-read-more-link fx-card-expand-link" aria-label="Expand article preview">
+                  <span>Read Article</span>
+                  <span class="fx-read-more-arrow">&gt;</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Enterprise Platform FAQ Section -->
+<section class="fx-faq-section" aria-labelledby="faq-heading">
+  <div class="container-xl px-4">
+
+    <!-- Section Header -->
+    <div class="fx-faq-header">
+      <div class="fx-faq-pill-badge">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F5C451" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span>ENTERPRISE PLATFORM FAQ</span>
+      </div>
+      <h2 class="fx-faq-heading" id="faq-heading">Frequently Asked Operational Questions</h2>
+    </div>
+
+    <!-- FAQ Items -->
+    <div class="fx-faq-list" role="list">
+
+      <div class="fx-faq-item" role="listitem">
+        <div class="fx-faq-q-row">
+          <span class="fx-faq-q-badge" aria-hidden="true">Q:</span>
+          <h3 class="fx-faq-question">How does FieldOps Nexus integrate with existing ERP systems?</h3>
+        </div>
+        <p class="fx-faq-answer">
+          FieldOps Nexus provides bi-directional REST APIs and webhooks that synchronize inventory levels, purchase requests, asset cost ledgers, and workforce timesheets with SAP, Oracle, NetSuite, and Microsoft Dynamics.
+        </p>
+      </div>
+
+      <div class="fx-faq-item" role="listitem">
+        <div class="fx-faq-q-row">
+          <span class="fx-faq-q-badge" aria-hidden="true">Q:</span>
+          <h3 class="fx-faq-question">Can field technicians work offline without internet connectivity?</h3>
+        </div>
+        <p class="fx-faq-answer">
+          Yes. The FieldOps mobile interface stores assigned work orders, asset documentation, and inspection forms locally. All signatures, photos, and status updates automatically sync when network access is restored.
+        </p>
+      </div>
+
+      <div class="fx-faq-item" role="listitem">
+        <div class="fx-faq-q-row">
+          <span class="fx-faq-q-badge" aria-hidden="true">Q:</span>
+          <h3 class="fx-faq-question">How is Role-Based Access Control (RBAC) enforced?</h3>
+        </div>
+        <p class="fx-faq-answer">
+          FieldOps Nexus features granular role definitions for Super Admins, Asset Managers, Maintenance Planners, Technicians, Storekeepers, Auditors, and Clients, ensuring users only access verified data within their operational scope.
+        </p>
+      </div>
+
+      <div class="fx-faq-item" role="listitem">
+        <div class="fx-faq-q-row">
+          <span class="fx-faq-q-badge" aria-hidden="true">Q:</span>
+          <h3 class="fx-faq-question">What level of audit traceability is maintained?</h3>
+        </div>
+        <p class="fx-faq-answer">
+          Key work order updates, status transitions, part allocations, signatures, and checklist entries are recorded in the audit log with timestamps and user identifiers.
+        </p>
+      </div>
+
     </div>
   </div>
 </section>
