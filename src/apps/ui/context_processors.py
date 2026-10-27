@@ -96,14 +96,22 @@ def shell(request):
         sections["Overview"] = [
             {"label": "Operations Overview", "url": reverse("ui:home"), "icon": "grid", "match_prefix": "/app/"},
         ]
+        sections["Operations"] = [
+            {"label": "Incidents & Requests", "url": reverse("incidents:list"), "icon": "bell", "match_prefix": "/app/incidents"},
+            {"label": "Work Orders", "url": reverse("workorders:list"), "icon": "clipboard-check", "match_prefix": "/app/work-orders"},
+        ]
+        sections["Asset Lifecycle"] = [
+            {"label": "Sites & Locations", "url": reverse("sites:list"), "icon": "pin", "match_prefix": "/app/sites"},
+            {"label": "Assets", "url": reverse("assets:list"), "icon": "box", "match_prefix": "/app/assets"},
+        ]
+        sections["Service Level Agreements"] = [
+            {"label": "SLA & Escalation", "url": reverse("sla:trackings"), "icon": "clock", "match_prefix": "/app/sla/trackings"},
+        ]
         sections["Administration"] = [
             {"label": "Organization", "url": reverse("tenancy:organization"), "icon": "building", "match_prefix": "/app/organization"},
             {"label": "Users", "url": reverse("tenancy:members"), "icon": "people", "match_prefix": "/app/users"},
             {"label": "Roles & Permissions", "url": reverse("rbac:roles"), "icon": "shield", "match_prefix": "/app/roles"},
             {"label": "Portal Accounts", "url": reverse("portal:accounts_list"), "icon": "people", "match_prefix": "/app/portal/accounts"},
-        ]
-        sections["Facilities Master"] = [
-            {"label": "Sites & Locations", "url": reverse("sites:list"), "icon": "pin", "match_prefix": "/app/sites"},
         ]
         sections["Analytics & Governance"] = [
             {"label": "Operational Dashboards", "url": reverse("dashboards:hub"), "icon": "grid", "match_prefix": "/app/dashboards"},

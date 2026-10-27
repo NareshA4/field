@@ -186,6 +186,16 @@ class WorkOrderListView(TenantPermissionMixin, View):
             order.allowed_actions = services.allowed_actions(order, request.membership)
             order.is_overdue = bool(order.due_at and order.due_at < timezone.now()
                                     and order.status not in (WorkOrder.Status.CLOSED, WorkOrder.Status.CANCELLED))
+        is_technician = bool(
+            request.membership
+            and (
+                request.membership.membership_roles.filter(role__system_key="technician").exists()
+                or (
+                    not rbac.has_permission_anywhere(request.membership, "work_order.view")
+                    and rbac.has_permission_anywhere(request.membership, "work_order.view_assigned")
+                )
+            )
+        )
         return render(request, self.template_name, {
             "page_obj": page_obj, "work_orders": page_obj.object_list, "status_cards": status_cards,
             "statuses": card_statuses, "priorities": WorkOrder.Priority.choices,
@@ -197,6 +207,7 @@ class WorkOrderListView(TenantPermissionMixin, View):
               "querystring": query.urlencode(),
               "has_visible_work_orders": has_visible_work_orders,
               "can_create": rbac.has_permission_anywhere(request.membership, "work_order.create"),
+              "is_technician": is_technician,
             "workflow_steps": WORKFLOW_STEPS})
 
 
@@ -501,7 +512,16 @@ class ScheduleBoardView(TenantPermissionMixin, View):
                    "assigned_orders": [order for order in orders if order.assigned_to_id and
                        order.status in (WorkOrder.Status.ASSIGNED, WorkOrder.Status.DISPATCHED,
                                         WorkOrder.Status.IN_PROGRESS, WorkOrder.Status.ON_HOLD)],
-                   "can_view_mine": rbac.has_permission_anywhere(request.membership, "work_order.view_assigned"),
+                                       "can_view_mine": bool(
+                        request.membership
+                        and (
+                            request.membership.membership_roles.filter(role__system_key="technician").exists()
+                            or (
+                                not rbac.has_permission_anywhere(request.membership, "work_order.view")
+                                and rbac.has_permission_anywhere(request.membership, "work_order.view_assigned")
+                            )
+                        )
+                    ),
                    "can_create": rbac.has_permission_anywhere(request.membership, "work_order.create"),
                    "status_choices": [(code, label) for code, label in WorkOrder.Status.choices if code in board_statuses],
                    "priority_choices": WorkOrder.Priority.choices,
@@ -650,6 +670,7 @@ class WorkOrderCreateView(TenantPermissionMixin, View):
         sources = {str(sr.pk): {"kind": ("REQUEST" if sr.kind == "SERVICE_REQUEST" else "INCIDENT"),
                     "site": str(sr.site_id), "asset": str(sr.asset_id), "title": sr.title,
                     "description": sr.description,
+                    "severity": getattr(sr, "severity", ""),
                     "requester": (sr.reported_by.user.full_name or sr.reported_by.user.email)}
                    for sr in form.fields["source_request"].queryset.select_related("reported_by__user")}
         return {"form": form, "title": "Create work order", "submit": "Save Draft",
@@ -669,18 +690,19 @@ class WorkOrderCreateView(TenantPermissionMixin, View):
             source_request = values.pop("source_request")
             site = values.pop("site")
             asset = values.pop("asset")
-            component = values.pop("component")
+            component = values.pop("component", None)
+            clean_values = {k: v for k, v in values.items() if v not in (None, "")}
             try:
                 if source_request is not None:
                     from apps.incidents import services as incident_services
                     wo = incident_services.create_work_order_for_request(
                         source_request, actor=request.user, membership=request.membership, request=request,
-                        component=component.child if component else None, **values)
+                        component=component.child if component else None, **clean_values)
                 else:
                     wo = services.create_work_order(request.organization, site_id=site.pk, actor=request.user,
                         membership=request.membership, request=request,
                         asset=asset, component=component.child if component else None,
-                        source_type=source_type, **values)
+                        source_type=source_type, **clean_values)
             except DomainError as exc:
                 form.add_error(None, exc.message)
             except ValidationError as exc:
@@ -1112,7 +1134,27 @@ class WorkOrderActionView(TenantPermissionMixin, View):
                       "work_order": wo,
                       "initial": {"expected_version": wo.version}}
         elif self.operation == "plan":
-            kwargs = {"work_order": wo, "initial": {"work_type": wo.work_type, "priority": wo.priority,
+            initial_work_type = wo.work_type
+            if not initial_work_type:
+                if wo.source_type == WorkOrder.SourceType.INCIDENT or (
+                    wo.source_request and wo.source_request.kind == "INCIDENT"
+                ):
+                    initial_work_type = WorkOrder.WorkType.CORRECTIVE
+                elif wo.source_type in (WorkOrder.SourceType.PM, WorkOrder.SourceType.PREVENTIVE_MAINTENANCE):
+                    initial_work_type = WorkOrder.WorkType.PREVENTIVE
+                elif wo.source_request and wo.source_request.kind == "SERVICE_REQUEST":
+                    initial_work_type = WorkOrder.WorkType.CORRECTIVE
+
+            initial_priority = wo.priority
+            if not initial_priority and wo.source_request:
+                initial_priority = {
+                    "LOW": WorkOrder.Priority.LOW,
+                    "MEDIUM": WorkOrder.Priority.MEDIUM,
+                    "HIGH": WorkOrder.Priority.HIGH,
+                    "CRITICAL": WorkOrder.Priority.CRITICAL,
+                }.get(getattr(wo.source_request, "severity", ""), "")
+
+            kwargs = {"work_order": wo, "initial": {"work_type": initial_work_type, "priority": initial_priority,
                                    "planned_start": wo.planned_start, "planned_end": wo.planned_end,
                                    "due_at": wo.due_at,
                                    "estimated_hours": wo.estimated_hours if wo.estimated_hours and wo.estimated_hours > 0 else ""}}
@@ -1140,8 +1182,15 @@ class WorkOrderActionView(TenantPermissionMixin, View):
 
     def post(self, request, pk, operation):
         wo = self._get_order(request, pk)
+        if self.operation == "plan" and wo.status != WorkOrder.Status.DRAFT:
+            raise PermissionDenied("Only a Draft work order can be planned.")
         form_type = ACTION_FORMS.get(self.operation)
-        form_kwargs = {"membership": request.membership, "site": wo.site, "work_order": wo} if self.operation == "assign" else {}
+        if self.operation == "assign":
+            form_kwargs = {"membership": request.membership, "site": wo.site, "work_order": wo}
+        elif self.operation == "plan":
+            form_kwargs = {"work_order": wo}
+        else:
+            form_kwargs = {}
         action_data = request.POST
         if (self.operation == "assign" and "scheduled_start" not in request.POST and
                 wo.planned_start and wo.planned_end):

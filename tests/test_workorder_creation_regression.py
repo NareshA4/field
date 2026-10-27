@@ -229,3 +229,46 @@ def test_rollback_behavior_on_failure(org_a, site_a1, owner_a, make_asset):
         pass
 
     assert WorkOrder.objects.filter(organization=org_a).count() == initial_count
+
+
+
+def test_dashboard_and_schedule_board_view_links_visibility_by_role(org_a, site_a1, make_member):
+    """
+    PRD Section 4 and 6:
+    Operations Manager, Planners, Admins must NOT see technician-specific links
+    ('Schedule board' / 'My jobs' links on Work Order list, 'My Jobs' on Schedule board).
+    Only Technicians have access to these execution views.
+    """
+    ops_mgr = make_member(org_a, "ops-manager-check@alpha.test", "operations_manager")
+    planner = make_member(org_a, "planner-check@alpha.test", "maintenance_planner")
+    tech = make_member(org_a, "tech-check@alpha.test", "technician")
+
+    # 1. Operations Manager visiting /app/work-orders/
+    ui = Client()
+    ui.force_login(ops_mgr.user)
+    resp = ui.get(reverse("workorders:list"))
+    assert resp.status_code == 200
+    assert resp.context["is_technician"] is False
+    assert b'class="wo-view-links"' not in resp.content
+    assert b"My jobs" not in resp.content
+
+    # 2. Operations Manager visiting /app/work-orders/schedule/
+    resp_sched = ui.get(reverse("workorders:schedule"))
+    assert resp_sched.status_code == 200
+    assert resp_sched.context["can_view_mine"] is False
+    assert b">My Jobs</a>" not in resp_sched.content
+
+    # 3. Technician visiting /app/work-orders/
+    ui.force_login(tech.user)
+    resp_tech = ui.get(reverse("workorders:list"))
+    assert resp_tech.status_code == 200
+    assert resp_tech.context["is_technician"] is True
+    assert b'class="wo-view-links"' in resp_tech.content
+    assert b"Schedule board" in resp_tech.content
+    assert b"My jobs" in resp_tech.content
+
+    # 4. Technician visiting /app/work-orders/schedule/
+    resp_tech_sched = ui.get(reverse("workorders:schedule"))
+    assert resp_tech_sched.status_code == 200
+    assert resp_tech_sched.context["can_view_mine"] is True
+    assert b">My Jobs</a>" in resp_tech_sched.content

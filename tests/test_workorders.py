@@ -471,8 +471,9 @@ def test_create_work_order_form_contains_only_creation_fields(
     assert len(dropdown_labels) == len(set(dropdown_labels))
     planning_fields = {"work_type", "priority", "planned_start", "planned_end", "due_at", "estimated_hours"}
     assert not planning_fields & set(blank.fields)
-    for name in ("site", "asset", "component"):
+    for name in ("site", "asset"):
         assert "form-select" in blank.fields[name].widget.attrs.get("class", "")
+    assert "component" not in blank.fields
     assert site_a1.code in str(blank["site"])
     assert asset.asset_tag in str(blank["asset"])
     assert "Site is required." in blank.errors["site"]
@@ -483,7 +484,7 @@ def test_create_work_order_form_contains_only_creation_fields(
     create_ui.force_login(planner.user)
     create_html = create_ui.get(reverse("workorders:create"))
     assert create_html.status_code == 200
-    for field_name in planning_fields:
+    for field_name in planning_fields | {"component"}:
         assert f'name="{field_name}"'.encode() not in create_html.content
     for optional in ("description", "checklist"):
         assert optional not in blank.errors
@@ -632,10 +633,14 @@ def test_create_form_validates_site_asset_status_and_component_relation(
         _valid_create_payload(site_a1, other_site_asset))
     assert wrong_site.status_code == 400
     assert b"Invalid asset for the selected site." in wrong_site.content
-    wrong_component = ui.post(reverse("workorders:create"),
-        _valid_create_payload(site_a1, parent, component=str(link.pk)))
-    assert wrong_component.status_code == 400
-    assert b"Invalid component for the selected asset." in wrong_component.content
+    from apps.workorders.forms import EditWorkOrderForm
+    edit_form = EditWorkOrderForm(
+        {"site": str(site_a1.pk), "asset": str(parent.pk), "component": str(link.pk), "title": "Draft order"},
+        membership=owner_a.memberships.first(),
+        work_order=WorkOrder(organization=org_a, site=site_a1, asset=parent, status=WorkOrder.Status.DRAFT),
+    )
+    assert not edit_form.is_valid()
+    assert "Invalid component for the selected asset." in str(edit_form.errors.get("component", []))
 
     inactive = asset_services.change_status(asset, action="start_maintenance",
         reason="Testing the inactive-asset validation", actor=owner_a)
@@ -707,6 +712,52 @@ def test_plan_form_requires_valid_schedule_and_due_dates():
     assert "Planned end must be later than planned start." in invalid_window.errors["planned_end"]
     assert "Due date must be on or after planned end." in invalid_window.errors["due_at"]
 
+
+def test_incident_work_order_plan_auto_fills_work_type_and_priority_and_allows_manual_and_equal_due_date(
+        org_a, site_a1, owner_a, make_asset, make_member):
+    from apps.incidents.models import ServiceRequest
+    from apps.incidents import services as incident_services
+
+    planner = make_member(org_a, "plan-incident-planner@alpha.test", "maintenance_planner")
+    asset = make_asset(org_a, site_a1, "INC-PLAN-ASSET")
+
+    sr = ServiceRequest.objects.create(
+        organization=org_a, site=site_a1, asset=asset, kind=ServiceRequest.Kind.INCIDENT,
+        number="SR-INC-PLAN-01", title="Critical failure", description="Pump failed",
+        severity="CRITICAL", status="APPROVED", reported_by=owner_a.memberships.first(),
+        occurred_at=timezone.now(),
+    )
+    wo = incident_services.create_work_order_for_request(sr, actor=owner_a, membership=owner_a.memberships.first())
+    assert wo.source_request_id == sr.pk
+    assert wo.priority == WorkOrder.Priority.CRITICAL
+
+    ui = Client()
+    ui.force_login(planner.user)
+    plan_page = ui.get(reverse("workorders:action", args=[wo.pk, "plan"]))
+    assert plan_page.status_code == 200
+    form = plan_page.context["form"]
+    assert form.initial["work_type"] == WorkOrder.WorkType.CORRECTIVE
+    assert form.initial["priority"] == WorkOrder.Priority.CRITICAL
+    assert not form.fields["priority"].disabled
+
+    now = timezone.now() + timedelta(days=2)
+    start_str = timezone.localtime(now).strftime("%Y-%m-%dT%H:%M")
+    end_str = timezone.localtime(now + timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M")
+    due_str = end_str  # Equal to planned_end
+
+    resp = ui.post(reverse("workorders:action", args=[wo.pk, "plan"]), {
+        "work_type": WorkOrder.WorkType.CORRECTIVE,
+        "priority": WorkOrder.Priority.CRITICAL,
+        "planned_start": start_str,
+        "planned_end": end_str,
+        "due_at": due_str,
+        "estimated_hours": "3.00",
+    })
+    assert resp.status_code == 302
+    wo.refresh_from_db()
+    assert wo.status == WorkOrder.Status.PLANNED
+    assert wo.work_type == WorkOrder.WorkType.CORRECTIVE
+    assert wo.priority == WorkOrder.Priority.CRITICAL
 
 def test_ui_workflow_plan_assign_dispatch_execute_and_supervisor_close(
         org_a, site_a1, make_member):

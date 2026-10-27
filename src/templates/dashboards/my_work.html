@@ -13,9 +13,11 @@
     <a href="{% url 'dashboards:hub' %}" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
       {% icon 'grid' 14 %} Operational Hub
     </a>
+    {% if is_technician %}
     <a href="{% url 'workspace:my_jobs' %}" class="btn btn-primary btn-sm d-flex align-items-center gap-1">
       {% icon 'clipboard-check' 14 %} Technician Workspace
     </a>
+    {% endif %}
   </div>
 </div>
 
