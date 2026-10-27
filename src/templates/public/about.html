@@ -140,140 +140,203 @@
       </p>
     </div>
 
-    <div class="fx-ecosystem-grid">
-      <!-- 1. Organizations -->
-      <div class="fx-ecosystem-card">
-        <div class="fx-ecosystem-icon-box" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"></path>
-            <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"></path>
-            <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"></path>
-            <path d="M10 6h4"></path>
-            <path d="M10 10h4"></path>
-            <path d="M10 14h4"></path>
-            <path d="M10 18h4"></path>
-          </svg>
+    <!-- Dual-Row Ecosystem Carousel -->
+    <div class="fx-ecosystem-carousel-wrap">
+      
+      <!-- ROW 1: Auto-scrolls Left -->
+      <div class="fx-ecosystem-row-wrapper" data-fx-row="1" data-direction="left">
+        <!-- Carousel Viewport & Nav Arrows -->
+        <div class="fx-carousel-viewport-wrapper">
+          <button type="button" class="fx-carousel-nav-btn fx-nav-prev" aria-label="Scroll row left" data-row="1" tabindex="0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m15 18-6-6 6-6"></path>
+            </svg>
+          </button>
+
+          <div class="fx-carousel-track-container" data-carousel-container="1">
+            <div class="fx-carousel-track" data-carousel-track="1">
+              <!-- 1. Organizations -->
+              <div class="fx-ecosystem-card" data-card-index="0" tabindex="0" role="button" aria-label="Organizations: Multi-site enterprise hierarchy">
+                <div class="fx-ecosystem-icon-box" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"></path>
+                    <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"></path>
+                    <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"></path>
+                    <path d="M10 6h4"></path>
+                    <path d="M10 10h4"></path>
+                    <path d="M10 14h4"></path>
+                    <path d="M10 18h4"></path>
+                  </svg>
+                </div>
+                <div class="fx-ecosystem-card-body">
+                  <h3 class="fx-ecosystem-card-title">Organizations</h3>
+                  <p class="fx-ecosystem-card-desc">Multi-site enterprise hierarchy</p>
+                </div>
+              </div>
+
+              <!-- 2. Assets (Active by default) -->
+              <div class="fx-ecosystem-card is-selected" data-card-index="1" tabindex="0" role="button" aria-label="Assets: Critical machinery & components">
+                <div class="fx-ecosystem-icon-box" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l6 3.43a2 2 0 0 0 2.06 0l6-3.43a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L12 9.5l-5.03 2.87z"></path>
+                    <path d="m12 19.5 5-2.86V10.2l-5-2.86-5 2.86v6.44l5 2.86z"></path>
+                    <path d="m12 13.5 5-2.86"></path>
+                    <path d="m12 13.5-5-2.86"></path>
+                    <path d="M12 13.5v6"></path>
+                    <path d="m7 7.5 5-2.86 5 2.86"></path>
+                    <path d="M12 4.64V2"></path>
+                  </svg>
+                </div>
+                <div class="fx-ecosystem-card-body">
+                  <h3 class="fx-ecosystem-card-title">Assets</h3>
+                  <p class="fx-ecosystem-card-desc">Critical machinery &amp; components</p>
+                </div>
+              </div>
+
+              <!-- 3. Technicians -->
+              <div class="fx-ecosystem-card" data-card-index="2" tabindex="0" role="button" aria-label="Technicians: Mobile field workforce & crews">
+                <div class="fx-ecosystem-icon-box" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
+                </div>
+                <div class="fx-ecosystem-card-body">
+                  <h3 class="fx-ecosystem-card-title">Technicians</h3>
+                  <p class="fx-ecosystem-card-desc">Mobile field workforce &amp; crews</p>
+                </div>
+              </div>
+
+              <!-- 4. Service Requests -->
+              <div class="fx-ecosystem-card" data-card-index="3" tabindex="0" role="button" aria-label="Service Requests: Client & sensor intake channel">
+                <div class="fx-ecosystem-icon-box" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path>
+                    <path d="M14 2v4a2 2 0 0 0 2 2h4"></path>
+                    <path d="M10 9H8"></path>
+                    <path d="M16 13H8"></path>
+                    <path d="M16 17H8"></path>
+                  </svg>
+                </div>
+                <div class="fx-ecosystem-card-body">
+                  <h3 class="fx-ecosystem-card-title">Service Requests</h3>
+                  <p class="fx-ecosystem-card-desc">Client &amp; sensor intake channel</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" class="fx-carousel-nav-btn fx-nav-next" aria-label="Scroll row right" data-row="1" tabindex="0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m9 18 6-6-6-6"></path>
+            </svg>
+          </button>
         </div>
-        <div class="fx-ecosystem-card-body">
-          <h3 class="fx-ecosystem-card-title">Organizations</h3>
-          <p class="fx-ecosystem-card-desc">Multi-site enterprise hierarchy</p>
+
+        <!-- Pagination Indicator Dots for Row 1 -->
+        <div class="fx-carousel-dots" data-dots-row="1">
+          <button type="button" class="fx-dot" data-index="0" aria-label="Organizations"></button>
+          <button type="button" class="fx-dot is-active" data-index="1" aria-label="Assets"></button>
+          <button type="button" class="fx-dot" data-index="2" aria-label="Technicians"></button>
+          <button type="button" class="fx-dot" data-index="3" aria-label="Service Requests"></button>
         </div>
       </div>
 
-      <!-- 2. Assets -->
-      <div class="fx-ecosystem-card">
-        <div class="fx-ecosystem-icon-box" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l6 3.43a2 2 0 0 0 2.06 0l6-3.43a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L12 9.5l-5.03 2.87z"></path>
-            <path d="m12 19.5 5-2.86V10.2l-5-2.86-5 2.86v6.44l5 2.86z"></path>
-            <path d="m12 13.5 5-2.86"></path>
-            <path d="m12 13.5-5-2.86"></path>
-            <path d="M12 13.5v6"></path>
-            <path d="m7 7.5 5-2.86 5 2.86"></path>
-            <path d="M12 4.64V2"></path>
-          </svg>
+      <!-- ROW 2: Auto-scrolls Right -->
+      <div class="fx-ecosystem-row-wrapper" data-fx-row="2" data-direction="right">
+        <!-- Carousel Viewport & Nav Arrows -->
+        <div class="fx-carousel-viewport-wrapper">
+          <button type="button" class="fx-carousel-nav-btn fx-nav-prev" aria-label="Scroll row left" data-row="2" tabindex="0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m15 18-6-6 6-6"></path>
+            </svg>
+          </button>
+
+          <div class="fx-carousel-track-container" data-carousel-container="2">
+            <div class="fx-carousel-track" data-carousel-track="2">
+              <!-- 5. Inventory -->
+              <div class="fx-ecosystem-card" data-card-index="0" tabindex="0" role="button" aria-label="Inventory: Warehouses & van stock ledger">
+                <div class="fx-ecosystem-icon-box" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path>
+                    <path d="m3.3 7 8.7 5 8.7-5"></path>
+                    <path d="M12 12v10"></path>
+                  </svg>
+                </div>
+                <div class="fx-ecosystem-card-body">
+                  <h3 class="fx-ecosystem-card-title">Inventory</h3>
+                  <p class="fx-ecosystem-card-desc">Warehouses &amp; van stock ledger</p>
+                </div>
+              </div>
+
+              <!-- 6. Analytics -->
+              <div class="fx-ecosystem-card" data-card-index="1" tabindex="0" role="button" aria-label="Analytics: Operational MTTR & SLA reports">
+                <div class="fx-ecosystem-icon-box" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 3v18h18"></path>
+                    <path d="M18 17V9"></path>
+                    <path d="M13 17V5"></path>
+                    <path d="M8 17v-3"></path>
+                  </svg>
+                </div>
+                <div class="fx-ecosystem-card-body">
+                  <h3 class="fx-ecosystem-card-title">Analytics</h3>
+                  <p class="fx-ecosystem-card-desc">Operational MTTR &amp; SLA reports</p>
+                </div>
+              </div>
+
+              <!-- 7. Audit Trail (Active by default) -->
+              <div class="fx-ecosystem-card is-selected" data-card-index="2" tabindex="0" role="button" aria-label="Audit Trail: Structured operational history">
+                <div class="fx-ecosystem-icon-box" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path>
+                    <path d="m9 12 2 2 4-4"></path>
+                  </svg>
+                </div>
+                <div class="fx-ecosystem-card-body">
+                  <h3 class="fx-ecosystem-card-title">Audit Trail</h3>
+                  <p class="fx-ecosystem-card-desc">Structured operational history</p>
+                </div>
+              </div>
+
+              <!-- 8. Work Orders -->
+              <div class="fx-ecosystem-card" data-card-index="3" tabindex="0" role="button" aria-label="Work Orders: Structured dispatch & execution">
+                <div class="fx-ecosystem-icon-box" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect>
+                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                    <path d="M12 11h4"></path>
+                    <path d="M12 16h4"></path>
+                    <path d="M8 11h.01"></path>
+                    <path d="M8 16h.01"></path>
+                  </svg>
+                </div>
+                <div class="fx-ecosystem-card-body">
+                  <h3 class="fx-ecosystem-card-title">Work Orders</h3>
+                  <p class="fx-ecosystem-card-desc">Structured dispatch &amp; execution</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" class="fx-carousel-nav-btn fx-nav-next" aria-label="Scroll row right" data-row="2" tabindex="0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m9 18 6-6-6-6"></path>
+            </svg>
+          </button>
         </div>
-        <div class="fx-ecosystem-card-body">
-          <h3 class="fx-ecosystem-card-title">Assets</h3>
-          <p class="fx-ecosystem-card-desc">Critical machinery &amp; components</p>
+
+        <!-- Pagination Indicator Dots for Row 2 -->
+        <div class="fx-carousel-dots" data-dots-row="2">
+          <button type="button" class="fx-dot" data-index="0" aria-label="Inventory"></button>
+          <button type="button" class="fx-dot" data-index="1" aria-label="Analytics"></button>
+          <button type="button" class="fx-dot is-active" data-index="2" aria-label="Audit Trail"></button>
+          <button type="button" class="fx-dot" data-index="3" aria-label="Work Orders"></button>
         </div>
       </div>
 
-      <!-- 3. Technicians -->
-      <div class="fx-ecosystem-card">
-        <div class="fx-ecosystem-icon-box" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-          </svg>
-        </div>
-        <div class="fx-ecosystem-card-body">
-          <h3 class="fx-ecosystem-card-title">Technicians</h3>
-          <p class="fx-ecosystem-card-desc">Mobile field workforce &amp; crews</p>
-        </div>
-      </div>
-
-      <!-- 4. Service Requests -->
-      <div class="fx-ecosystem-card">
-        <div class="fx-ecosystem-icon-box" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path>
-            <path d="M14 2v4a2 2 0 0 0 2 2h4"></path>
-            <path d="M10 9H8"></path>
-            <path d="M16 13H8"></path>
-            <path d="M16 17H8"></path>
-          </svg>
-        </div>
-        <div class="fx-ecosystem-card-body">
-          <h3 class="fx-ecosystem-card-title">Service Requests</h3>
-          <p class="fx-ecosystem-card-desc">Client &amp; sensor intake channel</p>
-        </div>
-      </div>
-
-      <!-- 5. Work Orders -->
-      <div class="fx-ecosystem-card">
-        <div class="fx-ecosystem-icon-box" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect>
-            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-            <path d="M12 11h4"></path>
-            <path d="M12 16h4"></path>
-            <path d="M8 11h.01"></path>
-            <path d="M8 16h.01"></path>
-          </svg>
-        </div>
-        <div class="fx-ecosystem-card-body">
-          <h3 class="fx-ecosystem-card-title">Work Orders</h3>
-          <p class="fx-ecosystem-card-desc">Structured dispatch &amp; execution</p>
-        </div>
-      </div>
-
-      <!-- 6. Inventory -->
-      <div class="fx-ecosystem-card">
-        <div class="fx-ecosystem-icon-box" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path>
-            <path d="m3.3 7 8.7 5 8.7-5"></path>
-            <path d="M12 12v10"></path>
-          </svg>
-        </div>
-        <div class="fx-ecosystem-card-body">
-          <h3 class="fx-ecosystem-card-title">Inventory</h3>
-          <p class="fx-ecosystem-card-desc">Warehouses &amp; van stock ledger</p>
-        </div>
-      </div>
-
-      <!-- 7. Analytics -->
-      <div class="fx-ecosystem-card">
-        <div class="fx-ecosystem-icon-box" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 3v18h18"></path>
-            <path d="M18 17V9"></path>
-            <path d="M13 17V5"></path>
-            <path d="M8 17v-3"></path>
-          </svg>
-        </div>
-        <div class="fx-ecosystem-card-body">
-          <h3 class="fx-ecosystem-card-title">Analytics</h3>
-          <p class="fx-ecosystem-card-desc">Operational MTTR &amp; SLA reports</p>
-        </div>
-      </div>
-
-      <!-- 8. Audit Trail -->
-      <div class="fx-ecosystem-card">
-        <div class="fx-ecosystem-icon-box" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path>
-            <path d="m9 12 2 2 4-4"></path>
-          </svg>
-        </div>
-        <div class="fx-ecosystem-card-body">
-          <h3 class="fx-ecosystem-card-title">Audit Trail</h3>
-          <p class="fx-ecosystem-card-desc">Structured operational history</p>
-        </div>
-      </div>
     </div>
   </div>
 </section>
