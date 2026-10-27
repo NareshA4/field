@@ -6,7 +6,7 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   // =========================================================================
-  // 1. Top Edge Gold Scroll Signal & NexusScrollFlow Telemetry
+  // 1. Top Edge Gold Scroll Signal & NexusScrollFlow Telemetry 
   // =========================================================================
   const navScrollSignal = document.getElementById('nexus-nav-scroll-signal');
   const railLine = document.getElementById('nexus-rail-line');
@@ -324,4 +324,49 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
+
+  // =========================================================================
+  // 9. About Page: Five Core Principles Interactive Feature Cards
+  // =========================================================================
+  const principleCards = document.querySelectorAll('.fx-principle-card');
+  if (principleCards.length > 0) {
+    principleCards.forEach((card) => {
+      // Remove is-pulsing after animation ends so it doesn't clash with hover/selected styles
+      card.addEventListener('animationend', (e) => {
+        if (e.animationName === 'fx-card-gold-pulse') {
+          card.classList.remove('is-pulsing');
+        }
+      });
+
+      const activateCard = (e) => {
+        if (e && e.type === 'keydown') {
+          e.preventDefault();
+        }
+
+        // Unset other cards
+        principleCards.forEach((other) => {
+          if (other !== card) {
+            other.classList.remove('is-selected', 'is-pulsing');
+            other.setAttribute('aria-pressed', 'false');
+          }
+        });
+
+        // Set selected state
+        card.classList.add('is-selected');
+        card.setAttribute('aria-pressed', 'true');
+
+        // Replay click pulse animation cleanly
+        card.classList.remove('is-pulsing');
+        void card.offsetWidth; // Force reflow
+        card.classList.add('is-pulsing');
+      };
+
+      card.addEventListener('click', activateCard);
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          activateCard(e);
+        }
+      });
+    });
+  }
 });
