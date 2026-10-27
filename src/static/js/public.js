@@ -369,4 +369,35 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   }
+
+  // =========================================================================
+  // 10. About Page: Hero Image Interaction (Click Zoom Animation)
+  // =========================================================================
+  const aboutHeroCard = document.querySelector('.fx-about-hero-card');
+  const aboutHeroImg = document.querySelector('.fx-about-hero-img');
+
+  if (aboutHeroCard && aboutHeroImg) {
+    const triggerHeroZoomPulse = () => {
+      // Re-trigger animation cleanly
+      aboutHeroImg.classList.remove('is-clicked');
+      void aboutHeroImg.offsetWidth; // Force DOM reflow to restart CSS animation
+      aboutHeroImg.classList.add('is-clicked');
+    };
+
+    aboutHeroCard.addEventListener('click', triggerHeroZoomPulse);
+
+    aboutHeroCard.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        triggerHeroZoomPulse();
+      }
+    });
+
+    aboutHeroImg.addEventListener('animationend', (e) => {
+      if (e.animationName && e.animationName.indexOf('fx-hero-img-click') !== -1) {
+        aboutHeroImg.classList.remove('is-clicked');
+      }
+    });
+  }
 });
+

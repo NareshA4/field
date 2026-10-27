@@ -2129,4 +2129,99 @@ body.fx-public-site {
   }
 }
 
+/* ==========================================================================
+   About Page: Right-Side Hero Visual Interactive Zoom & Click
+   ========================================================================== */
+.fx-about-hero-card {
+  position: relative;
+  border-radius: 1rem;
+  overflow: hidden; /* Strict containment: prevents image from bleeding outside */
+  background: #0B1F3A;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 400ms ease-in-out, box-shadow 400ms ease-in-out;
+}
+
+.fx-about-hero-card:hover {
+  border-color: rgba(245, 196, 81, 0.45) !important;
+  box-shadow: 0 16px 36px rgba(7, 20, 38, 0.5), 0 0 24px rgba(245, 196, 81, 0.12) !important;
+}
+
+.fx-about-hero-card:focus-visible {
+  outline: 2px solid #F5C451;
+  outline-offset: 3px;
+  border-color: #F5C451 !important;
+}
+
+.fx-about-hero-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  min-height: 440px;
+  transform: scale(1);
+  transform-origin: center center;
+  transition: transform 400ms ease-in-out;
+  will-change: transform;
+}
+
+/* Hover: smoothly zoom the image in slightly using transform: scale(1.03) */
+.fx-about-hero-card:hover .fx-about-hero-img,
+.fx-about-hero-card:focus-visible .fx-about-hero-img,
+.fx-about-hero-img:hover {
+  transform: scale(1.03);
+}
+
+/* Click animation: gentle temporary zoom-in and zoom-out */
+@keyframes fx-hero-img-click-hover {
+  0% {
+    transform: scale(1.03);
+  }
+  45% {
+    transform: scale(1.065);
+  }
+  100% {
+    transform: scale(1.03);
+  }
+}
+
+@keyframes fx-hero-img-click-base {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.fx-about-hero-img.is-clicked {
+  animation: fx-hero-img-click-base 420ms ease-in-out both;
+}
+
+.fx-about-hero-card:hover .fx-about-hero-img.is-clicked,
+.fx-about-hero-card:focus-visible .fx-about-hero-img.is-clicked {
+  animation: fx-hero-img-click-hover 420ms ease-in-out both;
+}
+
+/* Accessibility: Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .fx-about-hero-img,
+  .fx-about-hero-card:hover .fx-about-hero-img,
+  .fx-about-hero-card:focus-visible .fx-about-hero-img,
+  .fx-about-hero-img:hover {
+    transform: none !important;
+    transition: none !important;
+  }
+  .fx-about-hero-img.is-clicked {
+    animation: none !important;
+  }
+  .fx-about-hero-card {
+    transition: none !important;
+  }
+}
+
+
 
