@@ -1833,16 +1833,17 @@ body.fx-public-site {
    Ecosystem Architecture Section (About Page)
    ========================================================================== */
 .fx-ecosystem-section {
-  padding: 4.5rem 0 5rem 0;
+  padding: 4.5rem 0 5.5rem 0;
   background-color: #F8FAFC;
   border-top: 1px solid #E2E8F0;
   position: relative;
+  overflow: hidden;
 }
 
 .fx-ecosystem-container {
-  max-width: 1360px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 0 1.5rem;
 }
 
 .fx-ecosystem-eyebrow {
@@ -1873,66 +1874,156 @@ body.fx-public-site {
   max-width: 680px;
 }
 
-.fx-ecosystem-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1.15rem;
-  margin-top: 2.75rem;
+/* ── Carousel Wrapper & Rows ────────────────────────────────────────────── */
+.fx-ecosystem-carousel-wrap {
+  margin-top: 2.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
 
-@media (max-width: 1080px) {
-  .fx-ecosystem-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.15rem;
-  }
+.fx-ecosystem-row-wrapper {
+  position: relative;
+  width: 100%;
 }
 
-@media (max-width: 640px) {
-  .fx-ecosystem-grid {
-    grid-template-columns: 1fr;
-    gap: 0.85rem;
-    margin-top: 2rem;
-  }
-  .fx-ecosystem-container {
-    padding: 0 1.25rem;
-  }
+/* ── Viewport & Navigation Buttons ──────────────────────────────────────── */
+.fx-carousel-viewport-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
 }
 
+.fx-carousel-track-container {
+  overflow: hidden;
+  flex: 1 1 auto;
+  position: relative;
+  padding: 12px 4px;
+  mask-image: linear-gradient(to right, transparent 0, #000 2.5%, #000 97.5%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 2.5%, #000 97.5%, transparent 100%);
+}
+
+.fx-carousel-track {
+  display: flex;
+  gap: 1.25rem;
+  width: max-content;
+  will-change: transform;
+}
+
+.fx-carousel-nav-btn {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 50%;
+  background-color: #0B1F3B;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(11, 31, 59, 0.18);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 5;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.fx-carousel-nav-btn:hover {
+  background-color: #162A4B;
+  border-color: #F5C451;
+  color: #F5C451;
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(11, 31, 59, 0.25), 0 0 10px rgba(245, 196, 81, 0.25);
+}
+
+.fx-carousel-nav-btn:focus-visible {
+  outline: 2px solid #F5C451;
+  outline-offset: 3px;
+}
+
+/* ── Ecosystem Cards (Normal, Hover, Selected) ──────────────────────────── */
 .fx-ecosystem-card {
+  flex: 0 0 295px;
+  min-width: 295px;
+  max-width: 295px;
   background-color: #FFFFFF;
   border: 1px solid #E2E8F0;
-  border-radius: 14px;
-  padding: 1.1rem 1.25rem;
-  min-height: 84px;
+  border-radius: 16px;
+  padding: 1.15rem 1.25rem;
+  min-height: 86px;
   display: flex;
   align-items: center;
   gap: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 3px 10px rgba(11, 31, 59, 0.02);
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 2px 8px rgba(11, 31, 59, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  transition: transform 350ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 350ms ease,
+              border-color 350ms ease,
+              background-color 350ms ease;
 }
 
 .fx-ecosystem-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(11, 31, 59, 0.07);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(11, 31, 59, 0.09), 0 2px 8px rgba(11, 31, 59, 0.04);
   border-color: #CBD5E1;
+}
+
+.fx-ecosystem-card:focus-visible {
+  outline: 2px solid #F5C451;
+  outline-offset: 2px;
+}
+
+/* Highlighted / Active Card (Deep Navy + Gold) */
+.fx-ecosystem-card.is-selected {
+  background: linear-gradient(145deg, #0B1F3B, #162A4B) !important;
+  border: 1.5px solid #F5C451 !important;
+  box-shadow: 0 0 0 1px rgba(245, 196, 81, 0.5),
+              0 12px 32px rgba(245, 196, 81, 0.28),
+              0 4px 14px rgba(11, 31, 59, 0.18) !important;
+  transform: translateY(-2px);
+}
+
+.fx-ecosystem-card.is-selected:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0 0 1.5px rgba(245, 196, 81, 0.7),
+              0 16px 38px rgba(245, 196, 81, 0.35),
+              0 6px 18px rgba(11, 31, 59, 0.22) !important;
 }
 
 .fx-ecosystem-icon-box {
   width: 44px;
   height: 44px;
   min-width: 44px;
-  border-radius: 10px;
+  border-radius: 11px;
   background-color: #0B1F3B;
   color: #F5C451;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: all 350ms ease;
+  border: 1px solid rgba(245, 196, 81, 0.2);
 }
 
 .fx-ecosystem-icon-box svg {
   display: block;
   stroke: #F5C451;
+  transition: transform 300ms ease;
+}
+
+.fx-ecosystem-card:hover .fx-ecosystem-icon-box svg {
+  transform: scale(1.08);
+}
+
+.fx-ecosystem-card.is-selected .fx-ecosystem-icon-box {
+  background-color: rgba(245, 196, 81, 0.14);
+  border: 1.5px solid #F5C451;
+  box-shadow: 0 0 12px rgba(245, 196, 81, 0.28);
 }
 
 .fx-ecosystem-card-body {
@@ -1948,6 +2039,11 @@ body.fx-public-site {
   color: #0B1F3B;
   margin: 0 0 0.2rem 0;
   line-height: 1.2;
+  transition: color 350ms ease;
+}
+
+.fx-ecosystem-card.is-selected .fx-ecosystem-card-title {
+  color: #FFFFFF !important;
 }
 
 .fx-ecosystem-card-desc {
@@ -1957,15 +2053,71 @@ body.fx-public-site {
   line-height: 1.35;
   font-weight: 400;
   white-space: nowrap;
+  transition: color 350ms ease;
 }
 
-@media (max-width: 1200px) and (min-width: 1081px) {
-  .fx-ecosystem-card {
-    padding: 1rem 0.85rem;
-    gap: 0.75rem;
+.fx-ecosystem-card.is-selected .fx-ecosystem-card-desc {
+  color: #CBD5E1 !important;
+}
+
+/* ── Pagination Indicator Dots ──────────────────────────────────────────── */
+.fx-carousel-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  margin-top: 1.35rem;
+}
+
+.fx-dot {
+  width: 20px;
+  height: 5px;
+  border-radius: 3px;
+  background-color: #CBD5E1;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+}
+
+.fx-dot:hover {
+  background-color: #94A3B8;
+}
+
+.fx-dot:focus-visible {
+  outline: 2px solid #F5C451;
+  outline-offset: 2px;
+}
+
+.fx-dot.is-active {
+  width: 34px;
+  background-color: #F5C451;
+  box-shadow: 0 0 10px rgba(245, 196, 81, 0.45);
+}
+
+/* ── Responsive & Accessibility ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .fx-carousel-nav-btn {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
   }
-  .fx-ecosystem-card-desc {
-    font-size: 0.75rem;
+  .fx-ecosystem-card {
+    flex: 0 0 260px;
+    min-width: 260px;
+    max-width: 260px;
+    padding: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-carousel-track {
+    transition: none !important;
+  }
+  .fx-ecosystem-card {
+    transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s !important;
+    transform: none !important;
   }
 }
 
